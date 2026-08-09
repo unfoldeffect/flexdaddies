@@ -1,7 +1,8 @@
 {
   "og_title": "Flex Daddies",
   "og_description": "Shared workout log for Diego and Kevin: log lifts, track history, and chase personal records together.",
-  "og_image_url": "/assets/flexdaddies-logo.png",
-  "favicon_url": "/assets/flexdaddies-logo.png",
-  "og_video_url": null
+  "og_image_url": "https://flexdaddies-log.higgsfield.app/assets/flexdaddies-logo.png",
+  "favicon_url": "https://flexdaddies-log.higgsfield.app/assets/flexdaddies-logo.png",
+  "og_video_url": null,
+  "marketplace_cover_url": null
 }

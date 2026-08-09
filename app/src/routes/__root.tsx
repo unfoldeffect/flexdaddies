@@ -8,8 +8,6 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { useEffect, type ReactNode } from "react";
-import { button } from "@higgsfield/quanta/button";
-import { NotFound } from "@higgsfield/quanta/not-found";
 
 import appCss from "../styles.css?url";
 import { reportHiggsfieldError } from "../lib/higgsfield-error-reporting";
@@ -102,17 +100,18 @@ function buildHead(meta: AppMeta) {
 
 function NotFoundComponent() {
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-q-background-primary px-4">
-      <NotFound
-        className="mx-auto max-w-md"
-        icon={<span className="text-q-title-md-semi-bold text-q-text-primary">404</span>}
-        title="Page not found"
-        subtitle="The page you're looking for doesn't exist or has been moved."
+    <div className="flex min-h-dvh flex-col items-center justify-center gap-3 bg-white px-4 text-center">
+      <span className="font-oswald text-3xl font-bold text-[#0b2545]">404</span>
+      <h1 className="font-oswald text-xl font-semibold text-[#0b2545]">Page not found</h1>
+      <p className="max-w-sm text-[#5b5d52]">
+        The page you're looking for doesn't exist or has been moved.
+      </p>
+      <Link
+        to="/"
+        className="mt-2 rounded-full bg-[#c9a227] px-6 py-3 font-oswald font-bold text-[#0b2545]"
       >
-        <Link to="/" className={button({ variant: "primary", size: "md" }, "mt-3")}>
-          Go home
-        </Link>
-      </NotFound>
+        Go home
+      </Link>
     </div>
   );
 }
@@ -125,10 +124,12 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   }, [error]);
 
   return (
-    <div className="flex min-h-dvh items-center justify-center bg-q-background-primary px-4">
+    <div className="flex min-h-dvh items-center justify-center bg-white px-4">
       <div className="max-w-md text-center">
-        <h1 className="text-q-title-lg-semi-bold text-q-text-primary">This page didn't load</h1>
-        <p className="mt-2 text-q-body-sm-regular text-q-text-secondary">
+        <h1 className="font-oswald text-xl font-semibold text-[#0b2545]">
+          This page didn't load
+        </h1>
+        <p className="mt-2 text-[#5b5d52]">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
         <div className="mt-4 flex flex-wrap justify-center gap-2">
@@ -137,11 +138,14 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
               router.invalidate();
               reset();
             }}
-            className={button({ variant: "primary", size: "md" })}
+            className="rounded-full bg-[#c9a227] px-6 py-3 font-oswald font-bold text-[#0b2545]"
           >
             Try again
           </button>
-          <a href="/" className={button({ variant: "outline", size: "md" })}>
+          <a
+            href="/"
+            className="rounded-full border-2 border-[#0b2545] px-6 py-3 font-oswald font-bold text-[#0b2545]"
+          >
             Go home
           </a>
         </div>
@@ -161,14 +165,11 @@ export const Route = createRootRouteWithContext<{ queryClient: QueryClient }>()(
 
 function RootShell({ children }: { children: ReactNode }) {
   return (
-    <html lang="en" data-theme="default-dark" style={{ colorScheme: "dark" }}>
-      {/* Marketplace apps are permanently dark: data-theme is pinned on <html>
-          above. Do not add quanta's bootstrapScript/ThemeController, a theme
-          toggle, or a light mode. */}
+    <html lang="en" style={{ colorScheme: "light" }}>
       <head>
         <HeadContent />
       </head>
-      <body className="bg-q-background-primary text-q-text-primary">
+      <body className="bg-white text-[#0b2545]">
         {children}
         <Scripts />
       </body>

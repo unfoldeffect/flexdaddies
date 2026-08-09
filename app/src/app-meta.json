@@ -1,7 +1,7 @@
 {
-  "og_title": null,
-  "og_description": null,
-  "og_image_url": null,
-  "favicon_url": null,
+  "og_title": "Flex Daddies",
+  "og_description": "Shared workout log for Diego and Kevin: log lifts, track history, and chase personal records together.",
+  "og_image_url": "/assets/flexdaddies-logo.png",
+  "favicon_url": "/assets/flexdaddies-logo.png",
   "og_video_url": null
 }

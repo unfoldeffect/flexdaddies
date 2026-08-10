@@ -158,6 +158,52 @@ export const EXERCISE_GROUPS: ExerciseGroup[] = [
 export const EXERCISE_TO_CATEGORY: Record<string, { label: string; color: string }> = {};
 EXERCISE_GROUPS.forEach((g) => g.options.forEach((o) => (EXERCISE_TO_CATEGORY[o] = g)));
 export const OTHER_CATEGORY = { label: "Other", color: "#6b7280" };
+export const CARDIO_LABEL = "Cardio";
+export const CATEGORY_LABELS = EXERCISE_GROUPS.map((g) => g.label);
+export const CATEGORY_COLORS: Record<string, string> = {
+  ...Object.fromEntries(EXERCISE_GROUPS.map((g) => [g.label, g.color])),
+  [OTHER_CATEGORY.label]: OTHER_CATEGORY.color,
+};
+
+export type CategoryInfo = { label: string; color: string };
+export type MergedExerciseData = {
+  groups: ExerciseGroup[];
+  toCategory: Record<string, CategoryInfo>;
+};
+
+// Combines the built-in exercise list with exercises typed in via "Other"
+// and remembered server-side, so they show up as normal dropdown options
+// from then on. Custom exercises are grouped under their chosen category,
+// or under a trailing "Other" group when no category was picked.
+export function mergeExerciseGroups(
+  custom: { name: string; category: string }[],
+): MergedExerciseData {
+  const groups: ExerciseGroup[] = EXERCISE_GROUPS.map((g) => ({ ...g, options: [...g.options] }));
+  const toCategory: Record<string, CategoryInfo> = { ...EXERCISE_TO_CATEGORY };
+  const knownLower = new Set(Object.keys(toCategory).map((n) => n.toLowerCase()));
+
+  let otherGroup: ExerciseGroup | undefined;
+
+  for (const { name, category } of custom) {
+    if (!name || knownLower.has(name.toLowerCase())) continue;
+    const match = groups.find((g) => g.label.toLowerCase() === category.toLowerCase());
+    if (match) {
+      match.options.push(name);
+      toCategory[name] = { label: match.label, color: match.color };
+    } else {
+      if (!otherGroup) {
+        otherGroup = { label: OTHER_CATEGORY.label, color: OTHER_CATEGORY.color, options: [] };
+      }
+      otherGroup.options.push(name);
+      toCategory[name] = OTHER_CATEGORY;
+    }
+    knownLower.add(name.toLowerCase());
+  }
+
+  if (otherGroup) groups.push(otherGroup);
+
+  return { groups, toCategory };
+}
 
 export function hexToRgba(hex: string, alpha: number) {
   const h = hex.replace("#", "");

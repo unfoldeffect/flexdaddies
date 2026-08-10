@@ -15,6 +15,11 @@ import {
   XIcon,
 } from "../components/icons";
 import {
+  addCustomExercise,
+  listCustomExercises,
+  type CustomExercise,
+} from "../lib/api/custom-exercises.functions";
+import {
   createWeighIn,
   deleteWeighIn,
   listWeighIns,
@@ -28,8 +33,9 @@ import {
   type Workout,
 } from "../lib/api/workouts.functions";
 import {
-  EXERCISE_GROUPS,
-  EXERCISE_TO_CATEGORY,
+  CARDIO_LABEL,
+  CATEGORY_COLORS,
+  CATEGORY_LABELS,
   NUM_SETS,
   OTHER_CATEGORY,
   OTHER_VALUE,
@@ -37,8 +43,11 @@ import {
   USER_COLORS,
   formatDate,
   hexToRgba,
+  mergeExerciseGroups,
   todayISO,
   uid,
+  type CategoryInfo,
+  type ExerciseGroup,
   type WorkoutUser,
 } from "../lib/workout-data";
 
@@ -46,19 +55,47 @@ export const Route = createFileRoute("/")({
   loader: async () => ({
     workouts: await listWorkouts(),
     weighIns: await listWeighIns(),
+    customExercises: await listCustomExercises(),
   }),
   component: Index,
 });
 
-type DraftSet = { id: string; reps: string; weight: string };
-type DraftExercise = { id: string; name: string; customName: string; sets: DraftSet[] };
+type DraftSet = { id: string; reps: string; weight: string; time: string; intensity: string };
+type DraftExercise = {
+  id: string;
+  name: string;
+  customName: string;
+  customCategory: string;
+  sets: DraftSet[];
+};
 
 function makeSets(): DraftSet[] {
-  return Array.from({ length: NUM_SETS }, () => ({ id: uid(), reps: "", weight: "" }));
+  return Array.from({ length: NUM_SETS }, () => ({
+    id: uid(),
+    reps: "",
+    weight: "",
+    time: "",
+    intensity: "",
+  }));
 }
 
 function emptyExercise(): DraftExercise {
-  return { id: uid(), name: "", customName: "", sets: makeSets() };
+  return { id: uid(), name: "", customName: "", customCategory: "", sets: makeSets() };
+}
+
+function resolveCategory(
+  ex: DraftExercise,
+  toCategory: Record<string, CategoryInfo>,
+): CategoryInfo | null {
+  if (!ex.name) return null;
+  if (ex.name === OTHER_VALUE) {
+    if (!ex.customCategory) return OTHER_CATEGORY;
+    return {
+      label: ex.customCategory,
+      color: CATEGORY_COLORS[ex.customCategory] ?? OTHER_CATEGORY.color,
+    };
+  }
+  return toCategory[ex.name] || OTHER_CATEGORY;
 }
 
 function Plate({ size = 28, label, color }: { size?: number; label: string; color?: string }) {
@@ -100,13 +137,21 @@ function ExerciseEditor({
   onChange,
   onRemove,
   showRemove,
+  groups,
+  toCategory,
 }: {
   exercise: DraftExercise;
   onChange: (updated: DraftExercise) => void;
   onRemove: () => void;
   showRemove: boolean;
+  groups: ExerciseGroup[];
+  toCategory: Record<string, CategoryInfo>;
 }) {
-  const updateSet = (setId: string, field: "reps" | "weight", value: string) => {
+  const updateSet = (
+    setId: string,
+    field: "reps" | "weight" | "time" | "intensity",
+    value: string,
+  ) => {
     onChange({
       ...exercise,
       sets: exercise.sets.map((s) => (s.id === setId ? { ...s, [field]: value } : s)),
@@ -114,12 +159,9 @@ function ExerciseEditor({
   };
 
   const isOther = exercise.name === OTHER_VALUE;
-  const category = exercise.name
-    ? isOther
-      ? OTHER_CATEGORY
-      : EXERCISE_TO_CATEGORY[exercise.name] || OTHER_CATEGORY
-    : null;
+  const category = resolveCategory(exercise, toCategory);
   const accent = category ? category.color : "#dbe0d6";
+  const isCardio = category?.label === CARDIO_LABEL;
 
   return (
     <div className="exercise-card" style={{ borderColor: category ? accent : undefined }}>
@@ -143,7 +185,7 @@ function ExerciseEditor({
             <option value="" disabled>
               Choose an exercise
             </option>
-            {EXERCISE_GROUPS.map((g) => (
+            {groups.map((g) => (
               <optgroup label={g.label} key={g.label}>
                 {g.options.map((opt) => (
                   <option value={opt} key={opt}>
@@ -155,13 +197,27 @@ function ExerciseEditor({
             <option value={OTHER_VALUE}>Other (type your own)</option>
           </select>
           {isOther && (
-            <input
-              className="exercise-custom-input"
-              type="text"
-              placeholder="Type exercise name"
-              value={exercise.customName}
-              onChange={(e) => onChange({ ...exercise, customName: e.target.value })}
-            />
+            <>
+              <input
+                className="exercise-custom-input"
+                type="text"
+                placeholder="Type exercise name"
+                value={exercise.customName}
+                onChange={(e) => onChange({ ...exercise, customName: e.target.value })}
+              />
+              <select
+                className="exercise-custom-input exercise-category-select"
+                value={exercise.customCategory}
+                onChange={(e) => onChange({ ...exercise, customCategory: e.target.value })}
+              >
+                <option value="">Category: Other</option>
+                {CATEGORY_LABELS.map((label) => (
+                  <option value={label} key={label}>
+                    Category: {label}
+                  </option>
+                ))}
+              </select>
+            </>
           )}
         </div>
         {showRemove && (
@@ -174,30 +230,63 @@ function ExerciseEditor({
       <div className="set-rows">
         <div className="set-row set-row--header">
           <span>SET</span>
-          <span>REPS</span>
-          <span>WEIGHT (LBS)</span>
+          {isCardio ? (
+            <>
+              <span>TIME (MIN)</span>
+              <span>INTENSITY (1-10)</span>
+            </>
+          ) : (
+            <>
+              <span>REPS</span>
+              <span>WEIGHT (LBS)</span>
+            </>
+          )}
         </div>
         {exercise.sets.map((s, i) => (
           <div className="set-row" key={s.id}>
             <span className="set-index" style={{ background: accent }}>
               {i + 1}
             </span>
-            <input
-              type="number"
-              inputMode="numeric"
-              min="0"
-              placeholder="0"
-              value={s.reps}
-              onChange={(e) => updateSet(s.id, "reps", e.target.value)}
-            />
-            <input
-              type="number"
-              inputMode="numeric"
-              min="0"
-              placeholder="0"
-              value={s.weight}
-              onChange={(e) => updateSet(s.id, "weight", e.target.value)}
-            />
+            {isCardio ? (
+              <>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  placeholder="0"
+                  value={s.time}
+                  onChange={(e) => updateSet(s.id, "time", e.target.value)}
+                />
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  max="10"
+                  placeholder="0"
+                  value={s.intensity}
+                  onChange={(e) => updateSet(s.id, "intensity", e.target.value)}
+                />
+              </>
+            ) : (
+              <>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  placeholder="0"
+                  value={s.reps}
+                  onChange={(e) => updateSet(s.id, "reps", e.target.value)}
+                />
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  placeholder="0"
+                  value={s.weight}
+                  onChange={(e) => updateSet(s.id, "weight", e.target.value)}
+                />
+              </>
+            )}
           </div>
         ))}
       </div>
@@ -205,20 +294,30 @@ function ExerciseEditor({
   );
 }
 
-function workoutExercisesToDraft(exercises: Workout["exercises"]): DraftExercise[] {
+function workoutExercisesToDraft(
+  exercises: Workout["exercises"],
+  toCategory: Record<string, CategoryInfo>,
+): DraftExercise[] {
   if (!exercises.length) return [emptyExercise()];
   return exercises.map((ex) => {
-    const known = !!EXERCISE_TO_CATEGORY[ex.name];
+    const cat = toCategory[ex.name];
+    const known = !!cat;
+    const isCardio =
+      cat?.label === CARDIO_LABEL || (!known && ex.sets.some((s) => s.time || s.intensity));
     const sets: DraftSet[] = ex.sets.map((s) => ({
       id: uid(),
-      reps: String(s.reps),
-      weight: String(s.weight),
+      reps: isCardio ? "" : String(s.reps),
+      weight: isCardio ? "" : String(s.weight),
+      time: isCardio ? String(s.time) : "",
+      intensity: isCardio ? String(s.intensity) : "",
     }));
-    while (sets.length < NUM_SETS) sets.push({ id: uid(), reps: "", weight: "" });
+    while (sets.length < NUM_SETS)
+      sets.push({ id: uid(), reps: "", weight: "", time: "", intensity: "" });
     return {
       id: uid(),
       name: known ? ex.name : OTHER_VALUE,
       customName: known ? "" : ex.name,
+      customCategory: known ? "" : isCardio ? CARDIO_LABEL : "",
       sets,
     };
   });
@@ -232,6 +331,9 @@ function WorkoutForm({
   savingLabel,
   onSubmit,
   onCancel,
+  onRegisterExercise,
+  groups,
+  toCategory,
   saving,
 }: {
   initialDate: string;
@@ -239,8 +341,15 @@ function WorkoutForm({
   initialNotes: string;
   submitLabel: string;
   savingLabel: string;
-  onSubmit: (data: { date: string; exercises: Workout["exercises"]; notes: string }) => Promise<boolean>;
+  onSubmit: (data: {
+    date: string;
+    exercises: Workout["exercises"];
+    notes: string;
+  }) => Promise<boolean>;
   onCancel?: () => void;
+  onRegisterExercise: (name: string, category: string) => void;
+  groups: ExerciseGroup[];
+  toCategory: Record<string, CategoryInfo>;
   saving: boolean;
 }) {
   const [date, setDate] = useState(initialDate);
@@ -253,26 +362,51 @@ function WorkoutForm({
   const removeExercise = (id: string) => setExercises((prev) => prev.filter((ex) => ex.id !== id));
   const addExercise = () => setExercises((prev) => [...prev, emptyExercise()]);
 
-  const finalName = (ex: DraftExercise) => (ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name);
+  const finalName = (ex: DraftExercise) =>
+    ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name;
 
   const canSave = exercises.some(
-    (ex) => finalName(ex) && ex.sets.some((s) => s.reps || s.weight),
+    (ex) => finalName(ex) && ex.sets.some((s) => s.reps || s.weight || s.time || s.intensity),
   );
 
   const handleSave = async () => {
-    const cleaned = exercises
-      .filter((ex) => finalName(ex))
-      .map((ex) => ({
-        name: finalName(ex),
-        sets: ex.sets
-          .filter((s) => s.reps !== "" || s.weight !== "")
-          .map((s) => ({ reps: Number(s.reps) || 0, weight: Number(s.weight) || 0 })),
-      }))
-      .filter((ex) => ex.sets.length);
+    const cleaned: Workout["exercises"] = [];
+    const toRegister: { name: string; category: string }[] = [];
+
+    for (const ex of exercises) {
+      const name = finalName(ex);
+      if (!name) continue;
+      const isCardio = resolveCategory(ex, toCategory)?.label === CARDIO_LABEL;
+      const sets = isCardio
+        ? ex.sets
+            .filter((s) => s.time !== "" || s.intensity !== "")
+            .map((s) => ({
+              reps: 0,
+              weight: 0,
+              time: Number(s.time) || 0,
+              intensity: Number(s.intensity) || 0,
+            }))
+        : ex.sets
+            .filter((s) => s.reps !== "" || s.weight !== "")
+            .map((s) => ({
+              reps: Number(s.reps) || 0,
+              weight: Number(s.weight) || 0,
+              time: 0,
+              intensity: 0,
+            }));
+      if (!sets.length) continue;
+      cleaned.push({ name, sets });
+      if (ex.name === OTHER_VALUE) {
+        toRegister.push({ name, category: ex.customCategory || OTHER_CATEGORY.label });
+      }
+    }
 
     if (!cleaned.length) return;
 
     const ok = await onSubmit({ date, exercises: cleaned, notes: notes.trim() });
+    if (ok) {
+      toRegister.forEach((r) => onRegisterExercise(r.name, r.category));
+    }
     if (ok && !onCancel) {
       setExercises([emptyExercise()]);
       setNotes("");
@@ -303,6 +437,8 @@ function WorkoutForm({
           onChange={(updated) => updateExercise(ex.id, updated)}
           onRemove={() => removeExercise(ex.id)}
           showRemove={exercises.length > 1}
+          groups={groups}
+          toCategory={toCategory}
         />
       ))}
 
@@ -340,10 +476,16 @@ function WorkoutForm({
 function LogView({
   user,
   onSave,
+  onRegisterExercise,
+  groups,
+  toCategory,
   saving,
 }: {
   user: WorkoutUser;
   onSave: (workout: Workout) => Promise<boolean>;
+  onRegisterExercise: (name: string, category: string) => void;
+  groups: ExerciseGroup[];
+  toCategory: Record<string, CategoryInfo>;
   saving: boolean;
 }) {
   return (
@@ -354,6 +496,9 @@ function LogView({
       submitLabel="LOG WORKOUT"
       savingLabel="SAVING..."
       saving={saving}
+      onRegisterExercise={onRegisterExercise}
+      groups={groups}
+      toCategory={toCategory}
       onSubmit={({ date, exercises, notes }) =>
         onSave({
           id: uid(),
@@ -373,6 +518,9 @@ function HistoryView({
   currentUser,
   onDelete,
   onEdit,
+  onRegisterExercise,
+  groups,
+  toCategory,
   editingId,
   setEditingId,
   savingEdit,
@@ -384,6 +532,9 @@ function HistoryView({
     id: string,
     data: { date: string; exercises: Workout["exercises"]; notes: string },
   ) => Promise<boolean>;
+  onRegisterExercise: (name: string, category: string) => void;
+  groups: ExerciseGroup[];
+  toCategory: Record<string, CategoryInfo>;
   editingId: string | null;
   setEditingId: (id: string | null) => void;
   savingEdit: boolean;
@@ -471,12 +622,15 @@ function HistoryView({
                 <div className="history-detail history-edit-wrap">
                   <WorkoutForm
                     initialDate={w.date}
-                    initialExercises={workoutExercisesToDraft(w.exercises)}
+                    initialExercises={workoutExercisesToDraft(w.exercises, toCategory)}
                     initialNotes={w.notes}
                     submitLabel="SAVE CHANGES"
                     savingLabel="SAVING..."
                     saving={savingEdit}
                     onCancel={() => setEditingId(null)}
+                    onRegisterExercise={onRegisterExercise}
+                    groups={groups}
+                    toCategory={toCategory}
                     onSubmit={async (data) => {
                       const ok = await onEdit(w.id, data);
                       if (ok) setEditingId(null);
@@ -489,7 +643,9 @@ function HistoryView({
               {open && editingId !== w.id && (
                 <div className="history-detail">
                   {w.exercises.map((ex, i) => {
-                    const cat = EXERCISE_TO_CATEGORY[ex.name] || OTHER_CATEGORY;
+                    const cat = toCategory[ex.name] || OTHER_CATEGORY;
+                    const isCardio =
+                      cat.label === CARDIO_LABEL || ex.sets.some((s) => s.time || s.intensity);
                     return (
                       <div className="history-exercise" key={i}>
                         <div className="history-exercise-name">
@@ -499,7 +655,9 @@ function HistoryView({
                         <div className="history-sets">
                           {ex.sets.map((s, j) => (
                             <span className="history-set-pill" key={j}>
-                              {s.reps} reps × {s.weight} lbs
+                              {isCardio
+                                ? `${s.time} min · Intensity ${s.intensity}/10`
+                                : `${s.reps} reps × ${s.weight} lbs`}
                             </span>
                           ))}
                         </div>
@@ -527,7 +685,13 @@ function HistoryView({
   );
 }
 
-function StatsView({ workouts }: { workouts: Workout[] }) {
+function StatsView({
+  workouts,
+  toCategory,
+}: {
+  workouts: Workout[];
+  toCategory: Record<string, CategoryInfo>;
+}) {
   const stats = useMemo(() => {
     const perUser: Record<WorkoutUser, { count: number; volume: number }> = {
       Diego: { count: 0, volume: 0 },
@@ -552,7 +716,13 @@ function StatsView({ workouts }: { workouts: Workout[] }) {
         ex.sets.forEach((s) => {
           if (perUser[w.user]) perUser[w.user].volume += s.reps * s.weight;
           if (!prs[key] || s.weight > prs[key].weight) {
-            prs[key] = { name: ex.name, weight: s.weight, reps: s.reps, user: w.user, date: w.date };
+            prs[key] = {
+              name: ex.name,
+              weight: s.weight,
+              reps: s.reps,
+              user: w.user,
+              date: w.date,
+            };
           }
         });
       });
@@ -608,7 +778,7 @@ function StatsView({ workouts }: { workouts: Workout[] }) {
       <h3 className="section-heading">Personal Records</h3>
       <div className="pr-list">
         {stats.prList.map((pr, i) => {
-          const cat = EXERCISE_TO_CATEGORY[pr.name] || OTHER_CATEGORY;
+          const cat = toCategory[pr.name] || OTHER_CATEGORY;
           return (
             <div className="pr-row" key={i}>
               <Plate size={34} label={pr.user[0]} color={USER_COLORS[pr.user]} />
@@ -679,10 +849,7 @@ function WeightView({
     () => weighIns.filter((w) => w.user === user).sort((a, b) => b.date.localeCompare(a.date)),
     [weighIns, user],
   );
-  const chartData = useMemo(
-    () => weighIns.filter((w) => w.user === user),
-    [weighIns, user],
-  );
+  const chartData = useMemo(() => weighIns.filter((w) => w.user === user), [weighIns, user]);
   const filtered = useMemo(() => {
     const list = filter === "all" ? weighIns : weighIns.filter((w) => w.user === filter);
     return [...list].sort((a, b) => b.date.localeCompare(a.date));
@@ -820,16 +987,41 @@ const NAV_ITEMS = [
 ] as const;
 
 function Index() {
-  const { workouts: initialWorkouts, weighIns: initialWeighIns } = Route.useLoaderData();
+  const {
+    workouts: initialWorkouts,
+    weighIns: initialWeighIns,
+    customExercises: initialCustomExercises,
+  } = Route.useLoaderData();
   const [user, setUser] = useState<WorkoutUser | null>(null);
   const [view, setView] = useState<"log" | "history" | "weight" | "stats">("log");
   const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
   const [weighIns, setWeighIns] = useState<WeighIn[]>(initialWeighIns);
+  const [customExercises, setCustomExercises] = useState<CustomExercise[]>(initialCustomExercises);
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingWeight, setSavingWeight] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const { groups, toCategory } = useMemo(
+    () => mergeExerciseGroups(customExercises),
+    [customExercises],
+  );
+
+  function registerExercise(name: string, category: string) {
+    if (!user) return;
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const alreadyKnown = Object.keys(toCategory).some(
+      (known) => known.toLowerCase() === trimmed.toLowerCase(),
+    );
+    if (alreadyKnown) return;
+    setCustomExercises((prev) => [...prev, { name: trimmed, category }]);
+    addCustomExercise({ data: { name: trimmed, category, createdBy: user } }).catch(() => {
+      // Non-critical: the exercise still saved on this workout, it just
+      // won't be remembered for next time if this silently failed.
+    });
+  }
 
   async function addWorkout(workout: Workout) {
     setSaving(true);
@@ -855,9 +1047,7 @@ function Index() {
     setError(null);
     try {
       await updateWorkout({ data: { id, user, ...data } });
-      setWorkouts((prev) =>
-        prev.map((w) => (w.id === id ? { ...w, ...data } : w)),
-      );
+      setWorkouts((prev) => prev.map((w) => (w.id === id ? { ...w, ...data } : w)));
       return true;
     } catch {
       setError("Couldn't save those changes — check your connection and try again.");
@@ -934,13 +1124,25 @@ function Index() {
           <div className="content-wrap">
             {error && <div className="error-banner">{error}</div>}
 
-            {view === "log" && <LogView user={user} onSave={addWorkout} saving={saving} />}
+            {view === "log" && (
+              <LogView
+                user={user}
+                onSave={addWorkout}
+                onRegisterExercise={registerExercise}
+                groups={groups}
+                toCategory={toCategory}
+                saving={saving}
+              />
+            )}
             {view === "history" && (
               <HistoryView
                 workouts={sorted}
                 currentUser={user}
                 onDelete={removeWorkout}
                 onEdit={editWorkout}
+                onRegisterExercise={registerExercise}
+                groups={groups}
+                toCategory={toCategory}
                 editingId={editingId}
                 setEditingId={setEditingId}
                 savingEdit={savingEdit}
@@ -955,7 +1157,7 @@ function Index() {
                 saving={savingWeight}
               />
             )}
-            {view === "stats" && <StatsView workouts={workouts} />}
+            {view === "stats" && <StatsView workouts={workouts} toCategory={toCategory} />}
           </div>
 
           <div className="bottom-nav-wrap">

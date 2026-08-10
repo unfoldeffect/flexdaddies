@@ -4,8 +4,10 @@ import { z } from "zod";
 import { bindings } from "../bindings.server";
 
 const SetSchema = z.object({
-  reps: z.number().min(0),
-  weight: z.number().min(0),
+  reps: z.number().min(0).default(0),
+  weight: z.number().min(0).default(0),
+  time: z.number().min(0).default(0),
+  intensity: z.number().min(0).max(10).default(0),
 });
 
 const ExerciseSchema = z.object({
@@ -28,7 +30,10 @@ export type Workout = {
   id: string;
   user: WorkoutUser;
   date: string;
-  exercises: { name: string; sets: { reps: number; weight: number }[] }[];
+  exercises: {
+    name: string;
+    sets: { reps: number; weight: number; time: number; intensity: number }[];
+  }[];
   notes: string;
   loggedAt: string;
 };

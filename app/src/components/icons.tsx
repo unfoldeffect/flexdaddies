@@ -83,6 +83,26 @@ export function ChevronUpIcon({ size, color, className }: IconProps) {
   );
 }
 
+export function ScaleIcon({ size, color, className }: IconProps) {
+  return (
+    <svg {...base(size)} color={color} className={className}>
+      <circle cx="12" cy="14" r="7" />
+      <path d="M12 3v4" />
+      <path d="M9 3h6" />
+      <path d="M12 11v3l2 2" />
+    </svg>
+  );
+}
+
+export function EditIcon({ size, color, className }: IconProps) {
+  return (
+    <svg {...base(size)} color={color} className={className}>
+      <path d="M12 20h9" />
+      <path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z" />
+    </svg>
+  );
+}
+
 export function TrashIcon({ size, color, className }: IconProps) {
   return (
     <svg {...base(size)} color={color} className={className}>

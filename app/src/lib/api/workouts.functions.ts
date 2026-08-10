@@ -92,3 +92,24 @@ export const deleteWorkout = createServerFn({ method: "POST" })
       .run();
     return { ok: true };
   });
+
+const WorkoutUpdateSchema = z.object({
+  id: z.string().min(1),
+  user: z.enum(["Diego", "Kevin"]),
+  date: z.string().min(1),
+  exercises: z.array(ExerciseSchema).min(1),
+  notes: z.string().default(""),
+});
+
+export const updateWorkout = createServerFn({ method: "POST" })
+  .inputValidator(WorkoutUpdateSchema)
+  .handler(async ({ data }) => {
+    const { DB } = bindings();
+    if (!DB) throw new Error("Database unavailable");
+    await DB.prepare(
+      "UPDATE workouts SET date = ?, exercises = ?, notes = ? WHERE id = ? AND user = ?",
+    )
+      .bind(data.date, JSON.stringify(data.exercises), data.notes, data.id, data.user)
+      .run();
+    return { ok: true };
+  });

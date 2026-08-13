@@ -26,6 +26,13 @@ import {
   type WeighIn,
 } from "../lib/api/weigh-ins.functions";
 import {
+  createTemplate,
+  deleteTemplate,
+  listTemplates,
+  type TemplateExercise,
+  type WorkoutTemplate,
+} from "../lib/api/workout-templates.functions";
+import {
   createWorkout,
   deleteWorkout,
   listWorkouts,
@@ -56,6 +63,7 @@ export const Route = createFileRoute("/")({
     workouts: await listWorkouts(),
     weighIns: await listWeighIns(),
     customExercises: await listCustomExercises(),
+    templates: await listTemplates(),
   }),
   component: Index,
 });
@@ -67,10 +75,11 @@ type DraftExercise = {
   customName: string;
   customCategory: string;
   sets: DraftSet[];
+  targetReps?: string;
 };
 
-function makeSets(): DraftSet[] {
-  return Array.from({ length: NUM_SETS }, () => ({
+function makeSets(count: number = NUM_SETS): DraftSet[] {
+  return Array.from({ length: count }, () => ({
     id: uid(),
     reps: "",
     weight: "",
@@ -81,6 +90,32 @@ function makeSets(): DraftSet[] {
 
 function emptyExercise(): DraftExercise {
   return { id: uid(), name: "", customName: "", customCategory: "", sets: makeSets() };
+}
+
+function templateToDraft(
+  items: TemplateExercise[],
+  toCategory: Record<string, CategoryInfo>,
+): DraftExercise[] {
+  if (!items.length) return [emptyExercise()];
+  return items.map((t) => {
+    const known = !!toCategory[t.name];
+    return {
+      id: uid(),
+      name: known ? t.name : OTHER_VALUE,
+      customName: known ? "" : t.name,
+      customCategory: "",
+      sets: makeSets(Math.max(1, t.sets)),
+      targetReps: t.reps,
+    };
+  });
+}
+
+function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
+  return exercises.map((ex) => ({
+    ...ex,
+    id: uid(),
+    sets: ex.sets.map(() => ({ id: uid(), reps: "", weight: "", time: "", intensity: "" })),
+  }));
 }
 
 function resolveCategory(
@@ -186,7 +221,7 @@ function ExerciseEditor({
               Choose an exercise
             </option>
             {groups.map((g) => (
-              <optgroup label={g.label} key={g.label}>
+              <optgroup label={g.label} key={g.label} style={{ color: g.color }}>
                 {g.options.map((opt) => (
                   <option value={opt} key={opt}>
                     {opt}
@@ -226,6 +261,10 @@ function ExerciseEditor({
           </button>
         )}
       </div>
+
+      {exercise.targetReps && (
+        <p className="target-reps-note">Plan target: {exercise.targetReps} reps</p>
+      )}
 
       <div className="set-rows">
         <div className="set-row set-row--header">
@@ -273,7 +312,7 @@ function ExerciseEditor({
                   type="number"
                   inputMode="numeric"
                   min="0"
-                  placeholder="0"
+                  placeholder={exercise.targetReps || "0"}
                   value={s.reps}
                   onChange={(e) => updateSet(s.id, "reps", e.target.value)}
                 />
@@ -480,6 +519,13 @@ function LogView({
   groups,
   toCategory,
   saving,
+  templates,
+  onLoadTemplate,
+  onDeleteTemplate,
+  canRepeatLast,
+  onRepeatLast,
+  seedExercises,
+  seedKey,
 }: {
   user: WorkoutUser;
   onSave: (workout: Workout) => Promise<boolean>;
@@ -487,29 +533,67 @@ function LogView({
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
   saving: boolean;
+  templates: WorkoutTemplate[];
+  onLoadTemplate: (template: WorkoutTemplate) => void;
+  onDeleteTemplate: (id: string) => void;
+  canRepeatLast: boolean;
+  onRepeatLast: () => void;
+  seedExercises: DraftExercise[] | null;
+  seedKey: number;
 }) {
   return (
-    <WorkoutForm
-      initialDate={todayISO()}
-      initialExercises={[emptyExercise()]}
-      initialNotes=""
-      submitLabel="LOG WORKOUT"
-      savingLabel="SAVING..."
-      saving={saving}
-      onRegisterExercise={onRegisterExercise}
-      groups={groups}
-      toCategory={toCategory}
-      onSubmit={({ date, exercises, notes }) =>
-        onSave({
-          id: uid(),
-          user,
-          date,
-          exercises,
-          notes,
-          loggedAt: new Date().toISOString(),
-        })
-      }
-    />
+    <>
+      {(templates.length > 0 || canRepeatLast) && (
+        <div className="plans-row">
+          <div className="plans-row-label">START FROM A PLAN</div>
+          <div className="plans-chip-scroll">
+            {canRepeatLast && (
+              <button className="plan-chip plan-chip--repeat" onClick={onRepeatLast}>
+                <HistoryIcon size={14} /> Repeat Last Workout
+              </button>
+            )}
+            {templates.map((t) => (
+              <button key={t.id} className="plan-chip" onClick={() => onLoadTemplate(t)}>
+                <DumbbellIcon size={14} /> {t.name}
+                <span
+                  className="plan-chip-delete"
+                  role="button"
+                  aria-label={`Delete ${t.name} plan`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    if (confirm(`Delete the "${t.name}" plan?`)) onDeleteTemplate(t.id);
+                  }}
+                >
+                  <XIcon size={14} />
+                </span>
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+      <WorkoutForm
+        key={seedKey}
+        initialDate={todayISO()}
+        initialExercises={seedExercises ?? [emptyExercise()]}
+        initialNotes=""
+        submitLabel="LOG WORKOUT"
+        savingLabel="SAVING..."
+        saving={saving}
+        onRegisterExercise={onRegisterExercise}
+        groups={groups}
+        toCategory={toCategory}
+        onSubmit={({ date, exercises, notes }) =>
+          onSave({
+            id: uid(),
+            user,
+            date,
+            exercises,
+            notes,
+            loggedAt: new Date().toISOString(),
+          })
+        }
+      />
+    </>
   );
 }
 
@@ -519,6 +603,8 @@ function HistoryView({
   onDelete,
   onEdit,
   onRegisterExercise,
+  onRepeat,
+  onSaveAsPlan,
   groups,
   toCategory,
   editingId,
@@ -533,6 +619,8 @@ function HistoryView({
     data: { date: string; exercises: Workout["exercises"]; notes: string },
   ) => Promise<boolean>;
   onRegisterExercise: (name: string, category: string) => void;
+  onRepeat: (workout: Workout) => void;
+  onSaveAsPlan: (workout: Workout) => void;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
   editingId: string | null;
@@ -665,16 +753,24 @@ function HistoryView({
                     );
                   })}
                   {w.notes && <p className="history-notes">"{w.notes}"</p>}
-                  {w.user === currentUser && (
-                    <div className="history-actions">
-                      <button className="edit-btn" onClick={() => setEditingId(w.id)}>
-                        <EditIcon size={16} /> Edit
-                      </button>
-                      <button className="delete-btn" onClick={() => onDelete(w.id)}>
-                        <TrashIcon size={16} /> Delete
-                      </button>
-                    </div>
-                  )}
+                  <div className="history-actions">
+                    <button className="edit-btn" onClick={() => onRepeat(w)}>
+                      <HistoryIcon size={16} /> Repeat
+                    </button>
+                    <button className="edit-btn" onClick={() => onSaveAsPlan(w)}>
+                      <PlusIcon size={16} /> Save as Plan
+                    </button>
+                    {w.user === currentUser && (
+                      <>
+                        <button className="edit-btn" onClick={() => setEditingId(w.id)}>
+                          <EditIcon size={16} /> Edit
+                        </button>
+                        <button className="delete-btn" onClick={() => onDelete(w.id)}>
+                          <TrashIcon size={16} /> Delete
+                        </button>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
             </div>
@@ -692,6 +788,8 @@ function StatsView({
   workouts: Workout[];
   toCategory: Record<string, CategoryInfo>;
 }) {
+  const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>(USERS[0]);
+
   const stats = useMemo(() => {
     const perUser: Record<WorkoutUser, { count: number; volume: number }> = {
       Diego: { count: 0, volume: 0 },
@@ -702,37 +800,42 @@ function StatsView({
     weekAgo.setDate(weekAgo.getDate() - 7);
 
     let thisWeek = 0;
-    const prs: Record<
-      string,
-      { name: string; weight: number; reps: number; user: WorkoutUser; date: string }
-    > = {};
+    const prsByUser: Record<
+      WorkoutUser,
+      Record<string, { name: string; weight: number; reps: number; date: string }>
+    > = { Diego: {}, Kevin: {} };
+    const volumeByDate: Record<string, number> = {};
 
     workouts.forEach((w) => {
       if (perUser[w.user]) perUser[w.user].count += 1;
       if (new Date(w.date) >= weekAgo) thisWeek += 1;
 
+      let dayTotal = 0;
       w.exercises.forEach((ex) => {
         const key = ex.name.trim().toLowerCase();
         ex.sets.forEach((s) => {
-          if (perUser[w.user]) perUser[w.user].volume += s.reps * s.weight;
-          if (!prs[key] || s.weight > prs[key].weight) {
-            prs[key] = {
-              name: ex.name,
-              weight: s.weight,
-              reps: s.reps,
-              user: w.user,
-              date: w.date,
-            };
+          const vol = s.reps * s.weight;
+          if (perUser[w.user]) perUser[w.user].volume += vol;
+          dayTotal += vol;
+          const userPrs = prsByUser[w.user];
+          if (userPrs && (!userPrs[key] || s.weight > userPrs[key].weight)) {
+            userPrs[key] = { name: ex.name, weight: s.weight, reps: s.reps, date: w.date };
           }
         });
       });
+      volumeByDate[w.date] = (volumeByDate[w.date] || 0) + dayTotal;
     });
 
-    const prList = Object.values(prs)
-      .filter((p) => p.weight > 0)
-      .sort((a, b) => b.weight - a.weight);
+    const prsFor = (u: WorkoutUser) =>
+      Object.values(prsByUser[u] || {})
+        .filter((p) => p.weight > 0)
+        .sort((a, b) => b.weight - a.weight);
 
-    return { perUser, thisWeek, prList, total: workouts.length };
+    const volumeSeries = Object.entries(volumeByDate)
+      .map(([date, total]) => ({ date, total }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+
+    return { perUser, thisWeek, prsFor, total: workouts.length, volumeSeries };
   }, [workouts]);
 
   if (!workouts.length) {
@@ -775,29 +878,102 @@ function StatsView({
         ))}
       </div>
 
+      <h3 className="section-heading">Progress</h3>
+      {stats.volumeSeries.length >= 2 ? (
+        <div className="weight-chart-card">
+          <div className="progress-chart-label">Total Weight Lifted</div>
+          <VolumeChart points={stats.volumeSeries} color="#c9a227" />
+        </div>
+      ) : (
+        <div className="empty-state empty-state--compact">
+          <p className="empty-sub">Log a couple more workouts to see your trend.</p>
+        </div>
+      )}
+
       <h3 className="section-heading">Personal Records</h3>
-      <div className="pr-list">
-        {stats.prList.map((pr, i) => {
-          const cat = toCategory[pr.name] || OTHER_CATEGORY;
-          return (
-            <div className="pr-row" key={i}>
-              <Plate size={34} label={pr.user[0]} color={USER_COLORS[pr.user]} />
-              <div className="pr-info">
-                <div className="pr-name">{pr.name}</div>
-                <div className="pr-meta">
-                  <span className="pr-dot" style={{ background: cat.color }} />
-                  {pr.user} · {formatDate(pr.date)}
-                </div>
+      {USERS.map((u) => {
+        const list = stats.prsFor(u);
+        const open = expandedUser === u;
+        return (
+          <div className="pr-accordion" key={u}>
+            <button
+              className="pr-accordion-header"
+              onClick={() => setExpandedUser(open ? null : u)}
+            >
+              <div className="pr-accordion-left">
+                <Plate size={32} label={u[0]} color={USER_COLORS[u]} />
+                <span>{u}'s Personal Records</span>
+                <span className="pr-count-badge">{list.length}</span>
               </div>
-              <div className="pr-weight">
-                {pr.weight}
-                <span>lbs</span>
+              {open ? (
+                <ChevronUpIcon size={18} color="#5b5d52" />
+              ) : (
+                <ChevronDownIcon size={18} color="#5b5d52" />
+              )}
+            </button>
+            {open && (
+              <div className="pr-list">
+                {list.length === 0 ? (
+                  <p className="empty-sub pr-empty">No records yet.</p>
+                ) : (
+                  list.map((pr, i) => {
+                    const cat = toCategory[pr.name] || OTHER_CATEGORY;
+                    return (
+                      <div className="pr-row" key={i}>
+                        <div className="pr-info">
+                          <div className="pr-name">{pr.name}</div>
+                          <div className="pr-meta">
+                            <span className="pr-dot" style={{ background: cat.color }} />
+                            {formatDate(pr.date)}
+                          </div>
+                        </div>
+                        <div className="pr-weight">
+                          {pr.weight}
+                          <span>lbs</span>
+                        </div>
+                      </div>
+                    );
+                  })
+                )}
               </div>
-            </div>
-          );
-        })}
-      </div>
+            )}
+          </div>
+        );
+      })}
     </div>
+  );
+}
+
+function VolumeChart({
+  points,
+  color,
+}: {
+  points: { date: string; total: number }[];
+  color: string;
+}) {
+  if (points.length < 2) return null;
+  const sorted = [...points].sort((a, b) => a.date.localeCompare(b.date));
+  const values = sorted.map((p) => p.total);
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const w = 100;
+  const h = 40;
+  const stepX = w / (sorted.length - 1);
+  const coords = sorted.map((p, i) => {
+    const x = i * stepX;
+    const y = h - ((p.total - min) / range) * (h - 8) - 4;
+    return `${x},${y}`;
+  });
+
+  return (
+    <svg viewBox={`0 0 ${w} ${h}`} className="weight-chart" preserveAspectRatio="none">
+      <polyline points={coords.join(" ")} fill="none" stroke={color} strokeWidth={2} />
+      {sorted.map((p, i) => {
+        const [x, y] = coords[i].split(",");
+        return <circle key={p.date} cx={x} cy={y} r={2.2} fill={color} />;
+      })}
+    </svg>
   );
 }
 
@@ -991,12 +1167,16 @@ function Index() {
     workouts: initialWorkouts,
     weighIns: initialWeighIns,
     customExercises: initialCustomExercises,
+    templates: initialTemplates,
   } = Route.useLoaderData();
   const [user, setUser] = useState<WorkoutUser | null>(null);
   const [view, setView] = useState<"log" | "history" | "weight" | "stats">("log");
   const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
   const [weighIns, setWeighIns] = useState<WeighIn[]>(initialWeighIns);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>(initialCustomExercises);
+  const [templates, setTemplates] = useState<WorkoutTemplate[]>(initialTemplates);
+  const [logSeed, setLogSeed] = useState<DraftExercise[] | null>(null);
+  const [logSeedKey, setLogSeedKey] = useState(0);
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -1021,6 +1201,67 @@ function Index() {
       // Non-critical: the exercise still saved on this workout, it just
       // won't be remembered for next time if this silently failed.
     });
+  }
+
+  function loadIntoLog(exercises: DraftExercise[]) {
+    setLogSeed(exercises);
+    setLogSeedKey((k) => k + 1);
+    setView("log");
+  }
+
+  function loadTemplate(template: WorkoutTemplate) {
+    loadIntoLog(templateToDraft(template.exercises, toCategory));
+  }
+
+  function repeatWorkout(workout: Workout) {
+    loadIntoLog(blankDraftSets(workoutExercisesToDraft(workout.exercises, toCategory)));
+  }
+
+  const lastWorkoutForUser = useMemo(() => {
+    if (!user) return null;
+    return (
+      [...workouts]
+        .filter((w) => w.user === user)
+        .sort(
+          (a, b) =>
+            new Date(b.date).getTime() - new Date(a.date).getTime() ||
+            (b.loggedAt || "").localeCompare(a.loggedAt || ""),
+        )[0] || null
+    );
+  }, [workouts, user]);
+
+  function repeatLastWorkout() {
+    if (lastWorkoutForUser) repeatWorkout(lastWorkoutForUser);
+  }
+
+  async function saveAsPlan(workout: Workout) {
+    if (!user) return;
+    const name = window.prompt(
+      "Name this plan:",
+      `${workout.user}'s ${formatDate(workout.date)} workout`,
+    );
+    if (!name || !name.trim()) return;
+    const id = uid();
+    const exercises: TemplateExercise[] = workout.exercises.map((ex) => ({
+      name: ex.name,
+      sets: ex.sets.length,
+    }));
+    const template: WorkoutTemplate = { id, name: name.trim(), createdBy: user, exercises };
+    setTemplates((prev) => [...prev, template].sort((a, b) => a.name.localeCompare(b.name)));
+    try {
+      await createTemplate({ data: { id, name: template.name, exercises, createdBy: user } });
+    } catch {
+      setError("Couldn't save that plan — check your connection and try again.");
+    }
+  }
+
+  async function removeTemplate(id: string) {
+    setTemplates((prev) => prev.filter((t) => t.id !== id));
+    try {
+      await deleteTemplate({ data: { id } });
+    } catch {
+      setError("Couldn't delete that plan — check your connection and try again.");
+    }
   }
 
   async function addWorkout(workout: Workout) {
@@ -1132,6 +1373,13 @@ function Index() {
                 groups={groups}
                 toCategory={toCategory}
                 saving={saving}
+                templates={templates}
+                onLoadTemplate={loadTemplate}
+                onDeleteTemplate={removeTemplate}
+                canRepeatLast={!!lastWorkoutForUser}
+                onRepeatLast={repeatLastWorkout}
+                seedExercises={logSeed}
+                seedKey={logSeedKey}
               />
             )}
             {view === "history" && (
@@ -1141,6 +1389,8 @@ function Index() {
                 onDelete={removeWorkout}
                 onEdit={editWorkout}
                 onRegisterExercise={registerExercise}
+                onRepeat={repeatWorkout}
+                onSaveAsPlan={saveAsPlan}
                 groups={groups}
                 toCategory={toCategory}
                 editingId={editingId}

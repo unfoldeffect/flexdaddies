@@ -221,7 +221,7 @@ function ExerciseEditor({
               Choose an exercise
             </option>
             {groups.map((g) => (
-              <optgroup label={g.label} key={g.label} style={{ color: g.color }}>
+              <optgroup label={g.label.toUpperCase()} key={g.label} style={{ color: g.color }}>
                 {g.options.map((opt) => (
                   <option value={opt} key={opt}>
                     {opt}

@@ -783,12 +783,35 @@ function HistoryView({
 
 function StatsView({
   workouts,
+  weighIns,
   toCategory,
 }: {
   workouts: Workout[];
+  weighIns: WeighIn[];
   toCategory: Record<string, CategoryInfo>;
 }) {
   const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>(USERS[0]);
+
+  const weightStats = useMemo(() => {
+    const byUser: Record<WorkoutUser, { date: string; total: number }[]> = {
+      Diego: [],
+      Kevin: [],
+    };
+    USERS.forEach((u) => {
+      byUser[u] = weighIns
+        .filter((w) => w.user === u)
+        .sort((a, b) => a.date.localeCompare(b.date))
+        .map((w) => ({ date: w.date, total: w.weight }));
+    });
+    const lossByUser: Record<WorkoutUser, number | null> = { Diego: null, Kevin: null };
+    USERS.forEach((u) => {
+      const series = byUser[u];
+      if (series.length >= 2) {
+        lossByUser[u] = series[0].total - series[series.length - 1].total;
+      }
+    });
+    return { byUser, lossByUser };
+  }, [weighIns]);
 
   const stats = useMemo(() => {
     const perUser: Record<WorkoutUser, { count: number; volume: number }> = {
@@ -889,6 +912,35 @@ function StatsView({
           <p className="empty-sub">Log a couple more workouts to see your trend.</p>
         </div>
       )}
+
+      {USERS.map((u) => {
+        const series = weightStats.byUser[u];
+        const loss = weightStats.lossByUser[u];
+        if (!series.length) return null;
+        return (
+          <div className="weight-chart-card" key={u}>
+            <div className="progress-chart-label progress-chart-label--row">
+              <span>
+                <span className="progress-dot" style={{ background: USER_COLORS[u] }} />
+                {u}'s Weight Loss
+              </span>
+              {loss !== null && (
+                <span
+                  className={`weight-delta weight-delta--inline ${loss >= 0 ? "weight-delta--down" : "weight-delta--up"}`}
+                >
+                  {loss > 0 ? "−" : loss < 0 ? "+" : ""}
+                  {Math.abs(loss).toFixed(1)} lbs {loss >= 0 ? "lost" : "gained"}
+                </span>
+              )}
+            </div>
+            {series.length >= 2 ? (
+              <VolumeChart points={series} color={USER_COLORS[u]} />
+            ) : (
+              <p className="empty-sub">Log another weigh-in to see the trend.</p>
+            )}
+          </div>
+        );
+      })}
 
       <h3 className="section-heading">Personal Records</h3>
       {USERS.map((u) => {
@@ -1407,7 +1459,9 @@ function Index() {
                 saving={savingWeight}
               />
             )}
-            {view === "stats" && <StatsView workouts={workouts} toCategory={toCategory} />}
+            {view === "stats" && (
+              <StatsView workouts={workouts} weighIns={weighIns} toCategory={toCategory} />
+            )}
           </div>
 
           <div className="bottom-nav-wrap">

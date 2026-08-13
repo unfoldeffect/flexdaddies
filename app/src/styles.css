@@ -865,6 +865,10 @@
 .weight-history-heading {
   margin-top: 28px;
 }
+.weight-list--accordion {
+  padding: 0 16px 16px;
+  gap: 8px;
+}
 
 .weight-list {
   display: flex;

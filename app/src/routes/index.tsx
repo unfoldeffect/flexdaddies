@@ -1071,17 +1071,20 @@ function WeightView({
 }) {
   const [date, setDate] = useState(todayISO());
   const [weight, setWeight] = useState("");
-  const [filter, setFilter] = useState<"all" | WorkoutUser>("all");
+  const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>(user);
 
   const mine = useMemo(
     () => weighIns.filter((w) => w.user === user).sort((a, b) => b.date.localeCompare(a.date)),
     [weighIns, user],
   );
   const chartData = useMemo(() => weighIns.filter((w) => w.user === user), [weighIns, user]);
-  const filtered = useMemo(() => {
-    const list = filter === "all" ? weighIns : weighIns.filter((w) => w.user === filter);
-    return [...list].sort((a, b) => b.date.localeCompare(a.date));
-  }, [weighIns, filter]);
+  const byUser = useMemo(() => {
+    const map: Record<WorkoutUser, WeighIn[]> = { Diego: [], Kevin: [] };
+    USERS.forEach((u) => {
+      map[u] = weighIns.filter((w) => w.user === u).sort((a, b) => b.date.localeCompare(a.date));
+    });
+    return map;
+  }, [weighIns]);
 
   const latest = mine[0];
   const previous = mine[1];
@@ -1161,48 +1164,50 @@ function WeightView({
       </button>
 
       <h3 className="section-heading weight-history-heading">History</h3>
-      <div className="filter-row">
-        {(["all", ...USERS] as const).map((f) => {
-          const active = filter === f;
-          const chipColor = f === "all" ? "#0b2545" : USER_COLORS[f];
-          return (
+      {USERS.map((u) => {
+        const list = byUser[u];
+        const open = expandedUser === u;
+        return (
+          <div className="pr-accordion" key={u}>
             <button
-              key={f}
-              className={`filter-chip ${active ? "filter-chip--active" : ""}`}
-              style={active ? { background: chipColor, borderColor: chipColor } : {}}
-              onClick={() => setFilter(f)}
+              className="pr-accordion-header"
+              onClick={() => setExpandedUser(open ? null : u)}
             >
-              {f === "all" ? "Everyone" : f}
-            </button>
-          );
-        })}
-      </div>
-
-      {filtered.length === 0 ? (
-        <div className="empty-state">
-          <Plate size={54} label="?" color="#6b7280" />
-          <p>No weigh-ins logged yet.</p>
-        </div>
-      ) : (
-        <div className="weight-list">
-          {filtered.map((w) => (
-            <div className="weight-row" key={w.id}>
-              <Plate size={32} label={w.user[0]} color={USER_COLORS[w.user]} />
-              <div className="weight-row-info">
-                <div className="weight-row-value">{w.weight} lbs</div>
-                <div className="weight-row-meta">
-                  {w.user} · {formatDate(w.date)}
-                </div>
+              <div className="pr-accordion-left">
+                <Plate size={32} label={u[0]} color={USER_COLORS[u]} />
+                <span>{u}'s Weigh-Ins</span>
+                <span className="pr-count-badge">{list.length}</span>
               </div>
-              {w.user === user && (
-                <button className="weight-row-delete" onClick={() => onDelete(w.id)}>
-                  <TrashIcon size={16} />
-                </button>
+              {open ? (
+                <ChevronUpIcon size={18} color="#5b5d52" />
+              ) : (
+                <ChevronDownIcon size={18} color="#5b5d52" />
               )}
-            </div>
-          ))}
-        </div>
-      )}
+            </button>
+            {open && (
+              <div className="weight-list weight-list--accordion">
+                {list.length === 0 ? (
+                  <p className="empty-sub pr-empty">No weigh-ins logged yet.</p>
+                ) : (
+                  list.map((w) => (
+                    <div className="weight-row" key={w.id}>
+                      <div className="weight-row-info">
+                        <div className="weight-row-value">{w.weight} lbs</div>
+                        <div className="weight-row-meta">{formatDate(w.date)}</div>
+                      </div>
+                      {w.user === user && (
+                        <button className="weight-row-delete" onClick={() => onDelete(w.id)}>
+                          <TrashIcon size={16} />
+                        </button>
+                      )}
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
+          </div>
+        );
+      })}
     </div>
   );
 }

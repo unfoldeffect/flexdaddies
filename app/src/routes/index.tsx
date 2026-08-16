@@ -118,6 +118,29 @@ function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
   }));
 }
 
+function applyLastPerformance(
+  exercises: DraftExercise[],
+  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>,
+  toCategory: Record<string, CategoryInfo>,
+): DraftExercise[] {
+  return exercises.map((ex) => {
+    if (ex.name === OTHER_VALUE || !ex.name) return ex;
+    const history = lastPerformance[ex.name];
+    if (!history || !history.length) return ex;
+    const isCardio = toCategory[ex.name]?.label === CARDIO_LABEL;
+    return {
+      ...ex,
+      sets: ex.sets.map((s, i) => {
+        const past = history[i];
+        if (!past) return s;
+        return isCardio
+          ? { ...s, time: String(past.time), intensity: String(past.intensity) }
+          : { ...s, reps: String(past.reps), weight: String(past.weight) };
+      }),
+    };
+  });
+}
+
 function resolveCategory(
   ex: DraftExercise,
   toCategory: Record<string, CategoryInfo>,
@@ -174,6 +197,7 @@ function ExerciseEditor({
   showRemove,
   groups,
   toCategory,
+  lastPerformance,
 }: {
   exercise: DraftExercise;
   onChange: (updated: DraftExercise) => void;
@@ -181,6 +205,7 @@ function ExerciseEditor({
   showRemove: boolean;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
+  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
 }) {
   const updateSet = (
     setId: string,
@@ -191,6 +216,23 @@ function ExerciseEditor({
       ...exercise,
       sets: exercise.sets.map((s) => (s.id === setId ? { ...s, [field]: value } : s)),
     });
+  };
+
+  const handleNameChange = (name: string) => {
+    const history = name === OTHER_VALUE ? undefined : lastPerformance[name];
+    if (!history || !history.length) {
+      onChange({ ...exercise, name });
+      return;
+    }
+    const isCardioNext = toCategory[name]?.label === CARDIO_LABEL;
+    const sets = exercise.sets.map((s, i) => {
+      const past = history[i];
+      if (!past) return s;
+      return isCardioNext
+        ? { ...s, time: String(past.time), intensity: String(past.intensity) }
+        : { ...s, reps: String(past.reps), weight: String(past.weight) };
+    });
+    onChange({ ...exercise, name, sets });
   };
 
   const isOther = exercise.name === OTHER_VALUE;
@@ -215,7 +257,7 @@ function ExerciseEditor({
           <select
             className="exercise-select"
             value={exercise.name}
-            onChange={(e) => onChange({ ...exercise, name: e.target.value })}
+            onChange={(e) => handleNameChange(e.target.value)}
           >
             <option value="" disabled>
               Choose an exercise
@@ -265,6 +307,17 @@ function ExerciseEditor({
       {exercise.targetReps && (
         <p className="target-reps-note">Plan target: {exercise.targetReps} reps</p>
       )}
+      {!isOther && exercise.name && lastPerformance[exercise.name]?.length ? (
+        <p className="target-reps-note target-reps-note--history">
+          Last time:{" "}
+          {lastPerformance[exercise.name]
+            .filter((s) => (isCardio ? s.time || s.intensity : s.reps || s.weight))
+            .map((s) =>
+              isCardio ? `${s.time}min @ ${s.intensity}/10` : `${s.reps}×${s.weight}lbs`,
+            )
+            .join(", ")}
+        </p>
+      ) : null}
 
       <div className="set-rows">
         <div className="set-row set-row--header">
@@ -373,6 +426,7 @@ function WorkoutForm({
   onRegisterExercise,
   groups,
   toCategory,
+  lastPerformance,
   saving,
 }: {
   initialDate: string;
@@ -389,6 +443,7 @@ function WorkoutForm({
   onRegisterExercise: (name: string, category: string) => void;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
+  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
   saving: boolean;
 }) {
   const [date, setDate] = useState(initialDate);
@@ -478,6 +533,7 @@ function WorkoutForm({
           showRemove={exercises.length > 1}
           groups={groups}
           toCategory={toCategory}
+          lastPerformance={lastPerformance}
         />
       ))}
 
@@ -522,10 +578,9 @@ function LogView({
   templates,
   onLoadTemplate,
   onDeleteTemplate,
-  canRepeatLast,
-  onRepeatLast,
   seedExercises,
   seedKey,
+  lastPerformance,
 }: {
   user: WorkoutUser;
   onSave: (workout: Workout) => Promise<boolean>;
@@ -536,22 +591,16 @@ function LogView({
   templates: WorkoutTemplate[];
   onLoadTemplate: (template: WorkoutTemplate) => void;
   onDeleteTemplate: (id: string) => void;
-  canRepeatLast: boolean;
-  onRepeatLast: () => void;
   seedExercises: DraftExercise[] | null;
   seedKey: number;
+  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
 }) {
   return (
     <>
-      {(templates.length > 0 || canRepeatLast) && (
+      {templates.length > 0 && (
         <div className="plans-row">
           <div className="plans-row-label">START FROM A PLAN</div>
           <div className="plans-chip-scroll">
-            {canRepeatLast && (
-              <button className="plan-chip plan-chip--repeat" onClick={onRepeatLast}>
-                <HistoryIcon size={14} /> Repeat Last Workout
-              </button>
-            )}
             {templates.map((t) => (
               <button key={t.id} className="plan-chip" onClick={() => onLoadTemplate(t)}>
                 <DumbbellIcon size={14} /> {t.name}
@@ -582,6 +631,7 @@ function LogView({
         onRegisterExercise={onRegisterExercise}
         groups={groups}
         toCategory={toCategory}
+        lastPerformance={lastPerformance}
         onSubmit={({ date, exercises, notes }) =>
           onSave({
             id: uid(),
@@ -607,6 +657,7 @@ function HistoryView({
   onSaveAsPlan,
   groups,
   toCategory,
+  lastPerformance,
   editingId,
   setEditingId,
   savingEdit,
@@ -623,6 +674,7 @@ function HistoryView({
   onSaveAsPlan: (workout: Workout) => void;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
+  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
   editingId: string | null;
   setEditingId: (id: string | null) => void;
   savingEdit: boolean;
@@ -719,6 +771,7 @@ function HistoryView({
                     onRegisterExercise={onRegisterExercise}
                     groups={groups}
                     toCategory={toCategory}
+                    lastPerformance={lastPerformance}
                     onSubmit={async (data) => {
                       const ok = await onEdit(w.id, data);
                       if (ok) setEditingId(null);
@@ -1260,6 +1313,24 @@ function Index() {
     });
   }
 
+  const lastPerformanceForUser = useMemo(() => {
+    const map: Record<string, Workout["exercises"][number]["sets"]> = {};
+    if (!user) return map;
+    const mine = [...workouts]
+      .filter((w) => w.user === user)
+      .sort(
+        (a, b) =>
+          new Date(b.date).getTime() - new Date(a.date).getTime() ||
+          (b.loggedAt || "").localeCompare(a.loggedAt || ""),
+      );
+    for (const w of mine) {
+      for (const ex of w.exercises) {
+        if (!(ex.name in map)) map[ex.name] = ex.sets;
+      }
+    }
+    return map;
+  }, [workouts, user]);
+
   function loadIntoLog(exercises: DraftExercise[]) {
     setLogSeed(exercises);
     setLogSeedKey((k) => k + 1);
@@ -1267,28 +1338,13 @@ function Index() {
   }
 
   function loadTemplate(template: WorkoutTemplate) {
-    loadIntoLog(templateToDraft(template.exercises, toCategory));
+    const draft = templateToDraft(template.exercises, toCategory);
+    loadIntoLog(applyLastPerformance(draft, lastPerformanceForUser, toCategory));
   }
 
   function repeatWorkout(workout: Workout) {
-    loadIntoLog(blankDraftSets(workoutExercisesToDraft(workout.exercises, toCategory)));
-  }
-
-  const lastWorkoutForUser = useMemo(() => {
-    if (!user) return null;
-    return (
-      [...workouts]
-        .filter((w) => w.user === user)
-        .sort(
-          (a, b) =>
-            new Date(b.date).getTime() - new Date(a.date).getTime() ||
-            (b.loggedAt || "").localeCompare(a.loggedAt || ""),
-        )[0] || null
-    );
-  }, [workouts, user]);
-
-  function repeatLastWorkout() {
-    if (lastWorkoutForUser) repeatWorkout(lastWorkoutForUser);
+    const draft = blankDraftSets(workoutExercisesToDraft(workout.exercises, toCategory));
+    loadIntoLog(applyLastPerformance(draft, lastPerformanceForUser, toCategory));
   }
 
   async function saveAsPlan(workout: Workout) {
@@ -1433,10 +1489,9 @@ function Index() {
                 templates={templates}
                 onLoadTemplate={loadTemplate}
                 onDeleteTemplate={removeTemplate}
-                canRepeatLast={!!lastWorkoutForUser}
-                onRepeatLast={repeatLastWorkout}
                 seedExercises={logSeed}
                 seedKey={logSeedKey}
+                lastPerformance={lastPerformanceForUser}
               />
             )}
             {view === "history" && (
@@ -1450,6 +1505,7 @@ function Index() {
                 onSaveAsPlan={saveAsPlan}
                 groups={groups}
                 toCategory={toCategory}
+                lastPerformance={lastPerformanceForUser}
                 editingId={editingId}
                 setEditingId={setEditingId}
                 savingEdit={savingEdit}

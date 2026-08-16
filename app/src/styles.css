@@ -410,6 +410,9 @@
   font-weight: 600;
   margin: -6px 0 10px;
 }
+.target-reps-note--history {
+  color: #8a6d00;
+}
 
 .plans-row {
   width: 100%;
@@ -442,11 +445,6 @@
   font-weight: 600;
   color: var(--fd-text);
   white-space: nowrap;
-}
-.plan-chip--repeat {
-  background: var(--fd-ink);
-  border-color: var(--fd-ink);
-  color: #ffffff;
 }
 .plan-chip-delete {
   background: none;

@@ -118,29 +118,6 @@ function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
   }));
 }
 
-function applyLastPerformance(
-  exercises: DraftExercise[],
-  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>,
-  toCategory: Record<string, CategoryInfo>,
-): DraftExercise[] {
-  return exercises.map((ex) => {
-    if (ex.name === OTHER_VALUE || !ex.name) return ex;
-    const history = lastPerformance[ex.name];
-    if (!history || !history.length) return ex;
-    const isCardio = toCategory[ex.name]?.label === CARDIO_LABEL;
-    return {
-      ...ex,
-      sets: ex.sets.map((s, i) => {
-        const past = history[i];
-        if (!past) return s;
-        return isCardio
-          ? { ...s, time: String(past.time), intensity: String(past.intensity) }
-          : { ...s, reps: String(past.reps), weight: String(past.weight) };
-      }),
-    };
-  });
-}
-
 function resolveCategory(
   ex: DraftExercise,
   toCategory: Record<string, CategoryInfo>,
@@ -219,20 +196,7 @@ function ExerciseEditor({
   };
 
   const handleNameChange = (name: string) => {
-    const history = name === OTHER_VALUE ? undefined : lastPerformance[name];
-    if (!history || !history.length) {
-      onChange({ ...exercise, name });
-      return;
-    }
-    const isCardioNext = toCategory[name]?.label === CARDIO_LABEL;
-    const sets = exercise.sets.map((s, i) => {
-      const past = history[i];
-      if (!past) return s;
-      return isCardioNext
-        ? { ...s, time: String(past.time), intensity: String(past.intensity) }
-        : { ...s, reps: String(past.reps), weight: String(past.weight) };
-    });
-    onChange({ ...exercise, name, sets });
+    onChange({ ...exercise, name });
   };
 
   const isOther = exercise.name === OTHER_VALUE;
@@ -304,12 +268,9 @@ function ExerciseEditor({
         )}
       </div>
 
-      {exercise.targetReps && (
-        <p className="target-reps-note">Plan target: {exercise.targetReps} reps</p>
-      )}
       {!isOther && exercise.name && lastPerformance[exercise.name]?.length ? (
         <p className="target-reps-note target-reps-note--history">
-          Last time:{" "}
+          Last workout:{" "}
           {lastPerformance[exercise.name]
             .filter((s) => (isCardio ? s.time || s.intensity : s.reps || s.weight))
             .map((s) =>
@@ -365,7 +326,7 @@ function ExerciseEditor({
                   type="number"
                   inputMode="numeric"
                   min="0"
-                  placeholder={exercise.targetReps || "0"}
+                  placeholder="0"
                   value={s.reps}
                   onChange={(e) => updateSet(s.id, "reps", e.target.value)}
                 />
@@ -795,11 +756,11 @@ function HistoryView({
                         </div>
                         <div className="history-sets">
                           {ex.sets.map((s, j) => (
-                            <span className="history-set-pill" key={j}>
+                            <div className="history-set-line" key={j}>
                               {isCardio
                                 ? `${s.time} min · Intensity ${s.intensity}/10`
                                 : `${s.reps} reps × ${s.weight} lbs`}
-                            </span>
+                            </div>
                           ))}
                         </div>
                       </div>
@@ -1338,13 +1299,11 @@ function Index() {
   }
 
   function loadTemplate(template: WorkoutTemplate) {
-    const draft = templateToDraft(template.exercises, toCategory);
-    loadIntoLog(applyLastPerformance(draft, lastPerformanceForUser, toCategory));
+    loadIntoLog(templateToDraft(template.exercises, toCategory));
   }
 
   function repeatWorkout(workout: Workout) {
-    const draft = blankDraftSets(workoutExercisesToDraft(workout.exercises, toCategory));
-    loadIntoLog(applyLastPerformance(draft, lastPerformanceForUser, toCategory));
+    loadIntoLog(blankDraftSets(workoutExercisesToDraft(workout.exercises, toCategory)));
   }
 
   async function saveAsPlan(workout: Workout) {

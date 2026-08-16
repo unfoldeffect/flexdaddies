@@ -684,16 +684,13 @@
 }
 .history-sets {
   display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
+  flex-direction: column;
+  gap: 3px;
 }
-.history-set-pill {
-  background: #ffffff;
-  border: 2px solid var(--fd-line);
-  border-radius: 999px;
-  padding: 6px 12px;
+.history-set-line {
   font-size: 0.95rem;
   color: var(--fd-text);
+  padding-left: 18px;
 }
 .history-notes {
   color: var(--fd-muted);

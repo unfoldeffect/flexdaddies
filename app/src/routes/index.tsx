@@ -80,7 +80,8 @@ type DraftExercise = {
 };
 
 function makeSets(count: number = NUM_SETS): DraftSet[] {
-  return Array.from({ length: count }, () => ({
+  const n = Math.max(1, Math.min(count, NUM_SETS));
+  return Array.from({ length: n }, () => ({
     id: uid(),
     reps: "",
     weight: "",
@@ -389,7 +390,7 @@ function workoutExercisesToDraft(
     const known = !!cat;
     const isCardio =
       cat?.label === CARDIO_LABEL || (!known && ex.sets.some((s) => s.time || s.intensity));
-    const sets: DraftSet[] = ex.sets.map((s) => ({
+    const sets: DraftSet[] = ex.sets.slice(0, NUM_SETS).map((s) => ({
       id: uid(),
       reps: isCardio ? "" : String(s.reps),
       weight: isCardio ? "" : String(s.weight),

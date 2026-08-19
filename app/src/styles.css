@@ -413,6 +413,12 @@
 .target-reps-note--history {
   color: #8a6d00;
 }
+.target-reps-note--quote {
+  font-style: italic;
+  font-weight: 500;
+  display: inline-block;
+  margin-top: 2px;
+}
 
 .plans-row {
   width: 100%;
@@ -460,7 +466,7 @@
 .exercise-custom-input:focus,
 .set-row input:focus,
 .log-date-row input:focus,
-.notes-block textarea:focus {
+.exercise-notes-block textarea:focus {
   outline: 3px solid var(--fd-ink);
   outline-offset: 1px;
 }
@@ -544,20 +550,21 @@
   border-color: var(--fd-ink);
 }
 
-.notes-block {
+.exercise-notes-block {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin-bottom: 22px;
+  gap: 6px;
+  margin-top: 14px;
   width: 100%;
 }
-.notes-block textarea {
-  background: var(--fd-surface);
+.exercise-notes-input {
+  background: #ffffff;
   border: 2px solid var(--fd-line);
-  border-radius: 18px;
+  border-radius: 14px;
   color: var(--fd-text);
-  padding: 14px;
-  font-size: 1.05rem;
+  padding: 10px 12px;
+  font-size: 0.95rem;
+  font-family: "Inter", sans-serif;
   resize: vertical;
 }
 
@@ -692,12 +699,13 @@
   color: var(--fd-text);
   padding-left: 18px;
 }
-.history-notes {
+.history-exercise-notes {
   color: var(--fd-muted);
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-style: italic;
-  border-left: 3px solid var(--fd-ink);
-  padding-left: 12px;
+  border-left: 3px solid var(--fd-line);
+  padding-left: 10px;
+  margin-top: 6px;
 }
 .history-actions {
   display: flex;

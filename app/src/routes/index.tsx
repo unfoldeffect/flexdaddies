@@ -76,6 +76,7 @@ type DraftExercise = {
   customCategory: string;
   sets: DraftSet[];
   targetReps?: string;
+  notes: string;
 };
 
 function makeSets(count: number = NUM_SETS): DraftSet[] {
@@ -89,7 +90,14 @@ function makeSets(count: number = NUM_SETS): DraftSet[] {
 }
 
 function emptyExercise(): DraftExercise {
-  return { id: uid(), name: "", customName: "", customCategory: "", sets: makeSets() };
+  return {
+    id: uid(),
+    name: "",
+    customName: "",
+    customCategory: "",
+    sets: makeSets(),
+    notes: "",
+  };
 }
 
 function templateToDraft(
@@ -106,6 +114,7 @@ function templateToDraft(
       customCategory: "",
       sets: makeSets(Math.max(1, t.sets)),
       targetReps: t.reps,
+      notes: "",
     };
   });
 }
@@ -115,6 +124,7 @@ function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
     ...ex,
     id: uid(),
     sets: ex.sets.map(() => ({ id: uid(), reps: "", weight: "", time: "", intensity: "" })),
+    notes: "",
   }));
 }
 
@@ -182,7 +192,7 @@ function ExerciseEditor({
   showRemove: boolean;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
-  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
+  lastPerformance: Record<string, Workout["exercises"][number]>;
 }) {
   const updateSet = (
     setId: string,
@@ -268,15 +278,23 @@ function ExerciseEditor({
         )}
       </div>
 
-      {!isOther && exercise.name && lastPerformance[exercise.name]?.length ? (
+      {!isOther && exercise.name && lastPerformance[exercise.name]?.sets.length ? (
         <p className="target-reps-note target-reps-note--history">
           Last workout:{" "}
-          {lastPerformance[exercise.name]
+          {lastPerformance[exercise.name].sets
             .filter((s) => (isCardio ? s.time || s.intensity : s.reps || s.weight))
             .map((s) =>
               isCardio ? `${s.time}min @ ${s.intensity}/10` : `${s.reps}×${s.weight}lbs`,
             )
             .join(", ")}
+          {lastPerformance[exercise.name].notes && (
+            <>
+              <br />
+              <span className="target-reps-note--quote">
+                "{lastPerformance[exercise.name].notes}"
+              </span>
+            </>
+          )}
         </p>
       ) : null}
 
@@ -343,6 +361,20 @@ function ExerciseEditor({
           </div>
         ))}
       </div>
+
+      <div className="exercise-notes-block">
+        <label className="field-label" htmlFor={`exercise-notes-${exercise.id}`}>
+          NOTES <span className="field-label-sub">(optional)</span>
+        </label>
+        <textarea
+          id={`exercise-notes-${exercise.id}`}
+          className="exercise-notes-input"
+          placeholder="Form cues, how it felt, anything to remember..."
+          value={exercise.notes}
+          onChange={(e) => onChange({ ...exercise, notes: e.target.value })}
+          rows={2}
+        />
+      </div>
     </div>
   );
 }
@@ -372,6 +404,7 @@ function workoutExercisesToDraft(
       customName: known ? "" : ex.name,
       customCategory: known ? "" : isCardio ? CARDIO_LABEL : "",
       sets,
+      notes: ex.notes || "",
     };
   });
 }
@@ -379,7 +412,6 @@ function workoutExercisesToDraft(
 function WorkoutForm({
   initialDate,
   initialExercises,
-  initialNotes,
   submitLabel,
   savingLabel,
   onSubmit,
@@ -392,7 +424,6 @@ function WorkoutForm({
 }: {
   initialDate: string;
   initialExercises: DraftExercise[];
-  initialNotes: string;
   submitLabel: string;
   savingLabel: string;
   onSubmit: (data: {
@@ -404,12 +435,11 @@ function WorkoutForm({
   onRegisterExercise: (name: string, category: string) => void;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
-  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
+  lastPerformance: Record<string, Workout["exercises"][number]>;
   saving: boolean;
 }) {
   const [date, setDate] = useState(initialDate);
   const [exercises, setExercises] = useState<DraftExercise[]>(initialExercises);
-  const [notes, setNotes] = useState(initialNotes);
   const [justSaved, setJustSaved] = useState(false);
 
   const updateExercise = (id: string, updated: DraftExercise) =>
@@ -450,7 +480,7 @@ function WorkoutForm({
               intensity: 0,
             }));
       if (!sets.length) continue;
-      cleaned.push({ name, sets });
+      cleaned.push({ name, sets, notes: ex.notes.trim() });
       if (ex.name === OTHER_VALUE) {
         toRegister.push({ name, category: ex.customCategory || OTHER_CATEGORY.label });
       }
@@ -458,13 +488,12 @@ function WorkoutForm({
 
     if (!cleaned.length) return;
 
-    const ok = await onSubmit({ date, exercises: cleaned, notes: notes.trim() });
+    const ok = await onSubmit({ date, exercises: cleaned, notes: "" });
     if (ok) {
       toRegister.forEach((r) => onRegisterExercise(r.name, r.category));
     }
     if (ok && !onCancel) {
       setExercises([emptyExercise()]);
-      setNotes("");
       setDate(todayISO());
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2200);
@@ -501,19 +530,6 @@ function WorkoutForm({
       <button className="add-exercise-btn" onClick={addExercise}>
         <PlusIcon size={20} /> Add Another Exercise
       </button>
-
-      <div className="notes-block">
-        <label className="field-label" htmlFor="notes">
-          NOTES <span className="field-label-sub">(optional)</span>
-        </label>
-        <textarea
-          id="notes"
-          placeholder="How did it feel today?"
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          rows={3}
-        />
-      </div>
 
       <div className={onCancel ? "edit-form-actions" : undefined}>
         <button className="save-btn" onClick={handleSave} disabled={!canSave || saving}>
@@ -554,7 +570,7 @@ function LogView({
   onDeleteTemplate: (id: string) => void;
   seedExercises: DraftExercise[] | null;
   seedKey: number;
-  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
+  lastPerformance: Record<string, Workout["exercises"][number]>;
 }) {
   return (
     <>
@@ -585,7 +601,6 @@ function LogView({
         key={seedKey}
         initialDate={todayISO()}
         initialExercises={seedExercises ?? [emptyExercise()]}
-        initialNotes=""
         submitLabel="LOG WORKOUT"
         savingLabel="SAVING..."
         saving={saving}
@@ -635,7 +650,7 @@ function HistoryView({
   onSaveAsPlan: (workout: Workout) => void;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
-  lastPerformance: Record<string, Workout["exercises"][number]["sets"]>;
+  lastPerformance: Record<string, Workout["exercises"][number]>;
   editingId: string | null;
   setEditingId: (id: string | null) => void;
   savingEdit: boolean;
@@ -724,7 +739,6 @@ function HistoryView({
                   <WorkoutForm
                     initialDate={w.date}
                     initialExercises={workoutExercisesToDraft(w.exercises, toCategory)}
-                    initialNotes={w.notes}
                     submitLabel="SAVE CHANGES"
                     savingLabel="SAVING..."
                     saving={savingEdit}
@@ -763,10 +777,10 @@ function HistoryView({
                             </div>
                           ))}
                         </div>
+                        {ex.notes && <p className="history-exercise-notes">"{ex.notes}"</p>}
                       </div>
                     );
                   })}
-                  {w.notes && <p className="history-notes">"{w.notes}"</p>}
                   <div className="history-actions">
                     <button className="edit-btn" onClick={() => onRepeat(w)}>
                       <HistoryIcon size={16} /> Repeat
@@ -1275,7 +1289,7 @@ function Index() {
   }
 
   const lastPerformanceForUser = useMemo(() => {
-    const map: Record<string, Workout["exercises"][number]["sets"]> = {};
+    const map: Record<string, Workout["exercises"][number]> = {};
     if (!user) return map;
     const mine = [...workouts]
       .filter((w) => w.user === user)
@@ -1286,7 +1300,7 @@ function Index() {
       );
     for (const w of mine) {
       for (const ex of w.exercises) {
-        if (!(ex.name in map)) map[ex.name] = ex.sets;
+        if (!(ex.name in map)) map[ex.name] = ex;
       }
     }
     return map;

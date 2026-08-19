@@ -13,6 +13,7 @@ const SetSchema = z.object({
 const ExerciseSchema = z.object({
   name: z.string().min(1),
   sets: z.array(SetSchema).min(1),
+  notes: z.string().default(""),
 });
 
 const WorkoutInputSchema = z.object({
@@ -33,6 +34,7 @@ export type Workout = {
   exercises: {
     name: string;
     sets: { reps: number; weight: number; time: number; intensity: number }[];
+    notes: string;
   }[];
   notes: string;
   loggedAt: string;

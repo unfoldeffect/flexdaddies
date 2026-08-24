@@ -714,7 +714,7 @@ function LogView({
           <span style={{ background: USER_COLORS[user] }} />
           <span style={{ background: USER_COLORS[otherUser] }} />
         </span>
-        Logging for both of us
+        Together Mode
         <span className="together-toggle-switch">
           <span className="together-toggle-knob" />
         </span>

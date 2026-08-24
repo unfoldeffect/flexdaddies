@@ -90,6 +90,20 @@ function makeSets(count: number = NUM_SETS): DraftSet[] {
   }));
 }
 
+// Cardio exercises always get exactly one set; everything else is capped at
+// NUM_SETS. Preserves existing set values where possible instead of blanking.
+function clampSetsForCategory(sets: DraftSet[], isCardio: boolean): DraftSet[] {
+  if (isCardio) {
+    return sets.length ? [sets[0]] : [{ id: uid(), reps: "", weight: "", time: "", intensity: "" }];
+  }
+  if (sets.length >= NUM_SETS) return sets.slice(0, NUM_SETS);
+  const padded = [...sets];
+  while (padded.length < NUM_SETS) {
+    padded.push({ id: uid(), reps: "", weight: "", time: "", intensity: "" });
+  }
+  return padded;
+}
+
 function emptyExercise(): DraftExercise {
   return {
     id: uid(),
@@ -108,12 +122,13 @@ function templateToDraft(
   if (!items.length) return [emptyExercise()];
   return items.map((t) => {
     const known = !!toCategory[t.name];
+    const isCardio = toCategory[t.name]?.label === CARDIO_LABEL;
     return {
       id: uid(),
       name: known ? t.name : OTHER_VALUE,
       customName: known ? "" : t.name,
       customCategory: "",
-      sets: makeSets(Math.max(1, t.sets)),
+      sets: makeSets(isCardio ? 1 : Math.max(1, t.sets)),
       targetReps: t.reps,
       notes: "",
     };
@@ -207,7 +222,8 @@ function ExerciseEditor({
   };
 
   const handleNameChange = (name: string) => {
-    onChange({ ...exercise, name });
+    const isCardioNext = name !== OTHER_VALUE && toCategory[name]?.label === CARDIO_LABEL;
+    onChange({ ...exercise, name, sets: clampSetsForCategory(exercise.sets, isCardioNext) });
   };
 
   const isOther = exercise.name === OTHER_VALUE;
@@ -260,7 +276,14 @@ function ExerciseEditor({
               <select
                 className="exercise-custom-input exercise-category-select"
                 value={exercise.customCategory}
-                onChange={(e) => onChange({ ...exercise, customCategory: e.target.value })}
+                onChange={(e) => {
+                  const cat = e.target.value;
+                  onChange({
+                    ...exercise,
+                    customCategory: cat,
+                    sets: clampSetsForCategory(exercise.sets, cat === CARDIO_LABEL),
+                  });
+                }}
               >
                 <option value="">Category: Other</option>
                 {CATEGORY_LABELS.map((label) => (
@@ -390,15 +413,14 @@ function workoutExercisesToDraft(
     const known = !!cat;
     const isCardio =
       cat?.label === CARDIO_LABEL || (!known && ex.sets.some((s) => s.time || s.intensity));
-    const sets: DraftSet[] = ex.sets.slice(0, NUM_SETS).map((s) => ({
+    const rawSets: DraftSet[] = ex.sets.map((s) => ({
       id: uid(),
       reps: isCardio ? "" : String(s.reps),
       weight: isCardio ? "" : String(s.weight),
       time: isCardio ? String(s.time) : "",
       intensity: isCardio ? String(s.intensity) : "",
     }));
-    while (sets.length < NUM_SETS)
-      sets.push({ id: uid(), reps: "", weight: "", time: "", intensity: "" });
+    const sets = clampSetsForCategory(rawSets, isCardio);
     return {
       id: uid(),
       name: known ? ex.name : OTHER_VALUE,

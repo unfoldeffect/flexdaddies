@@ -420,6 +420,79 @@
   margin-top: 2px;
 }
 
+.together-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--fd-surface);
+  border: 2px solid var(--fd-line);
+  border-radius: 16px;
+  padding: 12px 14px;
+  margin-bottom: 18px;
+  font-family: "Oswald", sans-serif;
+  font-weight: 600;
+  font-size: 0.95rem;
+  color: var(--fd-text);
+}
+.together-toggle--active {
+  border-color: var(--fd-ink);
+  background: rgba(11, 37, 69, 0.04);
+}
+.together-toggle-dots {
+  display: flex;
+  align-items: center;
+}
+.together-toggle-dots span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid #ffffff;
+  margin-left: -8px;
+}
+.together-toggle-dots span:first-child {
+  margin-left: 0;
+}
+.together-toggle-switch {
+  margin-left: auto;
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: var(--fd-line);
+  position: relative;
+  flex-shrink: 0;
+  transition: background 0.15s ease;
+}
+.together-toggle--active .together-toggle-switch {
+  background: var(--fd-ink);
+}
+.together-toggle-knob {
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: #ffffff;
+  transition: transform 0.15s ease;
+}
+.together-toggle--active .together-toggle-knob {
+  transform: translateX(18px);
+}
+
+.together-person-label {
+  font-family: "Oswald", sans-serif;
+  font-weight: 700;
+  font-size: 0.9rem;
+  letter-spacing: 0.03em;
+  margin: 4px 0 6px;
+}
+.together-person-label--second {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 2px dashed var(--fd-line);
+}
+
 .plans-row {
   width: 100%;
   margin-bottom: 18px;

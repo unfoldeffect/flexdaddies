@@ -75,6 +75,7 @@ type DraftExercise = {
   customName: string;
   customCategory: string;
   sets: DraftSet[];
+  setsOther: DraftSet[];
   targetReps?: string;
   notes: string;
 };
@@ -111,6 +112,7 @@ function emptyExercise(): DraftExercise {
     customName: "",
     customCategory: "",
     sets: makeSets(),
+    setsOther: makeSets(),
     notes: "",
   };
 }
@@ -123,12 +125,14 @@ function templateToDraft(
   return items.map((t) => {
     const known = !!toCategory[t.name];
     const isCardio = toCategory[t.name]?.label === CARDIO_LABEL;
+    const count = isCardio ? 1 : Math.max(1, t.sets);
     return {
       id: uid(),
       name: known ? t.name : OTHER_VALUE,
       customName: known ? "" : t.name,
       customCategory: "",
-      sets: makeSets(isCardio ? 1 : Math.max(1, t.sets)),
+      sets: makeSets(count),
+      setsOther: makeSets(count),
       targetReps: t.reps,
       notes: "",
     };
@@ -140,6 +144,13 @@ function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
     ...ex,
     id: uid(),
     sets: ex.sets.map(() => ({ id: uid(), reps: "", weight: "", time: "", intensity: "" })),
+    setsOther: ex.setsOther.map(() => ({
+      id: uid(),
+      reps: "",
+      weight: "",
+      time: "",
+      intensity: "",
+    })),
     notes: "",
   }));
 }
@@ -201,6 +212,10 @@ function ExerciseEditor({
   groups,
   toCategory,
   lastPerformance,
+  togetherMode,
+  currentUser,
+  otherUser,
+  lastPerformanceOther,
 }: {
   exercise: DraftExercise;
   onChange: (updated: DraftExercise) => void;
@@ -209,6 +224,10 @@ function ExerciseEditor({
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
   lastPerformance: Record<string, Workout["exercises"][number]>;
+  togetherMode: boolean;
+  currentUser: WorkoutUser;
+  otherUser: WorkoutUser;
+  lastPerformanceOther: Record<string, Workout["exercises"][number]>;
 }) {
   const updateSet = (
     setId: string,
@@ -221,15 +240,128 @@ function ExerciseEditor({
     });
   };
 
+  const updateOtherSet = (
+    setId: string,
+    field: "reps" | "weight" | "time" | "intensity",
+    value: string,
+  ) => {
+    onChange({
+      ...exercise,
+      setsOther: exercise.setsOther.map((s) => (s.id === setId ? { ...s, [field]: value } : s)),
+    });
+  };
+
   const handleNameChange = (name: string) => {
     const isCardioNext = name !== OTHER_VALUE && toCategory[name]?.label === CARDIO_LABEL;
-    onChange({ ...exercise, name, sets: clampSetsForCategory(exercise.sets, isCardioNext) });
+    onChange({
+      ...exercise,
+      name,
+      sets: clampSetsForCategory(exercise.sets, isCardioNext),
+      setsOther: clampSetsForCategory(exercise.setsOther, isCardioNext),
+    });
   };
 
   const isOther = exercise.name === OTHER_VALUE;
   const category = resolveCategory(exercise, toCategory);
   const accent = category ? category.color : "#dbe0d6";
   const isCardio = category?.label === CARDIO_LABEL;
+
+  const renderLastWorkout = (
+    history: Record<string, Workout["exercises"][number]>,
+    cardio: boolean,
+  ) => {
+    if (isOther || !exercise.name || !history[exercise.name]?.sets.length) return null;
+    const entry = history[exercise.name];
+    return (
+      <p className="target-reps-note target-reps-note--history">
+        Last workout:{" "}
+        {entry.sets
+          .filter((s) => (cardio ? s.time || s.intensity : s.reps || s.weight))
+          .map((s) => (cardio ? `${s.time}min @ ${s.intensity}/10` : `${s.reps}×${s.weight}lbs`))
+          .join(", ")}
+        {entry.notes && (
+          <>
+            <br />
+            <span className="target-reps-note--quote">"{entry.notes}"</span>
+          </>
+        )}
+      </p>
+    );
+  };
+
+  const renderSetRows = (
+    sets: DraftSet[],
+    onSetChange: (
+      id: string,
+      field: "reps" | "weight" | "time" | "intensity",
+      value: string,
+    ) => void,
+    cardio: boolean,
+  ) => (
+    <div className="set-rows">
+      <div className="set-row set-row--header">
+        <span>SET</span>
+        {cardio ? (
+          <>
+            <span>TIME (MIN)</span>
+            <span>INTENSITY (1-10)</span>
+          </>
+        ) : (
+          <>
+            <span>REPS</span>
+            <span>WEIGHT (LBS)</span>
+          </>
+        )}
+      </div>
+      {sets.map((s, i) => (
+        <div className="set-row" key={s.id}>
+          <span className="set-index" style={{ background: accent }}>
+            {i + 1}
+          </span>
+          {cardio ? (
+            <>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="0"
+                value={s.time}
+                onChange={(e) => onSetChange(s.id, "time", e.target.value)}
+              />
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                max="10"
+                placeholder="0"
+                value={s.intensity}
+                onChange={(e) => onSetChange(s.id, "intensity", e.target.value)}
+              />
+            </>
+          ) : (
+            <>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="0"
+                value={s.reps}
+                onChange={(e) => onSetChange(s.id, "reps", e.target.value)}
+              />
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                placeholder="0"
+                value={s.weight}
+                onChange={(e) => onSetChange(s.id, "weight", e.target.value)}
+              />
+            </>
+          )}
+        </div>
+      ))}
+    </div>
+  );
 
   return (
     <div className="exercise-card" style={{ borderColor: category ? accent : undefined }}>
@@ -278,10 +410,12 @@ function ExerciseEditor({
                 value={exercise.customCategory}
                 onChange={(e) => {
                   const cat = e.target.value;
+                  const cardioNext = cat === CARDIO_LABEL;
                   onChange({
                     ...exercise,
                     customCategory: cat,
-                    sets: clampSetsForCategory(exercise.sets, cat === CARDIO_LABEL),
+                    sets: clampSetsForCategory(exercise.sets, cardioNext),
+                    setsOther: clampSetsForCategory(exercise.setsOther, cardioNext),
                   });
                 }}
               >
@@ -302,90 +436,26 @@ function ExerciseEditor({
         )}
       </div>
 
-      {!isOther && exercise.name && lastPerformance[exercise.name]?.sets.length ? (
-        <p className="target-reps-note target-reps-note--history">
-          Last workout:{" "}
-          {lastPerformance[exercise.name].sets
-            .filter((s) => (isCardio ? s.time || s.intensity : s.reps || s.weight))
-            .map((s) =>
-              isCardio ? `${s.time}min @ ${s.intensity}/10` : `${s.reps}×${s.weight}lbs`,
-            )
-            .join(", ")}
-          {lastPerformance[exercise.name].notes && (
-            <>
-              <br />
-              <span className="target-reps-note--quote">
-                "{lastPerformance[exercise.name].notes}"
-              </span>
-            </>
-          )}
+      {togetherMode && (
+        <p className="together-person-label" style={{ color: USER_COLORS[currentUser] }}>
+          {currentUser}
         </p>
-      ) : null}
+      )}
+      {renderLastWorkout(lastPerformance, isCardio)}
+      {renderSetRows(exercise.sets, updateSet, isCardio)}
 
-      <div className="set-rows">
-        <div className="set-row set-row--header">
-          <span>SET</span>
-          {isCardio ? (
-            <>
-              <span>TIME (MIN)</span>
-              <span>INTENSITY (1-10)</span>
-            </>
-          ) : (
-            <>
-              <span>REPS</span>
-              <span>WEIGHT (LBS)</span>
-            </>
-          )}
-        </div>
-        {exercise.sets.map((s, i) => (
-          <div className="set-row" key={s.id}>
-            <span className="set-index" style={{ background: accent }}>
-              {i + 1}
-            </span>
-            {isCardio ? (
-              <>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  placeholder="0"
-                  value={s.time}
-                  onChange={(e) => updateSet(s.id, "time", e.target.value)}
-                />
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  max="10"
-                  placeholder="0"
-                  value={s.intensity}
-                  onChange={(e) => updateSet(s.id, "intensity", e.target.value)}
-                />
-              </>
-            ) : (
-              <>
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  placeholder="0"
-                  value={s.reps}
-                  onChange={(e) => updateSet(s.id, "reps", e.target.value)}
-                />
-                <input
-                  type="number"
-                  inputMode="numeric"
-                  min="0"
-                  placeholder="0"
-                  value={s.weight}
-                  onChange={(e) => updateSet(s.id, "weight", e.target.value)}
-                />
-              </>
-            )}
-          </div>
-        ))}
-      </div>
-
+      {togetherMode && (
+        <>
+          <p
+            className="together-person-label together-person-label--second"
+            style={{ color: USER_COLORS[otherUser] }}
+          >
+            {otherUser}
+          </p>
+          {renderLastWorkout(lastPerformanceOther, isCardio)}
+          {renderSetRows(exercise.setsOther, updateOtherSet, isCardio)}
+        </>
+      )}
       <div className="exercise-notes-block">
         <label className="field-label" htmlFor={`exercise-notes-${exercise.id}`}>
           NOTES <span className="field-label-sub">(optional)</span>
@@ -427,6 +497,7 @@ function workoutExercisesToDraft(
       customName: known ? "" : ex.name,
       customCategory: known ? "" : isCardio ? CARDIO_LABEL : "",
       sets,
+      setsOther: makeSets(sets.length),
       notes: ex.notes || "",
     };
   });
@@ -444,6 +515,10 @@ function WorkoutForm({
   toCategory,
   lastPerformance,
   saving,
+  togetherMode = false,
+  currentUser,
+  otherUser,
+  lastPerformanceOther,
 }: {
   initialDate: string;
   initialExercises: DraftExercise[];
@@ -452,6 +527,7 @@ function WorkoutForm({
   onSubmit: (data: {
     date: string;
     exercises: Workout["exercises"];
+    exercisesOther?: Workout["exercises"];
     notes: string;
   }) => Promise<boolean>;
   onCancel?: () => void;
@@ -460,6 +536,10 @@ function WorkoutForm({
   toCategory: Record<string, CategoryInfo>;
   lastPerformance: Record<string, Workout["exercises"][number]>;
   saving: boolean;
+  togetherMode?: boolean;
+  currentUser: WorkoutUser;
+  otherUser: WorkoutUser;
+  lastPerformanceOther?: Record<string, Workout["exercises"][number]>;
 }) {
   const [date, setDate] = useState(initialDate);
   const [exercises, setExercises] = useState<DraftExercise[]>(initialExercises);
@@ -474,44 +554,59 @@ function WorkoutForm({
     ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name;
 
   const canSave = exercises.some(
-    (ex) => finalName(ex) && ex.sets.some((s) => s.reps || s.weight || s.time || s.intensity),
+    (ex) =>
+      finalName(ex) &&
+      (ex.sets.some((s) => s.reps || s.weight || s.time || s.intensity) ||
+        (togetherMode && ex.setsOther.some((s) => s.reps || s.weight || s.time || s.intensity))),
   );
+
+  const cleanSets = (sets: DraftSet[], isCardio: boolean) =>
+    isCardio
+      ? sets
+          .filter((s) => s.time !== "" || s.intensity !== "")
+          .map((s) => ({
+            reps: 0,
+            weight: 0,
+            time: Number(s.time) || 0,
+            intensity: Number(s.intensity) || 0,
+          }))
+      : sets
+          .filter((s) => s.reps !== "" || s.weight !== "")
+          .map((s) => ({
+            reps: Number(s.reps) || 0,
+            weight: Number(s.weight) || 0,
+            time: 0,
+            intensity: 0,
+          }));
 
   const handleSave = async () => {
     const cleaned: Workout["exercises"] = [];
+    const cleanedOther: Workout["exercises"] = [];
     const toRegister: { name: string; category: string }[] = [];
 
     for (const ex of exercises) {
       const name = finalName(ex);
       if (!name) continue;
       const isCardio = resolveCategory(ex, toCategory)?.label === CARDIO_LABEL;
-      const sets = isCardio
-        ? ex.sets
-            .filter((s) => s.time !== "" || s.intensity !== "")
-            .map((s) => ({
-              reps: 0,
-              weight: 0,
-              time: Number(s.time) || 0,
-              intensity: Number(s.intensity) || 0,
-            }))
-        : ex.sets
-            .filter((s) => s.reps !== "" || s.weight !== "")
-            .map((s) => ({
-              reps: Number(s.reps) || 0,
-              weight: Number(s.weight) || 0,
-              time: 0,
-              intensity: 0,
-            }));
-      if (!sets.length) continue;
-      cleaned.push({ name, sets, notes: ex.notes.trim() });
-      if (ex.name === OTHER_VALUE) {
+      const sets = cleanSets(ex.sets, isCardio);
+      if (sets.length) cleaned.push({ name, sets, notes: ex.notes.trim() });
+      if (togetherMode) {
+        const setsOther = cleanSets(ex.setsOther, isCardio);
+        if (setsOther.length) cleanedOther.push({ name, sets: setsOther, notes: ex.notes.trim() });
+      }
+      if (sets.length && ex.name === OTHER_VALUE) {
         toRegister.push({ name, category: ex.customCategory || OTHER_CATEGORY.label });
       }
     }
 
-    if (!cleaned.length) return;
+    if (!cleaned.length && !cleanedOther.length) return;
 
-    const ok = await onSubmit({ date, exercises: cleaned, notes: "" });
+    const ok = await onSubmit({
+      date,
+      exercises: cleaned,
+      exercisesOther: togetherMode ? cleanedOther : undefined,
+      notes: "",
+    });
     if (ok) {
       toRegister.forEach((r) => onRegisterExercise(r.name, r.category));
     }
@@ -547,6 +642,10 @@ function WorkoutForm({
           groups={groups}
           toCategory={toCategory}
           lastPerformance={lastPerformance}
+          togetherMode={togetherMode}
+          currentUser={currentUser}
+          otherUser={otherUser}
+          lastPerformanceOther={lastPerformanceOther ?? {}}
         />
       ))}
 
@@ -570,7 +669,9 @@ function WorkoutForm({
 
 function LogView({
   user,
+  otherUser,
   onSave,
+  onSaveBoth,
   onRegisterExercise,
   groups,
   toCategory,
@@ -581,9 +682,14 @@ function LogView({
   seedExercises,
   seedKey,
   lastPerformance,
+  lastPerformanceOther,
+  togetherMode,
+  setTogetherMode,
 }: {
   user: WorkoutUser;
+  otherUser: WorkoutUser;
   onSave: (workout: Workout) => Promise<boolean>;
+  onSaveBoth: (workout: Workout, workoutOther: Workout) => Promise<boolean>;
   onRegisterExercise: (name: string, category: string) => void;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
@@ -594,9 +700,26 @@ function LogView({
   seedExercises: DraftExercise[] | null;
   seedKey: number;
   lastPerformance: Record<string, Workout["exercises"][number]>;
+  lastPerformanceOther: Record<string, Workout["exercises"][number]>;
+  togetherMode: boolean;
+  setTogetherMode: (v: boolean) => void;
 }) {
   return (
     <>
+      <button
+        className={`together-toggle ${togetherMode ? "together-toggle--active" : ""}`}
+        onClick={() => setTogetherMode(!togetherMode)}
+      >
+        <span className="together-toggle-dots">
+          <span style={{ background: USER_COLORS[user] }} />
+          <span style={{ background: USER_COLORS[otherUser] }} />
+        </span>
+        Logging for both of us
+        <span className="together-toggle-switch">
+          <span className="together-toggle-knob" />
+        </span>
+      </button>
+
       {templates.length > 0 && (
         <div className="plans-row">
           <div className="plans-row-label">START FROM A PLAN</div>
@@ -624,23 +747,39 @@ function LogView({
         key={seedKey}
         initialDate={todayISO()}
         initialExercises={seedExercises ?? [emptyExercise()]}
-        submitLabel="LOG WORKOUT"
+        submitLabel={togetherMode ? "LOG BOTH WORKOUTS" : "LOG WORKOUT"}
         savingLabel="SAVING..."
         saving={saving}
         onRegisterExercise={onRegisterExercise}
         groups={groups}
         toCategory={toCategory}
         lastPerformance={lastPerformance}
-        onSubmit={({ date, exercises, notes }) =>
-          onSave({
+        togetherMode={togetherMode}
+        currentUser={user}
+        otherUser={otherUser}
+        lastPerformanceOther={lastPerformanceOther}
+        onSubmit={({ date, exercises, exercisesOther, notes }) => {
+          const workout: Workout = {
             id: uid(),
             user,
             date,
             exercises,
             notes,
             loggedAt: new Date().toISOString(),
-          })
-        }
+          };
+          if (togetherMode && exercisesOther) {
+            const workoutOther: Workout = {
+              id: uid(),
+              user: otherUser,
+              date,
+              exercises: exercisesOther,
+              notes,
+              loggedAt: new Date().toISOString(),
+            };
+            return onSaveBoth(workout, workoutOther);
+          }
+          return onSave(workout);
+        }}
       />
     </>
   );
@@ -770,6 +909,8 @@ function HistoryView({
                     groups={groups}
                     toCategory={toCategory}
                     lastPerformance={lastPerformance}
+                    currentUser={w.user}
+                    otherUser={USERS.find((u) => u !== w.user) ?? w.user}
                     onSubmit={async (data) => {
                       const ok = await onEdit(w.id, data);
                       if (ok) setEditingId(null);
@@ -1289,7 +1430,10 @@ function Index() {
   const [savingEdit, setSavingEdit] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingWeight, setSavingWeight] = useState(false);
+  const [togetherMode, setTogetherMode] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const otherUser: WorkoutUser | null = user ? (USERS.find((u) => u !== user) ?? null) : null;
 
   const { groups, toCategory } = useMemo(
     () => mergeExerciseGroups(customExercises),
@@ -1311,23 +1455,29 @@ function Index() {
     });
   }
 
-  const lastPerformanceForUser = useMemo(() => {
+  function computeLastPerformance(forUser: WorkoutUser | null) {
     const map: Record<string, Workout["exercises"][number]> = {};
-    if (!user) return map;
-    const mine = [...workouts]
-      .filter((w) => w.user === user)
+    if (!forUser) return map;
+    const theirs = [...workouts]
+      .filter((w) => w.user === forUser)
       .sort(
         (a, b) =>
           new Date(b.date).getTime() - new Date(a.date).getTime() ||
           (b.loggedAt || "").localeCompare(a.loggedAt || ""),
       );
-    for (const w of mine) {
+    for (const w of theirs) {
       for (const ex of w.exercises) {
         if (!(ex.name in map)) map[ex.name] = ex;
       }
     }
     return map;
-  }, [workouts, user]);
+  }
+
+  const lastPerformanceForUser = useMemo(() => computeLastPerformance(user), [workouts, user]);
+  const lastPerformanceForOtherUser = useMemo(
+    () => computeLastPerformance(otherUser),
+    [workouts, otherUser],
+  );
 
   function loadIntoLog(exercises: DraftExercise[]) {
     setLogSeed(exercises);
@@ -1379,6 +1529,21 @@ function Index() {
     try {
       await createWorkout({ data: workout });
       setWorkouts((prev) => [workout, ...prev]);
+      return true;
+    } catch {
+      setError("Couldn't save that — check your connection and try again.");
+      return false;
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  async function addWorkoutForBoth(workout: Workout, workoutOther: Workout) {
+    setSaving(true);
+    setError(null);
+    try {
+      await Promise.all([createWorkout({ data: workout }), createWorkout({ data: workoutOther })]);
+      setWorkouts((prev) => [workout, workoutOther, ...prev]);
       return true;
     } catch {
       setError("Couldn't save that — check your connection and try again.");
@@ -1474,10 +1639,12 @@ function Index() {
           <div className="content-wrap">
             {error && <div className="error-banner">{error}</div>}
 
-            {view === "log" && (
+            {view === "log" && otherUser && (
               <LogView
                 user={user}
+                otherUser={otherUser}
                 onSave={addWorkout}
+                onSaveBoth={addWorkoutForBoth}
                 onRegisterExercise={registerExercise}
                 groups={groups}
                 toCategory={toCategory}
@@ -1488,6 +1655,9 @@ function Index() {
                 seedExercises={logSeed}
                 seedKey={logSeedKey}
                 lastPerformance={lastPerformanceForUser}
+                lastPerformanceOther={lastPerformanceForOtherUser}
+                togetherMode={togetherMode}
+                setTogetherMode={setTogetherMode}
               />
             )}
             {view === "history" && (

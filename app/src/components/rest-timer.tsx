@@ -5,21 +5,27 @@ const REST_SECONDS = 60;
 function playChime(ctx: AudioContext) {
   try {
     const beep = (delay: number) => {
-      const osc = ctx.createOscillator();
-      const gain = ctx.createGain();
-      osc.type = "sine";
-      osc.frequency.value = 880;
-      gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + delay + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.3);
-      osc.connect(gain);
-      gain.connect(ctx.destination);
-      osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + 0.35);
+      // Two oscillators (a fundamental + an octave-up harmonic) read as a
+      // brighter, more piercing "alarm" tone than a single sine at the same
+      // volume — and gain is maxed near 1.0 to be as loud as this API allows.
+      [880, 1760].forEach((freq, i) => {
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        osc.type = "square";
+        osc.frequency.value = freq;
+        const peak = i === 0 ? 0.9 : 0.4;
+        gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
+        gain.gain.exponentialRampToValueAtTime(peak, ctx.currentTime + delay + 0.02);
+        gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.4);
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start(ctx.currentTime + delay);
+        osc.stop(ctx.currentTime + delay + 0.45);
+      });
     };
     beep(0);
-    beep(0.35);
-    beep(0.7);
+    beep(0.45);
+    beep(0.9);
   } catch {
     // Audio isn't critical — fail silently (e.g. autoplay-blocked browsers).
   }

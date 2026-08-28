@@ -72,3 +72,20 @@ export const deleteTemplate = createServerFn({ method: "POST" })
     await DB.prepare("DELETE FROM workout_templates WHERE id = ?").bind(data.id).run();
     return { ok: true };
   });
+
+const UpdateTemplateSchema = z.object({
+  id: z.string().min(1),
+  name: z.string().min(1),
+  exercises: z.array(TemplateExerciseSchema).min(1),
+});
+
+export const updateTemplate = createServerFn({ method: "POST" })
+  .inputValidator(UpdateTemplateSchema)
+  .handler(async ({ data }) => {
+    const { DB } = bindings();
+    if (!DB) throw new Error("Database unavailable");
+    await DB.prepare("UPDATE workout_templates SET name = ?, exercises = ? WHERE id = ?")
+      .bind(data.name, JSON.stringify(data.exercises), data.id)
+      .run();
+    return { ok: true };
+  });

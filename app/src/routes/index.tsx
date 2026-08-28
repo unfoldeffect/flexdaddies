@@ -29,6 +29,7 @@ import {
 import {
   createTemplate,
   deleteTemplate,
+  updateTemplate,
   listTemplates,
   type TemplateExercise,
   type WorkoutTemplate,
@@ -217,6 +218,7 @@ function ExerciseEditor({
   currentUser,
   otherUser,
   lastPerformanceOther,
+  hideSets = false,
 }: {
   exercise: DraftExercise;
   onChange: (updated: DraftExercise) => void;
@@ -229,6 +231,7 @@ function ExerciseEditor({
   currentUser: WorkoutUser;
   otherUser: WorkoutUser;
   lastPerformanceOther: Record<string, Workout["exercises"][number]>;
+  hideSets?: boolean;
 }) {
   const updateSet = (
     setId: string,
@@ -437,39 +440,43 @@ function ExerciseEditor({
         )}
       </div>
 
-      {togetherMode && (
-        <p className="together-person-label" style={{ color: USER_COLORS[currentUser] }}>
-          {currentUser}
-        </p>
-      )}
-      {renderLastWorkout(lastPerformance, isCardio)}
-      {renderSetRows(exercise.sets, updateSet, isCardio)}
-
-      {togetherMode && (
+      {!hideSets && (
         <>
-          <p
-            className="together-person-label together-person-label--second"
-            style={{ color: USER_COLORS[otherUser] }}
-          >
-            {otherUser}
-          </p>
-          {renderLastWorkout(lastPerformanceOther, isCardio)}
-          {renderSetRows(exercise.setsOther, updateOtherSet, isCardio)}
+          {togetherMode && (
+            <p className="together-person-label" style={{ color: USER_COLORS[currentUser] }}>
+              {currentUser}
+            </p>
+          )}
+          {renderLastWorkout(lastPerformance, isCardio)}
+          {renderSetRows(exercise.sets, updateSet, isCardio)}
+
+          {togetherMode && (
+            <>
+              <p
+                className="together-person-label together-person-label--second"
+                style={{ color: USER_COLORS[otherUser] }}
+              >
+                {otherUser}
+              </p>
+              {renderLastWorkout(lastPerformanceOther, isCardio)}
+              {renderSetRows(exercise.setsOther, updateOtherSet, isCardio)}
+            </>
+          )}
+          <div className="exercise-notes-block">
+            <label className="field-label" htmlFor={`exercise-notes-${exercise.id}`}>
+              NOTES <span className="field-label-sub">(optional)</span>
+            </label>
+            <textarea
+              id={`exercise-notes-${exercise.id}`}
+              className="exercise-notes-input"
+              placeholder="Form cues, how it felt, anything to remember..."
+              value={exercise.notes}
+              onChange={(e) => onChange({ ...exercise, notes: e.target.value })}
+              rows={2}
+            />
+          </div>
         </>
       )}
-      <div className="exercise-notes-block">
-        <label className="field-label" htmlFor={`exercise-notes-${exercise.id}`}>
-          NOTES <span className="field-label-sub">(optional)</span>
-        </label>
-        <textarea
-          id={`exercise-notes-${exercise.id}`}
-          className="exercise-notes-input"
-          placeholder="Form cues, how it felt, anything to remember..."
-          value={exercise.notes}
-          onChange={(e) => onChange({ ...exercise, notes: e.target.value })}
-          rows={2}
-        />
-      </div>
     </div>
   );
 }
@@ -671,6 +678,98 @@ function WorkoutForm({
   );
 }
 
+function PlanEditForm({
+  template,
+  onSave,
+  onCancel,
+  groups,
+  toCategory,
+  saving,
+}: {
+  template: WorkoutTemplate;
+  onSave: (name: string, exercises: TemplateExercise[]) => Promise<boolean>;
+  onCancel: () => void;
+  groups: ExerciseGroup[];
+  toCategory: Record<string, CategoryInfo>;
+  saving: boolean;
+}) {
+  const [name, setName] = useState(template.name);
+  const [exercises, setExercises] = useState<DraftExercise[]>(() =>
+    templateToDraft(template.exercises, toCategory),
+  );
+
+  const updateExercise = (id: string, updated: DraftExercise) =>
+    setExercises((prev) => prev.map((ex) => (ex.id === id ? updated : ex)));
+  const removeExercise = (id: string) => setExercises((prev) => prev.filter((ex) => ex.id !== id));
+  const addExercise = () => setExercises((prev) => [...prev, emptyExercise()]);
+
+  const finalName = (ex: DraftExercise) =>
+    ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name;
+
+  const canSave = name.trim().length > 0 && exercises.some((ex) => finalName(ex));
+
+  const handleSave = async () => {
+    const built: TemplateExercise[] = exercises
+      .filter((ex) => finalName(ex))
+      .map((ex) => ({
+        name: finalName(ex),
+        sets: ex.sets.length,
+        reps: ex.targetReps,
+      }));
+    if (!built.length) return;
+    await onSave(name.trim(), built);
+  };
+
+  return (
+    <div className="view">
+      <p className="plans-row-label">EDITING PLAN</p>
+      <div className="log-date-row">
+        <label className="field-label" htmlFor="plan-name">
+          PLAN NAME
+        </label>
+        <input
+          id="plan-name"
+          type="text"
+          className="exercise-custom-input"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+      </div>
+
+      {exercises.map((ex) => (
+        <ExerciseEditor
+          key={ex.id}
+          exercise={ex}
+          onChange={(updated) => updateExercise(ex.id, updated)}
+          onRemove={() => removeExercise(ex.id)}
+          showRemove={exercises.length > 1}
+          groups={groups}
+          toCategory={toCategory}
+          lastPerformance={{}}
+          togetherMode={false}
+          currentUser="Diego"
+          otherUser="Kevin"
+          lastPerformanceOther={{}}
+          hideSets
+        />
+      ))}
+
+      <button className="add-exercise-btn" onClick={addExercise}>
+        <PlusIcon size={20} /> Add Exercise
+      </button>
+
+      <div className="edit-form-actions">
+        <button className="save-btn" onClick={handleSave} disabled={!canSave || saving}>
+          {saving ? "SAVING..." : "SAVE PLAN"}
+        </button>
+        <button className="cancel-edit-btn" onClick={onCancel}>
+          Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
 function LogView({
   user,
   otherUser,
@@ -689,6 +788,11 @@ function LogView({
   lastPerformanceOther,
   togetherMode,
   setTogetherMode,
+  editingTemplate,
+  onStartEditTemplate,
+  onCancelEditTemplate,
+  onSaveTemplateEdits,
+  savingTemplateEdit,
 }: {
   user: WorkoutUser;
   otherUser: WorkoutUser;
@@ -707,7 +811,25 @@ function LogView({
   lastPerformanceOther: Record<string, Workout["exercises"][number]>;
   togetherMode: boolean;
   setTogetherMode: (v: boolean) => void;
+  editingTemplate: WorkoutTemplate | null;
+  onStartEditTemplate: (template: WorkoutTemplate) => void;
+  onCancelEditTemplate: () => void;
+  onSaveTemplateEdits: (name: string, exercises: TemplateExercise[]) => Promise<boolean>;
+  savingTemplateEdit: boolean;
 }) {
+  if (editingTemplate) {
+    return (
+      <PlanEditForm
+        template={editingTemplate}
+        onSave={onSaveTemplateEdits}
+        onCancel={onCancelEditTemplate}
+        groups={groups}
+        toCategory={toCategory}
+        saving={savingTemplateEdit}
+      />
+    );
+  }
+
   return (
     <>
       <button
@@ -731,6 +853,17 @@ function LogView({
             {templates.map((t) => (
               <button key={t.id} className="plan-chip" onClick={() => onLoadTemplate(t)}>
                 <DumbbellIcon size={14} /> {t.name}
+                <span
+                  className="plan-chip-edit"
+                  role="button"
+                  aria-label={`Edit ${t.name} plan`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onStartEditTemplate(t);
+                  }}
+                >
+                  <EditIcon size={13} />
+                </span>
                 <span
                   className="plan-chip-delete"
                   role="button"
@@ -1435,6 +1568,8 @@ function Index() {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [savingWeight, setSavingWeight] = useState(false);
   const [togetherMode, setTogetherMode] = useState(false);
+  const [editingTemplate, setEditingTemplate] = useState<WorkoutTemplate | null>(null);
+  const [savingTemplateEdit, setSavingTemplateEdit] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const otherUser: WorkoutUser | null = user ? (USERS.find((u) => u !== user) ?? null) : null;
@@ -1524,6 +1659,37 @@ function Index() {
       await deleteTemplate({ data: { id } });
     } catch {
       setError("Couldn't delete that plan — check your connection and try again.");
+    }
+  }
+
+  function startEditTemplate(template: WorkoutTemplate) {
+    setEditingTemplate(template);
+    setView("log");
+  }
+
+  function cancelEditTemplate() {
+    setEditingTemplate(null);
+  }
+
+  async function saveTemplateEdits(name: string, exercises: TemplateExercise[]) {
+    if (!editingTemplate) return false;
+    setSavingTemplateEdit(true);
+    setError(null);
+    const updated: WorkoutTemplate = { ...editingTemplate, name, exercises };
+    try {
+      await updateTemplate({ data: { id: editingTemplate.id, name, exercises } });
+      setTemplates((prev) =>
+        prev
+          .map((t) => (t.id === editingTemplate.id ? updated : t))
+          .sort((a, b) => a.name.localeCompare(b.name)),
+      );
+      setEditingTemplate(null);
+      return true;
+    } catch {
+      setError("Couldn't save those plan changes — check your connection and try again.");
+      return false;
+    } finally {
+      setSavingTemplateEdit(false);
     }
   }
 
@@ -1662,6 +1828,11 @@ function Index() {
                 lastPerformanceOther={lastPerformanceForOtherUser}
                 togetherMode={togetherMode}
                 setTogetherMode={setTogetherMode}
+                editingTemplate={editingTemplate}
+                onStartEditTemplate={startEditTemplate}
+                onCancelEditTemplate={cancelEditTemplate}
+                onSaveTemplateEdits={saveTemplateEdits}
+                savingTemplateEdit={savingTemplateEdit}
               />
             )}
             {view === "history" && (

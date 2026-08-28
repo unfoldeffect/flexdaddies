@@ -11,6 +11,7 @@ import { useEffect, type ReactNode } from "react";
 
 import appCss from "../styles.css?url";
 import { reportHiggsfieldError } from "../lib/higgsfield-error-reporting";
+import { RestTimer } from "../components/rest-timer";
 // Page metadata (browser <title>/favicon + social og: tags) committed into the
 // repo by the marketplace meta API and read at BUILD time — no runtime fetch.
 // Editing it via the app settings UI rewrites this file and redeploys the app.
@@ -126,9 +127,7 @@ function ErrorComponent({ error, reset }: { error: Error; reset: () => void }) {
   return (
     <div className="flex min-h-dvh items-center justify-center bg-white px-4">
       <div className="max-w-md text-center">
-        <h1 className="font-oswald text-xl font-semibold text-[#0b2545]">
-          This page didn't load
-        </h1>
+        <h1 className="font-oswald text-xl font-semibold text-[#0b2545]">This page didn't load</h1>
         <p className="mt-2 text-[#5b5d52]">
           Something went wrong on our end. You can try refreshing or head back home.
         </p>
@@ -203,6 +202,7 @@ function RootComponent() {
     <QueryClientProvider client={queryClient}>
       {/* Required: nested routes render here. Removing <Outlet /> breaks all child routes. */}
       <Outlet />
+      <RestTimer />
     </QueryClientProvider>
   );
 }

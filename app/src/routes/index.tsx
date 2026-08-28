@@ -14,6 +14,7 @@ import {
   UserIcon,
   XIcon,
 } from "../components/icons";
+import { RestTimer } from "../components/rest-timer";
 import {
   addCustomExercise,
   listCustomExercises,
@@ -743,6 +744,8 @@ function LogView({
           </div>
         </div>
       )}
+
+      <RestTimer />
       <WorkoutForm
         key={seedKey}
         initialDate={todayISO()}

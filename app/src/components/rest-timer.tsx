@@ -1,44 +1,57 @@
 import { useEffect, useRef, useState } from "react";
 
-const REST_SECONDS = 90;
+const REST_SECONDS = 75;
 
-// Plays a short double-beep using the Web Audio API — no audio file needed,
-// so it works offline and doesn't add anything to the bundle.
-function playChime() {
+function playChime(ctx: AudioContext) {
   try {
-    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
-    if (!AudioCtx) return;
-    const ctx = new AudioCtx();
     const beep = (delay: number) => {
       const osc = ctx.createOscillator();
       const gain = ctx.createGain();
       osc.type = "sine";
       osc.frequency.value = 880;
       gain.gain.setValueAtTime(0.0001, ctx.currentTime + delay);
-      gain.gain.exponentialRampToValueAtTime(0.3, ctx.currentTime + delay + 0.02);
-      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.25);
+      gain.gain.exponentialRampToValueAtTime(0.35, ctx.currentTime + delay + 0.02);
+      gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + delay + 0.3);
       osc.connect(gain);
       gain.connect(ctx.destination);
       osc.start(ctx.currentTime + delay);
-      osc.stop(ctx.currentTime + delay + 0.3);
+      osc.stop(ctx.currentTime + delay + 0.35);
     };
     beep(0);
-    beep(0.3);
+    beep(0.35);
+    beep(0.7);
   } catch {
     // Audio isn't critical — fail silently (e.g. autoplay-blocked browsers).
   }
 }
 
-// Floating rest timer, available on every screen. Tap it to start (or
-// restart) a 90-second countdown between sets. Vibrates + chimes when time's
-// up, then resets so it's ready for the next set.
+// Inline rest timer, sits between the Plans row and the date field on the Log
+// tab. Tap to start (or restart) a countdown between sets. Vibrates + chimes
+// when time's up, then resets so it's ready for the next set.
 export function RestTimer() {
   const [remaining, setRemaining] = useState(REST_SECONDS);
   const [running, setRunning] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const audioCtxRef = useRef<AudioContext | null>(null);
+
+  // iOS/Safari suspends AudioContext until it's created *and* resumed inside
+  // a direct user-gesture handler — if that only happens later (e.g. inside
+  // a setInterval callback when the timer finishes), no sound ever plays.
+  // Unlocking it here, synchronously on tap, is what makes the chime reliable.
+  function ensureAudioUnlocked() {
+    const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
+    if (!AudioCtx) return;
+    if (!audioCtxRef.current) {
+      audioCtxRef.current = new AudioCtx();
+    }
+    if (audioCtxRef.current.state === "suspended") {
+      audioCtxRef.current.resume().catch(() => {});
+    }
+  }
 
   function start() {
+    ensureAudioUnlocked();
     setJustFinished(false);
     setRemaining(REST_SECONDS);
     setRunning(true);
@@ -51,8 +64,8 @@ export function RestTimer() {
         if (prev <= 1) {
           setRunning(false);
           setJustFinished(true);
-          if (navigator.vibrate) navigator.vibrate([200, 100, 200]);
-          playChime();
+          if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
+          if (audioCtxRef.current) playChime(audioCtxRef.current);
           return REST_SECONDS;
         }
         return prev - 1;
@@ -63,40 +76,29 @@ export function RestTimer() {
     };
   }, [running]);
 
-  // Clear the "Go!" flash a couple seconds after the timer finishes.
+  // Clear the "time's up" flash a few seconds after the timer finishes.
   useEffect(() => {
     if (!justFinished) return;
-    const t = setTimeout(() => setJustFinished(false), 2500);
+    const t = setTimeout(() => setJustFinished(false), 3000);
     return () => clearTimeout(t);
   }, [justFinished]);
 
-  const progress = running ? remaining / REST_SECONDS : 1;
-  // Circular progress ring via conic-gradient, gold when idle/finished, navy sweep while running.
-  const ringStyle = running
-    ? {
-        background: `conic-gradient(#c9a227 ${(1 - progress) * 360}deg, #0b254522 0deg)`,
-      }
-    : undefined;
+  const progress = running ? (REST_SECONDS - remaining) / REST_SECONDS : 0;
 
   return (
     <button
       type="button"
       onClick={start}
-      aria-label="Start 90 second rest timer"
-      className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#0b2545] bg-[#c9a227] shadow-lg transition-transform active:scale-95"
-      style={ringStyle}
+      className={`rest-timer-pill ${justFinished ? "rest-timer-pill--done" : ""}`}
+      aria-label={`Start ${REST_SECONDS} second rest timer`}
     >
-      <span className="flex h-[52px] w-[52px] flex-col items-center justify-center rounded-full bg-[#0b2545] font-oswald font-bold text-white">
-        {justFinished ? (
-          <span className="text-sm leading-none">GO!</span>
-        ) : (
-          <>
-            <span className="text-lg leading-none">{running ? remaining : REST_SECONDS}</span>
-            <span className="text-[9px] leading-none tracking-wide text-[#c9a227]">
-              {running ? "REST" : "TAP"}
-            </span>
-          </>
-        )}
+      <span className="rest-timer-fill" style={{ width: `${progress * 100}%` }} />
+      <span className="rest-timer-label">
+        {justFinished
+          ? "TIME'S UP — TAP TO RESTART"
+          : running
+            ? `RESTING · ${remaining}s`
+            : `REST TIMER · ${REST_SECONDS}s`}
       </span>
     </button>
   );

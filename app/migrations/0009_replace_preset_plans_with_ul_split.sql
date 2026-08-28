@@ -17,15 +17,15 @@ WHERE id IN (
 );
 
 INSERT OR IGNORE INTO workout_templates (id, name, created_by, exercises, created_at) VALUES
-('preset-upper-a', '1 - Upper A (Sun)', 'Diego',
+('preset-upper-a', '1 - Upper A', 'Diego',
  '[{"name":"Chest Press Machine","sets":3,"reps":"8-10"},{"name":"Seated Cable Row","sets":3,"reps":"8-10"},{"name":"Shoulder Press Machine","sets":3,"reps":"10-12"},{"name":"Lat Pulldown Machine","sets":3,"reps":"10-12"},{"name":"Lateral Raise Machine","sets":3,"reps":"12-15"},{"name":"Tricep Pushdown (Cable)","sets":3,"reps":"10-12"},{"name":"Bicep Curl Machine","sets":3,"reps":"10-12"},{"name":"Ab Crunch Machine","sets":3,"reps":"12-15"}]',
  '2026-08-27T00:00:00.000Z'),
-('preset-lower-a', '2 - Lower A (Mon)', 'Diego',
+('preset-lower-a', '2 - Lower A', 'Diego',
  '[{"name":"Leg Press Machine","sets":3,"reps":"8-10"},{"name":"Seated Leg Curl Machine","sets":3,"reps":"10-12"},{"name":"Leg Extension Machine","sets":3,"reps":"12-15"},{"name":"Hip Thrust Machine","sets":3,"reps":"10-12"},{"name":"Standing Calf Raise Machine","sets":3,"reps":"12-15"},{"name":"Cable Crunch","sets":3,"reps":"12-15"}]',
  '2026-08-27T00:00:00.000Z'),
-('preset-upper-b', '3 - Upper B (Wed)', 'Diego',
+('preset-upper-b', '3 - Upper B', 'Diego',
  '[{"name":"Lat Pulldown Machine","sets":3,"reps":"8-10"},{"name":"Incline Dumbbell Press","sets":3,"reps":"8-10"},{"name":"T-Bar Row Machine","sets":3,"reps":"8-10"},{"name":"Pec Deck Machine","sets":3,"reps":"12-15"},{"name":"Reverse Pec Deck (Rear Delt)","sets":3,"reps":"12-15"},{"name":"Hammer Curl","sets":3,"reps":"10-12"},{"name":"Seated Dip Machine","sets":3,"reps":"10-12"},{"name":"Torso Rotation Machine","sets":3,"reps":"12-15"}]',
  '2026-08-27T00:00:00.000Z'),
-('preset-lower-b', '4 - Lower B (Fri)', 'Diego',
+('preset-lower-b', '4 - Lower B', 'Diego',
  '[{"name":"Leg Press Machine","sets":3,"reps":"10-12 wide stance"},{"name":"Hip Thrust Machine","sets":3,"reps":"10-12"},{"name":"Hip Abductor Machine","sets":3,"reps":"15-20"},{"name":"Glute Kickback Machine","sets":3,"reps":"12-15"},{"name":"Lying Leg Curl Machine","sets":3,"reps":"10-12"},{"name":"Seated Calf Raise Machine","sets":3,"reps":"15-20"},{"name":"Cable Woodchopper","sets":3,"reps":"12/side"}]',
  '2026-08-27T00:00:00.000Z');

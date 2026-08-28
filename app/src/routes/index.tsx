@@ -622,9 +622,12 @@ function WorkoutForm({
   return (
     <div className="view">
       <div className="log-date-row">
-        <label className="field-label" htmlFor="workout-date">
-          DATE
-        </label>
+        <div className="log-date-row-header">
+          <label className="field-label" htmlFor="workout-date">
+            DATE
+          </label>
+          {!onCancel && <RestTimer />}
+        </div>
         <input
           id="workout-date"
           type="date"
@@ -744,8 +747,6 @@ function LogView({
           </div>
         </div>
       )}
-
-      <RestTimer />
       <WorkoutForm
         key={seedKey}
         initialDate={todayISO()}

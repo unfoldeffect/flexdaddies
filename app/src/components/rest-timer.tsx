@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const REST_SECONDS = 75;
+const REST_SECONDS = 60;
 
 function playChime(ctx: AudioContext) {
   try {
@@ -94,11 +94,7 @@ export function RestTimer() {
     >
       <span className="rest-timer-fill" style={{ width: `${progress * 100}%` }} />
       <span className="rest-timer-label">
-        {justFinished
-          ? "TIME'S UP — TAP TO RESTART"
-          : running
-            ? `RESTING · ${remaining}s`
-            : `REST TIMER · ${REST_SECONDS}s`}
+        {justFinished ? "DONE — TAP" : running ? `${remaining}s` : `REST ${REST_SECONDS}s`}
       </span>
     </button>
   );

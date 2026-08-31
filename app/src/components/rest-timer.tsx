@@ -127,7 +127,7 @@ export function RestTimer() {
       type="button"
       onClick={start}
       aria-label="Start 60 second rest timer"
-      className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#0b2545] bg-[#c9a227] shadow-lg transition-transform active:scale-95"
+      className="fixed top-24 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#0b2545] bg-[#c9a227] shadow-lg transition-transform active:scale-95"
       style={ringStyle}
     >
       <span className="flex h-[52px] w-[52px] flex-col items-center justify-center rounded-full bg-[#0b2545] font-oswald font-bold text-white">

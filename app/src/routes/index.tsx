@@ -629,12 +629,9 @@ function WorkoutForm({
   return (
     <div className="view">
       <div className="log-date-row">
-        <div className="log-date-row-header">
-          <label className="field-label" htmlFor="workout-date">
-            DATE
-          </label>
-          {!onCancel && <RestTimer />}
-        </div>
+        <label className="field-label" htmlFor="workout-date">
+          DATE
+        </label>
         <input
           id="workout-date"
           type="date"
@@ -1880,6 +1877,7 @@ function Index() {
               ))}
             </div>
           </div>
+          <RestTimer />
         </>
       )}
     </div>

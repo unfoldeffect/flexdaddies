@@ -31,28 +31,43 @@ function playChime(ctx: AudioContext) {
   }
 }
 
-// Inline rest timer, sits between the Plans row and the date field on the Log
-// tab. Tap to start (or restart) a countdown between sets. Vibrates + chimes
-// when time's up, then resets so it's ready for the next set.
+// Floating rest timer, visible on every screen once a profile is chosen (not
+// on the profile-select screen). Tap it to start (or restart) a countdown
+// between sets. Vibrates + chimes when time's up, then resets so it's ready
+// for the next set.
 export function RestTimer() {
   const [remaining, setRemaining] = useState(REST_SECONDS);
   const [running, setRunning] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const audioCtxRef = useRef<AudioContext | null>(null);
+  const keepAliveRef = useRef<OscillatorNode | null>(null);
 
-  // iOS/Safari suspends AudioContext until it's created *and* resumed inside
-  // a direct user-gesture handler — if that only happens later (e.g. inside
-  // a setInterval callback when the timer finishes), no sound ever plays.
-  // Unlocking it here, synchronously on tap, is what makes the chime reliable.
+  // iOS/Safari (and some Android browsers) suspend an AudioContext that's
+  // gone quiet for a while, even after it was unlocked by a tap — so a beep
+  // scheduled a full minute later can silently do nothing. Two fixes below:
+  // (1) re-check and resume the context right before actually playing, not
+  // just once at the start; (2) keep a near-silent oscillator running the
+  // whole time so the context never goes idle enough to get suspended.
   function ensureAudioUnlocked() {
     const AudioCtx = window.AudioContext || (window as any).webkitAudioContext;
     if (!AudioCtx) return;
     if (!audioCtxRef.current) {
       audioCtxRef.current = new AudioCtx();
     }
-    if (audioCtxRef.current.state === "suspended") {
-      audioCtxRef.current.resume().catch(() => {});
+    const ctx = audioCtxRef.current;
+    if (ctx.state === "suspended") {
+      ctx.resume().catch(() => {});
+    }
+    if (!keepAliveRef.current) {
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      gain.gain.value = 0.00001;
+      osc.frequency.value = 20;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      osc.start();
+      keepAliveRef.current = osc;
     }
   }
 
@@ -71,7 +86,17 @@ export function RestTimer() {
           setRunning(false);
           setJustFinished(true);
           if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-          if (audioCtxRef.current) playChime(audioCtxRef.current);
+          const ctx = audioCtxRef.current;
+          if (ctx) {
+            if (ctx.state === "suspended") {
+              ctx
+                .resume()
+                .then(() => playChime(ctx))
+                .catch(() => playChime(ctx));
+            } else {
+              playChime(ctx);
+            }
+          }
           return REST_SECONDS;
         }
         return prev - 1;
@@ -82,25 +107,40 @@ export function RestTimer() {
     };
   }, [running]);
 
-  // Clear the "time's up" flash a few seconds after the timer finishes.
+  // Clear the "Go!" flash a couple seconds after the timer finishes.
   useEffect(() => {
     if (!justFinished) return;
-    const t = setTimeout(() => setJustFinished(false), 3000);
+    const t = setTimeout(() => setJustFinished(false), 2500);
     return () => clearTimeout(t);
   }, [justFinished]);
 
-  const progress = running ? (REST_SECONDS - remaining) / REST_SECONDS : 0;
+  const progress = running ? remaining / REST_SECONDS : 1;
+  // Circular progress ring via conic-gradient, gold when idle/finished, navy sweep while running.
+  const ringStyle = running
+    ? {
+        background: `conic-gradient(#c9a227 ${(1 - progress) * 360}deg, #0b254522 0deg)`,
+      }
+    : undefined;
 
   return (
     <button
       type="button"
       onClick={start}
-      className={`rest-timer-pill ${justFinished ? "rest-timer-pill--done" : ""}`}
-      aria-label={`Start ${REST_SECONDS} second rest timer`}
+      aria-label="Start 60 second rest timer"
+      className="fixed bottom-5 right-5 z-50 flex h-16 w-16 items-center justify-center rounded-full border-2 border-[#0b2545] bg-[#c9a227] shadow-lg transition-transform active:scale-95"
+      style={ringStyle}
     >
-      <span className="rest-timer-fill" style={{ width: `${progress * 100}%` }} />
-      <span className="rest-timer-label">
-        {justFinished ? "DONE — TAP" : running ? `${remaining}s` : `REST ${REST_SECONDS}s`}
+      <span className="flex h-[52px] w-[52px] flex-col items-center justify-center rounded-full bg-[#0b2545] font-oswald font-bold text-white">
+        {justFinished ? (
+          <span className="text-sm leading-none">GO!</span>
+        ) : (
+          <>
+            <span className="text-lg leading-none">{running ? remaining : REST_SECONDS}</span>
+            <span className="text-[9px] leading-none tracking-wide text-[#c9a227]">
+              {running ? "REST" : "TAP"}
+            </span>
+          </>
+        )}
       </span>
     </button>
   );

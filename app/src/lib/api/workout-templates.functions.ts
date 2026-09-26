@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { bindings } from "../bindings.server";
+import { ensureMigrations } from "../migrate.server";
 
 export type TemplateExercise = { name: string; sets: number; reps?: string };
 export type WorkoutTemplate = {
@@ -20,6 +21,7 @@ type TemplateRow = {
 
 export const listTemplates = createServerFn({ method: "GET" }).handler(async () => {
   const { DB } = bindings();
+  await ensureMigrations(DB).catch(() => {});
   if (!DB) return [] as WorkoutTemplate[];
   const { results } = await DB.prepare(
     "SELECT id, name, created_by, exercises FROM workout_templates ORDER BY name ASC",
@@ -49,6 +51,7 @@ export const createTemplate = createServerFn({ method: "POST" })
   .inputValidator(CreateTemplateSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare(
       "INSERT INTO workout_templates (id, name, created_by, exercises, created_at) VALUES (?, ?, ?, ?, ?)",
@@ -68,6 +71,7 @@ export const deleteTemplate = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().min(1) }))
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare("DELETE FROM workout_templates WHERE id = ?").bind(data.id).run();
     return { ok: true };
@@ -83,6 +87,7 @@ export const updateTemplate = createServerFn({ method: "POST" })
   .inputValidator(UpdateTemplateSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare("UPDATE workout_templates SET name = ?, exercises = ? WHERE id = ?")
       .bind(data.name, JSON.stringify(data.exercises), data.id)

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { bindings } from "../bindings.server";
+import { ensureMigrations } from "../migrate.server";
 
 export type WeighInUser = "Diego" | "Kevin";
 
@@ -33,6 +34,7 @@ function rowToWeighIn(row: WeighInRow): WeighIn {
 
 export const listWeighIns = createServerFn({ method: "GET" }).handler(async () => {
   const { DB } = bindings();
+  await ensureMigrations(DB).catch(() => {});
   if (!DB) return [] as WeighIn[];
   const { results } = await DB.prepare(
     "SELECT id, user, date, weight, logged_at FROM weigh_ins ORDER BY date DESC, logged_at DESC",
@@ -52,6 +54,7 @@ export const createWeighIn = createServerFn({ method: "POST" })
   .inputValidator(WeighInInputSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare(
       "INSERT INTO weigh_ins (id, user, date, weight, logged_at) VALUES (?, ?, ?, ?, ?)",
@@ -65,6 +68,7 @@ export const deleteWeighIn = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().min(1), user: z.enum(["Diego", "Kevin"]) }))
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare("DELETE FROM weigh_ins WHERE id = ? AND user = ?")
       .bind(data.id, data.user)

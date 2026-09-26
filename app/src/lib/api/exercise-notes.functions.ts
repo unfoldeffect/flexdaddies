@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { bindings } from "../bindings.server";
+import { ensureMigrations } from "../migrate.server";
 
 export type ExerciseNote = {
   id: string;
@@ -37,6 +38,7 @@ export type ExerciseNotesResult = { available: boolean; notes: ExerciseNote[] };
 export const listExerciseNotes = createServerFn({ method: "GET" }).handler(
   async (): Promise<ExerciseNotesResult> => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) return { available: false, notes: [] };
     try {
       const { results } = await DB.prepare(
@@ -63,6 +65,7 @@ export const addExerciseNote = createServerFn({ method: "POST" })
   .inputValidator(AddNoteSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare(
       "INSERT INTO exercise_notes (id, user, exercise_name, text, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -81,6 +84,7 @@ export const updateExerciseNote = createServerFn({ method: "POST" })
   .inputValidator(UpdateNoteSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare("UPDATE exercise_notes SET text = ?, updated_at = ? WHERE id = ?")
       .bind(data.text, new Date().toISOString(), data.id)
@@ -94,6 +98,7 @@ export const deleteExerciseNote = createServerFn({ method: "POST" })
   .inputValidator(DeleteNoteSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare("DELETE FROM exercise_notes WHERE id = ?").bind(data.id).run();
     return { ok: true };

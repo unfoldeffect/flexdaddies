@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { bindings } from "../bindings.server";
+import { ensureMigrations } from "../migrate.server";
 
 const SetSchema = z.object({
   reps: z.number().min(0).default(0),
@@ -62,6 +63,7 @@ function rowToWorkout(row: WorkoutRow): Workout {
 
 export const listWorkouts = createServerFn({ method: "GET" }).handler(async () => {
   const { DB } = bindings();
+  await ensureMigrations(DB).catch(() => {});
   if (!DB) return [] as Workout[];
   const { results } = await DB.prepare(
     "SELECT id, user, date, exercises, notes, logged_at FROM workouts ORDER BY date DESC, logged_at DESC",
@@ -73,6 +75,7 @@ export const createWorkout = createServerFn({ method: "POST" })
   .inputValidator(WorkoutInputSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare(
       "INSERT INTO workouts (id, user, date, exercises, notes, logged_at) VALUES (?, ?, ?, ?, ?, ?)",
@@ -93,6 +96,7 @@ export const deleteWorkout = createServerFn({ method: "POST" })
   .inputValidator(z.object({ id: z.string().min(1), user: z.enum(["Diego", "Kevin"]) }))
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare("DELETE FROM workouts WHERE id = ? AND user = ?")
       .bind(data.id, data.user)
@@ -112,6 +116,7 @@ export const updateWorkout = createServerFn({ method: "POST" })
   .inputValidator(WorkoutUpdateSchema)
   .handler(async ({ data }) => {
     const { DB } = bindings();
+    await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare(
       "UPDATE workouts SET date = ?, exercises = ?, notes = ? WHERE id = ? AND user = ?",

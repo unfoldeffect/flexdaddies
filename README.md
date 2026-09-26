@@ -43,8 +43,13 @@ Deploys run automatically via Cloudflare's Git integration on every push to
 `main` (Workers & Pages → flexdaddies-log → Settings → Build). No manual
 `wrangler deploy` needed for normal changes.
 
-Database migrations are not automatic — after adding a new file under
-`app/migrations/`, apply it to the live database with:
+Database migrations apply themselves. After a deploy, the live Worker runs
+any new file in `app/migrations/` the first time it touches the database (see
+`app/src/lib/migrate.server.ts`) and records it in wrangler's `d1_migrations`
+table. Only migrations numbered above 0011 are auto-applied. Keep migration
+files simple: `--` comments on their own lines, no semicolons inside strings.
+
+Applying by hand still works (and skips anything already applied):
 
 ```
 cd app

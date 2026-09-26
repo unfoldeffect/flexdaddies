@@ -413,6 +413,12 @@ function ExerciseEditor({
           .filter((s) => (cardio ? s.time || s.intensity : s.reps || s.weight))
           .map((s) => (cardio ? `${s.time}min @ ${s.intensity}/10` : `${s.reps}×${s.weight}lbs`))
           .join(", ")}
+        {!notesEnabled && entry.notes && (
+          <>
+            <br />
+            <span className="target-reps-note--quote">"{entry.notes}"</span>
+          </>
+        )}
       </p>
     );
   };
@@ -695,7 +701,7 @@ function WorkoutForm({
   const [justSaved, setJustSaved] = useState(false);
   const notesApi = useContext(NotesContext);
   // Saved-notes list only on the Log tab (not when editing an old workout).
-  const showSavedNotes = !onCancel;
+  const showSavedNotes = !onCancel && !!notesApi;
 
   const updateExercise = (id: string, updated: DraftExercise) =>
     setExercises((prev) => prev.map((ex) => (ex.id === id ? updated : ex)));
@@ -1718,7 +1724,8 @@ function Index() {
   const [weighIns, setWeighIns] = useState<WeighIn[]>(initialWeighIns);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>(initialCustomExercises);
   const [templates, setTemplates] = useState<WorkoutTemplate[]>(initialTemplates);
-  const [exerciseNotes, setExerciseNotes] = useState<ExerciseNote[]>(initialExerciseNotes);
+  const [exerciseNotes, setExerciseNotes] = useState<ExerciseNote[]>(initialExerciseNotes.notes);
+  const notesAvailable = initialExerciseNotes.available;
   const [logSeed, setLogSeed] = useState<DraftExercise[] | null>(null);
   const [logSeedKey, setLogSeedKey] = useState(0);
   const [saving, setSaving] = useState(false);
@@ -1997,7 +2004,7 @@ function Index() {
   const userColor = user ? USER_COLORS[user] : "#0b2545";
 
   return (
-    <NotesContext.Provider value={notesApi}>
+    <NotesContext.Provider value={notesAvailable ? notesApi : null}>
       <div className="app-root">
         {!user ? (
           <ProfileSelect onSelect={setUser} />

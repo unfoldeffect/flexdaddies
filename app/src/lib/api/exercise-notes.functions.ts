@@ -32,19 +32,24 @@ function rowToNote(row: ExerciseNoteRow): ExerciseNote {
   };
 }
 
-export const listExerciseNotes = createServerFn({ method: "GET" }).handler(async () => {
-  const { DB } = bindings();
-  if (!DB) return [] as ExerciseNote[];
-  try {
-    const { results } = await DB.prepare(
-      "SELECT id, user, exercise_name, text, created_at, updated_at FROM exercise_notes ORDER BY created_at DESC",
-    ).all<ExerciseNoteRow>();
-    return results.map(rowToNote);
-  } catch {
-    // Table not there yet (migration not applied) — don't take the app down.
-    return [] as ExerciseNote[];
-  }
-});
+export type ExerciseNotesResult = { available: boolean; notes: ExerciseNote[] };
+
+export const listExerciseNotes = createServerFn({ method: "GET" }).handler(
+  async (): Promise<ExerciseNotesResult> => {
+    const { DB } = bindings();
+    if (!DB) return { available: false, notes: [] };
+    try {
+      const { results } = await DB.prepare(
+        "SELECT id, user, exercise_name, text, created_at, updated_at FROM exercise_notes ORDER BY created_at DESC",
+      ).all<ExerciseNoteRow>();
+      return { available: true, notes: results.map(rowToNote) };
+    } catch {
+      // Table not there yet (migration 0012 not applied) — the app falls back
+      // to the old single notes box until it is.
+      return { available: false, notes: [] };
+    }
+  },
+);
 
 const AddNoteSchema = z.object({
   id: z.string().min(1),

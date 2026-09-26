@@ -783,6 +783,7 @@
   padding-left: 18px;
 }
 .history-exercise-notes {
+  white-space: pre-line;
   color: var(--fd-muted);
   font-size: 0.9rem;
   font-style: italic;
@@ -1209,4 +1210,118 @@
   .pill-btn {
     transition: none;
   }
+}
+
+/* Saved per-exercise notes (running list with edit / delete) */
+.saved-notes {
+  margin: -2px 0 12px;
+}
+.saved-notes-label {
+  font-family: "Oswald", sans-serif;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #8a6d00;
+  margin: 0 0 6px;
+}
+.saved-notes-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.saved-note {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: rgba(201, 162, 39, 0.1);
+  border-left: 3px solid var(--fd-gold);
+  border-radius: 10px;
+  padding: 8px 8px 8px 10px;
+}
+.saved-note-body {
+  flex: 1;
+  min-width: 0;
+}
+.saved-note-text {
+  margin: 0;
+  font-size: 0.92rem;
+  color: var(--fd-text);
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.saved-note-date {
+  font-size: 0.72rem;
+  color: var(--fd-muted);
+}
+.saved-note-actions {
+  display: flex;
+  gap: 4px;
+  flex-shrink: 0;
+}
+.note-icon-btn {
+  width: 34px;
+  height: 34px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2px solid var(--fd-line);
+  border-radius: 999px;
+  color: var(--fd-ink);
+  padding: 0;
+  cursor: pointer;
+}
+.note-icon-btn--delete {
+  color: var(--fd-danger);
+}
+.saved-note-edit {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.saved-note-edit .exercise-notes-input {
+  width: 100%;
+  box-sizing: border-box;
+}
+.saved-note-edit-actions {
+  display: flex;
+  gap: 8px;
+}
+.note-save-btn,
+.note-add-btn {
+  background: var(--fd-ink);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 0.9rem;
+  padding: 8px 16px;
+  cursor: pointer;
+}
+.note-add-btn {
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--fd-gold);
+  color: var(--fd-ink);
+}
+.note-save-btn:disabled,
+.note-add-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+.note-cancel-btn {
+  background: none;
+  border: 2px solid var(--fd-line);
+  border-radius: 999px;
+  color: var(--fd-muted);
+  font-weight: 600;
+  font-size: 0.9rem;
+  padding: 6px 14px;
+  cursor: pointer;
 }

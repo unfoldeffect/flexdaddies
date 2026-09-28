@@ -860,6 +860,48 @@ function workoutExercisesToDraft(
   });
 }
 
+// Unsaved Log-tab workouts are kept on the phone as you type, so closing the
+// app, a reload, or tapping Switch doesn't lose them. Cleared once logged.
+type SavedDraft = {
+  date: string;
+  exercises: DraftExercise[];
+  togetherMode: boolean;
+  savedAt: string;
+};
+
+function draftHasContent(exercises: DraftExercise[]) {
+  return exercises.some(
+    (ex) =>
+      ex.name ||
+      ex.customName.trim() ||
+      ex.notes.trim() ||
+      (ex.sessionNotes?.length ?? 0) > 0 ||
+      [...ex.sets, ...ex.setsOther].some((s) => s.reps || s.weight || s.time || s.intensity),
+  );
+}
+
+function readDraft(key: string): SavedDraft | null {
+  try {
+    const raw = localStorage.getItem(key);
+    if (!raw) return null;
+    const d = JSON.parse(raw) as SavedDraft;
+    if (!d || !Array.isArray(d.exercises) || !d.exercises.length) return null;
+    return d;
+  } catch {
+    return null;
+  }
+}
+
+function formatDraftTime(iso: string) {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return "";
+  return d.toLocaleString("en-US", {
+    weekday: "short",
+    hour: "numeric",
+    minute: "2-digit",
+  });
+}
+
 function WorkoutForm({
   initialDate,
   initialExercises,
@@ -876,6 +918,9 @@ function WorkoutForm({
   currentUser,
   otherUser,
   lastPerformanceOther,
+  draftKey,
+  restoreDraft = false,
+  onRestoreTogetherMode,
 }: {
   initialDate: string;
   initialExercises: DraftExercise[];
@@ -897,10 +942,54 @@ function WorkoutForm({
   currentUser: WorkoutUser;
   otherUser: WorkoutUser;
   lastPerformanceOther?: Record<string, Workout["exercises"][number]>;
+  draftKey?: string;
+  restoreDraft?: boolean;
+  onRestoreTogetherMode?: (v: boolean) => void;
 }) {
   const [date, setDate] = useState(initialDate);
   const [exercises, setExercises] = useState<DraftExercise[]>(initialExercises);
   const [justSaved, setJustSaved] = useState(false);
+  const [draftReady, setDraftReady] = useState(!draftKey);
+  const [restoredAt, setRestoredAt] = useState<string | null>(null);
+
+  // Bring back an unsaved workout (runs after first render to avoid a
+  // server/phone mismatch).
+  useEffect(() => {
+    if (!draftKey) return;
+    if (restoreDraft) {
+      const d = readDraft(draftKey);
+      if (d && draftHasContent(d.exercises)) {
+        setExercises(d.exercises);
+        if (d.date) setDate(d.date);
+        if (d.togetherMode && onRestoreTogetherMode) onRestoreTogetherMode(true);
+        setRestoredAt(d.savedAt);
+      }
+    }
+    setDraftReady(true);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Save as you type.
+  useEffect(() => {
+    if (!draftKey || !draftReady) return;
+    try {
+      if (draftHasContent(exercises)) {
+        const d: SavedDraft = { date, exercises, togetherMode, savedAt: new Date().toISOString() };
+        localStorage.setItem(draftKey, JSON.stringify(d));
+      } else {
+        localStorage.removeItem(draftKey);
+      }
+    } catch {
+      // Storage full/blocked — nothing else to do.
+    }
+  }, [draftKey, draftReady, date, exercises, togetherMode]);
+
+  const startFresh = () => {
+    if (!confirm("Clear this unsaved workout and start fresh?")) return;
+    setExercises([emptyExercise()]);
+    setDate(todayISO());
+    setRestoredAt(null);
+  };
   const notesApi = useContext(NotesContext);
   // Saved-notes list only on the Log tab (not when editing an old workout).
   const showSavedNotes = !onCancel && !!notesApi;
@@ -985,6 +1074,7 @@ function WorkoutForm({
       if (notesApi) notesToSave.forEach((n) => notesApi.add(n.user, n.name, n.text));
     }
     if (ok && !onCancel) {
+      setRestoredAt(null);
       setExercises([emptyExercise()]);
       setDate(todayISO());
       setJustSaved(true);
@@ -994,6 +1084,19 @@ function WorkoutForm({
 
   return (
     <div className="view">
+      {restoredAt && (
+        <div className="draft-banner">
+          <span>
+            <strong>Unsaved workout restored</strong>
+            {formatDraftTime(restoredAt) && ` · last edited ${formatDraftTime(restoredAt)}`}
+            <br />
+            Tap Log Workout when you're done to save it.
+          </span>
+          <button className="note-cancel-btn" onClick={startFresh}>
+            Start fresh
+          </button>
+        </div>
+      )}
       <div className="log-date-row">
         <label className="field-label" htmlFor="workout-date">
           DATE
@@ -1259,6 +1362,9 @@ function LogView({
         currentUser={user}
         otherUser={otherUser}
         lastPerformanceOther={lastPerformanceOther}
+        draftKey={`fd-draft-${user}`}
+        restoreDraft={!seedExercises}
+        onRestoreTogetherMode={setTogetherMode}
         onSubmit={({ date, exercises, exercisesOther, notes }) => {
           const workout: Workout = {
             id: uid(),

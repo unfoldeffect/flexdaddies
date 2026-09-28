@@ -1436,3 +1436,22 @@
   font-size: 0.85rem;
   font-weight: 600;
 }
+
+/* Restored unsaved workout banner */
+.draft-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(201, 162, 39, 0.14);
+  border: 2px solid var(--fd-gold);
+  border-radius: 14px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  font-size: 0.88rem;
+  color: var(--fd-ink);
+}
+.draft-banner .note-cancel-btn {
+  flex-shrink: 0;
+  background: #ffffff;
+}

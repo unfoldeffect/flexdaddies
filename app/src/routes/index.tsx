@@ -1,5 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createContext, useContext, useMemo, useState } from "react";
+import { createContext, useContext, useEffect, useMemo, useState } from "react";
 
 import {
   BarChartIcon,
@@ -1943,6 +1943,25 @@ function Index() {
   const [error, setError] = useState<string | null>(null);
 
   const otherUser: WorkoutUser | null = user ? (USERS.find((u) => u !== user) ?? null) : null;
+
+  // Remember who's logged in on this phone, so if the phone reloads the page
+  // (e.g. after being locked) it goes straight back to your profile.
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem("fd-user");
+      if (saved && (USERS as readonly string[]).includes(saved)) setUser(saved as WorkoutUser);
+    } catch {
+      // Storage blocked — just show the profile picker as before.
+    }
+  }, []);
+  useEffect(() => {
+    try {
+      if (user) localStorage.setItem("fd-user", user);
+      else localStorage.removeItem("fd-user");
+    } catch {
+      // ignore
+    }
+  }, [user]);
 
   const notesApi: NotesApi = {
     notes: exerciseNotes,

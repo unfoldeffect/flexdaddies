@@ -1152,10 +1152,12 @@ function PlanEditForm({
   groups,
   toCategory,
   saving,
+  onRegisterExercise,
 }: {
   template: WorkoutTemplate;
   onSave: (name: string, exercises: TemplateExercise[]) => Promise<boolean>;
   onCancel: () => void;
+  onRegisterExercise: (name: string, category: string) => void;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
   saving: boolean;
@@ -1184,7 +1186,15 @@ function PlanEditForm({
         reps: ex.targetReps,
       }));
     if (!built.length) return;
-    await onSave(name.trim(), built);
+    const ok = await onSave(name.trim(), built);
+    if (ok) {
+      // Remember new exercises typed in here, with the category picked.
+      exercises
+        .filter((ex) => ex.name === OTHER_VALUE && ex.customName.trim())
+        .forEach((ex) =>
+          onRegisterExercise(ex.customName.trim(), ex.customCategory || OTHER_CATEGORY.label),
+        );
+    }
   };
 
   return (
@@ -1293,6 +1303,7 @@ function LogView({
         groups={groups}
         toCategory={toCategory}
         saving={savingTemplateEdit}
+        onRegisterExercise={onRegisterExercise}
       />
     );
   }
@@ -2198,7 +2209,24 @@ function Index() {
     const alreadyKnown = Object.keys(toCategory).some(
       (known) => known.toLowerCase() === trimmed.toLowerCase(),
     );
-    if (alreadyKnown) return;
+    if (alreadyKnown) {
+      // A custom exercise first saved as "Other" gets its real category as
+      // soon as one is picked for it.
+      const existing = customExercises.find((c) => c.name.toLowerCase() === trimmed.toLowerCase());
+      if (
+        existing &&
+        existing.category === OTHER_CATEGORY.label &&
+        category !== OTHER_CATEGORY.label
+      ) {
+        setCustomExercises((prev) =>
+          prev.map((c) => (c.name === existing.name ? { ...c, category } : c)),
+        );
+        addCustomExercise({ data: { name: existing.name, category, createdBy: user } }).catch(
+          () => {},
+        );
+      }
+      return;
+    }
     setCustomExercises((prev) => [...prev, { name: trimmed, category }]);
     addCustomExercise({ data: { name: trimmed, category, createdBy: user } }).catch(() => {
       // Non-critical: the exercise still saved on this workout, it just

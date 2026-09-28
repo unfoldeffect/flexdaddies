@@ -29,7 +29,9 @@ export const addCustomExercise = createServerFn({ method: "POST" })
     await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare(
-      "INSERT OR IGNORE INTO custom_exercises (name, category, created_by, created_at) VALUES (?, ?, ?, ?)",
+      // New exercise → insert. Already saved as "Other" → take the real
+      // category once one is picked. Never overwrite a real category.
+      "INSERT INTO custom_exercises (name, category, created_by, created_at) VALUES (?, ?, ?, ?) ON CONFLICT(name) DO UPDATE SET category = excluded.category WHERE custom_exercises.category = 'Other' AND excluded.category <> 'Other'",
     )
       .bind(data.name, data.category, data.createdBy, new Date().toISOString())
       .run();

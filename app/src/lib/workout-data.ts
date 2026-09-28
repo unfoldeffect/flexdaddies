@@ -175,34 +175,82 @@ export type MergedExerciseData = {
 // and remembered server-side, so they show up as normal dropdown options
 // from then on. Custom exercises are grouped under their chosen category,
 // or under a trailing "Other" group when no category was picked.
+export type ExerciseOverrideInput = {
+  originalName: string;
+  name: string;
+  category: string;
+  hidden: boolean;
+};
+
+// One row in the "Manage Exercises" screen.
+export type ManagedExercise = {
+  name: string;
+  category: string;
+  color: string;
+  builtinOriginal?: string; // set for built-in exercises
+  hidden: boolean;
+};
+
+function categoryInfo(label: string): CategoryInfo {
+  const g = EXERCISE_GROUPS.find((x) => x.label.toLowerCase() === label.toLowerCase());
+  return g ? { label: g.label, color: g.color } : OTHER_CATEGORY;
+}
+
 export function mergeExerciseGroups(
   custom: { name: string; category: string }[],
-): MergedExerciseData {
-  const groups: ExerciseGroup[] = EXERCISE_GROUPS.map((g) => ({ ...g, options: [...g.options] }));
-  const toCategory: Record<string, CategoryInfo> = { ...EXERCISE_TO_CATEGORY };
-  const knownLower = new Set(Object.keys(toCategory).map((n) => n.toLowerCase()));
-
+  overrides: ExerciseOverrideInput[] = [],
+): MergedExerciseData & { managed: ManagedExercise[] } {
+  const groups: ExerciseGroup[] = EXERCISE_GROUPS.map((g) => ({ ...g, options: [] }));
   let otherGroup: ExerciseGroup | undefined;
+  const toCategory: Record<string, CategoryInfo> = {};
+  const knownLower = new Set<string>();
+  const managed: ManagedExercise[] = [];
+  const byOriginal = new Map(overrides.map((o) => [o.originalName, o]));
 
-  for (const { name, category } of custom) {
-    if (!name || knownLower.has(name.toLowerCase())) continue;
-    const match = groups.find((g) => g.label.toLowerCase() === category.toLowerCase());
-    if (match) {
-      match.options.push(name);
-      toCategory[name] = { label: match.label, color: match.color };
-    } else {
+  const place = (name: string, cat: CategoryInfo) => {
+    let group = groups.find((g) => g.label === cat.label);
+    if (!group) {
       if (!otherGroup) {
         otherGroup = { label: OTHER_CATEGORY.label, color: OTHER_CATEGORY.color, options: [] };
       }
-      otherGroup.options.push(name);
-      toCategory[name] = OTHER_CATEGORY;
+      group = otherGroup;
     }
-    knownLower.add(name.toLowerCase());
+    group.options.push(name);
+  };
+
+  for (const g of EXERCISE_GROUPS) {
+    for (const original of g.options) {
+      const o = byOriginal.get(original);
+      const name = o?.name || original;
+      const cat = o ? categoryInfo(o.category) : { label: g.label, color: g.color };
+      // Keep the category even when hidden, so past workouts keep their color.
+      toCategory[name] = cat;
+      knownLower.add(name.toLowerCase());
+      const hidden = !!o?.hidden;
+      managed.push({
+        name,
+        category: cat.label,
+        color: cat.color,
+        builtinOriginal: original,
+        hidden,
+      });
+      if (!hidden) place(name, cat);
+    }
   }
 
-  if (otherGroup) groups.push(otherGroup);
+  for (const { name, category } of custom) {
+    if (!name || knownLower.has(name.toLowerCase())) continue;
+    const cat = categoryInfo(category);
+    toCategory[name] = cat;
+    knownLower.add(name.toLowerCase());
+    managed.push({ name, category: cat.label, color: cat.color, hidden: false });
+    place(name, cat);
+  }
 
-  return { groups, toCategory };
+  const visibleGroups = groups.filter((g) => g.options.length);
+  if (otherGroup) visibleGroups.push(otherGroup);
+
+  return { groups: visibleGroups, toCategory, managed };
 }
 
 export function hexToRgba(hex: string, alpha: number) {

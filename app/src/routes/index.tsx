@@ -18,7 +18,12 @@ import { RestTimer } from "../components/rest-timer";
 import {
   addCustomExercise,
   listCustomExercises,
+  listExerciseOverrides,
+  removeExercise,
+  restoreExercise,
+  updateExercise,
   type CustomExercise,
+  type ExerciseOverride,
 } from "../lib/api/custom-exercises.functions";
 import {
   addExerciseNote,
@@ -64,6 +69,7 @@ import {
   uid,
   type CategoryInfo,
   type ExerciseGroup,
+  type ManagedExercise,
   type WorkoutUser,
 } from "../lib/workout-data";
 
@@ -74,6 +80,7 @@ export const Route = createFileRoute("/")({
     customExercises: await listCustomExercises(),
     templates: await listTemplates(),
     exerciseNotes: await listExerciseNotes(),
+    exerciseOverrides: await listExerciseOverrides(),
   }),
   component: Index,
 });
@@ -293,6 +300,188 @@ function Plate({ size = 28, label, color }: { size?: number; label: string; colo
   );
 }
 
+const ManageExercisesContext = createContext<(() => void) | null>(null);
+
+function ExerciseManager({
+  managed,
+  onUpdate,
+  onRemove,
+  onRestore,
+  onClose,
+}: {
+  managed: ManagedExercise[];
+  onUpdate: (ex: ManagedExercise, newName: string, category: string) => Promise<boolean>;
+  onRemove: (ex: ManagedExercise) => Promise<void>;
+  onRestore: (ex: ManagedExercise) => Promise<void>;
+  onClose: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const [editingKey, setEditingKey] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
+  const [editCategory, setEditCategory] = useState("");
+  const [editError, setEditError] = useState<string | null>(null);
+  const [busy, setBusy] = useState(false);
+
+  const keyOf = (ex: ManagedExercise) => ex.builtinOriginal ?? `custom:${ex.name}`;
+  const q = search.trim().toLowerCase();
+  const visible = managed.filter((ex) => !ex.hidden && ex.name.toLowerCase().includes(q));
+  const hidden = managed.filter((ex) => ex.hidden && ex.name.toLowerCase().includes(q));
+  const categories = [...CATEGORY_LABELS, OTHER_CATEGORY.label];
+  const grouped = categories
+    .map((label) => ({ label, items: visible.filter((ex) => ex.category === label) }))
+    .filter((g) => g.items.length);
+
+  const startEdit = (ex: ManagedExercise) => {
+    setEditingKey(keyOf(ex));
+    setEditName(ex.name);
+    setEditCategory(ex.category);
+    setEditError(null);
+  };
+
+  const saveEdit = async (ex: ManagedExercise) => {
+    const name = editName.trim();
+    if (!name) return;
+    const clash = managed.find(
+      (m) => keyOf(m) !== keyOf(ex) && m.name.toLowerCase() === name.toLowerCase(),
+    );
+    if (clash) {
+      setEditError(`"${clash.name}" is already on the list.`);
+      return;
+    }
+    if (
+      name !== ex.name &&
+      !confirm(
+        `Rename "${ex.name}" to "${name}"? Past workouts, plans and notes will use the new name.`,
+      )
+    ) {
+      return;
+    }
+    setBusy(true);
+    const ok = await onUpdate(ex, name, editCategory);
+    setBusy(false);
+    if (ok) setEditingKey(null);
+  };
+
+  return (
+    <div className="exman-overlay" role="dialog" aria-label="Manage exercises">
+      <div className="exman-panel">
+        <div className="exman-head">
+          <h2 className="exman-title">Manage Exercises</h2>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <XIcon size={20} />
+          </button>
+        </div>
+        <p className="exman-sub">
+          Edit or remove exercises from the list. Removing one never deletes your logged workouts.
+        </p>
+        <input
+          className="exercise-custom-input exman-search"
+          type="search"
+          placeholder="Search exercises..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+
+        <div className="exman-scroll">
+          {grouped.map((g) => (
+            <div className="exman-group" key={g.label}>
+              <p className="exman-group-label" style={{ color: CATEGORY_COLORS[g.label] }}>
+                {g.label.toUpperCase()}
+              </p>
+              {g.items.map((ex) => (
+                <div className="exman-row" key={keyOf(ex)}>
+                  {editingKey === keyOf(ex) ? (
+                    <div className="exman-edit">
+                      <input
+                        className="exercise-custom-input"
+                        type="text"
+                        value={editName}
+                        onChange={(e) => {
+                          setEditName(e.target.value);
+                          setEditError(null);
+                        }}
+                        autoFocus
+                      />
+                      <select
+                        className="exercise-custom-input exercise-category-select"
+                        value={editCategory}
+                        onChange={(e) => setEditCategory(e.target.value)}
+                      >
+                        {categories.map((c) => (
+                          <option value={c} key={c}>
+                            Category: {c}
+                          </option>
+                        ))}
+                      </select>
+                      {editError && <p className="exman-error">{editError}</p>}
+                      <div className="saved-note-edit-actions">
+                        <button
+                          className="note-save-btn"
+                          onClick={() => saveEdit(ex)}
+                          disabled={busy || !editName.trim()}
+                        >
+                          {busy ? "Saving..." : "Save"}
+                        </button>
+                        <button className="note-cancel-btn" onClick={() => setEditingKey(null)}>
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <>
+                      <span className="history-dot" style={{ background: ex.color }} />
+                      <span className="exman-name">{ex.name}</span>
+                      <div className="saved-note-actions">
+                        <button
+                          className="note-icon-btn"
+                          aria-label={`Edit ${ex.name}`}
+                          onClick={() => startEdit(ex)}
+                        >
+                          <EditIcon size={16} />
+                        </button>
+                        <button
+                          className="note-icon-btn note-icon-btn--delete"
+                          aria-label={`Delete ${ex.name}`}
+                          onClick={() => {
+                            if (
+                              confirm(
+                                `Remove "${ex.name}" from the exercise list? Your logged workouts with it stay in History.`,
+                              )
+                            ) {
+                              onRemove(ex);
+                            }
+                          }}
+                        >
+                          <TrashIcon size={16} />
+                        </button>
+                      </div>
+                    </>
+                  )}
+                </div>
+              ))}
+            </div>
+          ))}
+          {!grouped.length && <p className="exman-sub">No exercises match "{search}".</p>}
+
+          {hidden.length > 0 && (
+            <div className="exman-group">
+              <p className="exman-group-label">REMOVED FROM LIST</p>
+              {hidden.map((ex) => (
+                <div className="exman-row exman-row--hidden" key={keyOf(ex)}>
+                  <span className="exman-name">{ex.name}</span>
+                  <button className="note-cancel-btn" onClick={() => onRestore(ex)}>
+                    Restore
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ProfileSelect({ onSelect }: { onSelect: (user: WorkoutUser) => void }) {
   return (
     <div className="hero-wrap">
@@ -345,6 +534,7 @@ function ExerciseEditor({
   showSavedNotes?: boolean;
 }) {
   const notesApi = useContext(NotesContext);
+  const openManager = useContext(ManageExercisesContext);
   const [savingNote, setSavingNote] = useState(false);
   const updateSet = (
     setId: string,
@@ -510,7 +700,14 @@ function ExerciseEditor({
               {category.label}
             </span>
           )}
-          <label className="field-label">EXERCISE</label>
+          <div className="exercise-label-row">
+            <label className="field-label">EXERCISE</label>
+            {openManager && (
+              <button className="exman-open-btn" onClick={openManager}>
+                <EditIcon size={13} /> Edit list
+              </button>
+            )}
+          </div>
           <select
             className="exercise-select"
             value={exercise.name}
@@ -519,6 +716,11 @@ function ExerciseEditor({
             <option value="" disabled>
               Choose an exercise
             </option>
+            {exercise.name &&
+              !isOther &&
+              !groups.some((g) => g.options.includes(exercise.name)) && (
+                <option value={exercise.name}>{exercise.name}</option>
+              )}
             {groups.map((g) => (
               <optgroup label={g.label.toUpperCase()} key={g.label} style={{ color: g.color }}>
                 {g.options.map((opt) => (
@@ -1717,6 +1919,7 @@ function Index() {
     customExercises: initialCustomExercises,
     templates: initialTemplates,
     exerciseNotes: initialExerciseNotes,
+    exerciseOverrides: initialOverrides,
   } = Route.useLoaderData();
   const [user, setUser] = useState<WorkoutUser | null>(null);
   const [view, setView] = useState<"log" | "history" | "weight" | "stats">("log");
@@ -1725,6 +1928,8 @@ function Index() {
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>(initialCustomExercises);
   const [templates, setTemplates] = useState<WorkoutTemplate[]>(initialTemplates);
   const [exerciseNotes, setExerciseNotes] = useState<ExerciseNote[]>(initialExerciseNotes.notes);
+  const [overrides, setOverrides] = useState<ExerciseOverride[]>(initialOverrides);
+  const [managingExercises, setManagingExercises] = useState(false);
   const notesAvailable = initialExerciseNotes.available;
   const [logSeed, setLogSeed] = useState<DraftExercise[] | null>(null);
   const [logSeedKey, setLogSeedKey] = useState(0);
@@ -1786,10 +1991,80 @@ function Index() {
     },
   };
 
-  const { groups, toCategory } = useMemo(
-    () => mergeExerciseGroups(customExercises),
-    [customExercises],
+  const { groups, toCategory, managed } = useMemo(
+    () => mergeExerciseGroups(customExercises, overrides),
+    [customExercises, overrides],
   );
+
+  function renameLocally(from: string, to: string) {
+    if (from === to) return;
+    const swap = <T extends { name: string }>(list: T[]) =>
+      list.map((e) => (e.name === from ? { ...e, name: to } : e));
+    setWorkouts((prev) => prev.map((w) => ({ ...w, exercises: swap(w.exercises) })));
+    setTemplates((prev) => prev.map((t) => ({ ...t, exercises: swap(t.exercises) })));
+    setExerciseNotes((prev) =>
+      prev.map((n) => (n.exerciseName === from ? { ...n, exerciseName: to } : n)),
+    );
+  }
+
+  async function updateManagedExercise(ex: ManagedExercise, newName: string, category: string) {
+    setError(null);
+    try {
+      await updateExercise({
+        data: { currentName: ex.name, newName, category, builtinOriginal: ex.builtinOriginal },
+      });
+      if (ex.builtinOriginal) {
+        const original = ex.builtinOriginal;
+        setOverrides((prev) => [
+          ...prev.filter((o) => o.originalName !== original),
+          { originalName: original, name: newName, category, hidden: false },
+        ]);
+      } else {
+        setCustomExercises((prev) =>
+          prev.map((c) => (c.name === ex.name ? { name: newName, category } : c)),
+        );
+      }
+      renameLocally(ex.name, newName);
+      return true;
+    } catch {
+      setError("Couldn't save that exercise change — check your connection and try again.");
+      return false;
+    }
+  }
+
+  async function removeManagedExercise(ex: ManagedExercise) {
+    setError(null);
+    try {
+      await removeExercise({
+        data: { name: ex.name, category: ex.category, builtinOriginal: ex.builtinOriginal },
+      });
+      if (ex.builtinOriginal) {
+        const original = ex.builtinOriginal;
+        setOverrides((prev) => [
+          ...prev.filter((o) => o.originalName !== original),
+          { originalName: original, name: ex.name, category: ex.category, hidden: true },
+        ]);
+      } else {
+        setCustomExercises((prev) => prev.filter((c) => c.name !== ex.name));
+      }
+    } catch {
+      setError("Couldn't remove that exercise — check your connection and try again.");
+    }
+  }
+
+  async function restoreManagedExercise(ex: ManagedExercise) {
+    if (!ex.builtinOriginal) return;
+    const original = ex.builtinOriginal;
+    setError(null);
+    try {
+      await restoreExercise({ data: { builtinOriginal: original } });
+      setOverrides((prev) =>
+        prev.map((o) => (o.originalName === original ? { ...o, hidden: false } : o)),
+      );
+    } catch {
+      setError("Couldn't restore that exercise — check your connection and try again.");
+    }
+  }
 
   function registerExercise(name: string, category: string) {
     if (!user) return;
@@ -2005,98 +2280,110 @@ function Index() {
 
   return (
     <NotesContext.Provider value={notesAvailable ? notesApi : null}>
-      <div className="app-root">
-        {!user ? (
-          <ProfileSelect onSelect={setUser} />
-        ) : (
-          <>
-            <div className="top-bar">
-              <div className="top-wordmark">
-                FLEX<span>DADDIES</span>
+      <ManageExercisesContext.Provider value={() => setManagingExercises(true)}>
+        <div className="app-root">
+          {!user ? (
+            <ProfileSelect onSelect={setUser} />
+          ) : (
+            <>
+              <div className="top-bar">
+                <div className="top-wordmark">
+                  FLEX<span>DADDIES</span>
+                </div>
+                <button className="switch-user" onClick={() => setUser(null)}>
+                  <Plate size={26} label={user[0]} color={userColor} /> <UserIcon size={16} />{" "}
+                  Switch
+                </button>
               </div>
-              <button className="switch-user" onClick={() => setUser(null)}>
-                <Plate size={26} label={user[0]} color={userColor} /> <UserIcon size={16} /> Switch
-              </button>
-            </div>
 
-            <div className="content-wrap">
-              {error && <div className="error-banner">{error}</div>}
+              <div className="content-wrap">
+                {error && <div className="error-banner">{error}</div>}
 
-              {view === "log" && otherUser && (
-                <LogView
-                  user={user}
-                  otherUser={otherUser}
-                  onSave={addWorkout}
-                  onSaveBoth={addWorkoutForBoth}
-                  onRegisterExercise={registerExercise}
-                  groups={groups}
-                  toCategory={toCategory}
-                  saving={saving}
-                  templates={templates}
-                  onLoadTemplate={loadTemplate}
-                  onDeleteTemplate={removeTemplate}
-                  seedExercises={logSeed}
-                  seedKey={logSeedKey}
-                  lastPerformance={lastPerformanceForUser}
-                  lastPerformanceOther={lastPerformanceForOtherUser}
-                  togetherMode={togetherMode}
-                  setTogetherMode={setTogetherMode}
-                  editingTemplate={editingTemplate}
-                  onStartEditTemplate={startEditTemplate}
-                  onCancelEditTemplate={cancelEditTemplate}
-                  onSaveTemplateEdits={saveTemplateEdits}
-                  savingTemplateEdit={savingTemplateEdit}
-                />
-              )}
-              {view === "history" && (
-                <HistoryView
-                  workouts={sorted}
-                  currentUser={user}
-                  onDelete={removeWorkout}
-                  onEdit={editWorkout}
-                  onRegisterExercise={registerExercise}
-                  onRepeat={repeatWorkout}
-                  onSaveAsPlan={saveAsPlan}
-                  groups={groups}
-                  toCategory={toCategory}
-                  lastPerformance={lastPerformanceForUser}
-                  editingId={editingId}
-                  setEditingId={setEditingId}
-                  savingEdit={savingEdit}
-                />
-              )}
-              {view === "weight" && (
-                <WeightView
-                  weighIns={weighIns}
-                  user={user}
-                  onSave={addWeighIn}
-                  onDelete={removeWeighIn}
-                  saving={savingWeight}
-                />
-              )}
-              {view === "stats" && (
-                <StatsView workouts={workouts} weighIns={weighIns} toCategory={toCategory} />
-              )}
-            </div>
-
-            <div className="bottom-nav-wrap">
-              <div className="bottom-nav">
-                {NAV_ITEMS.map(({ key, label, Icon }) => (
-                  <button
-                    key={key}
-                    className={`bottom-nav-btn ${view === key ? "bottom-nav-btn--active" : ""}`}
-                    onClick={() => setView(key)}
-                  >
-                    <Icon size={20} />
-                    {label}
-                  </button>
-                ))}
+                {view === "log" && otherUser && (
+                  <LogView
+                    user={user}
+                    otherUser={otherUser}
+                    onSave={addWorkout}
+                    onSaveBoth={addWorkoutForBoth}
+                    onRegisterExercise={registerExercise}
+                    groups={groups}
+                    toCategory={toCategory}
+                    saving={saving}
+                    templates={templates}
+                    onLoadTemplate={loadTemplate}
+                    onDeleteTemplate={removeTemplate}
+                    seedExercises={logSeed}
+                    seedKey={logSeedKey}
+                    lastPerformance={lastPerformanceForUser}
+                    lastPerformanceOther={lastPerformanceForOtherUser}
+                    togetherMode={togetherMode}
+                    setTogetherMode={setTogetherMode}
+                    editingTemplate={editingTemplate}
+                    onStartEditTemplate={startEditTemplate}
+                    onCancelEditTemplate={cancelEditTemplate}
+                    onSaveTemplateEdits={saveTemplateEdits}
+                    savingTemplateEdit={savingTemplateEdit}
+                  />
+                )}
+                {view === "history" && (
+                  <HistoryView
+                    workouts={sorted}
+                    currentUser={user}
+                    onDelete={removeWorkout}
+                    onEdit={editWorkout}
+                    onRegisterExercise={registerExercise}
+                    onRepeat={repeatWorkout}
+                    onSaveAsPlan={saveAsPlan}
+                    groups={groups}
+                    toCategory={toCategory}
+                    lastPerformance={lastPerformanceForUser}
+                    editingId={editingId}
+                    setEditingId={setEditingId}
+                    savingEdit={savingEdit}
+                  />
+                )}
+                {view === "weight" && (
+                  <WeightView
+                    weighIns={weighIns}
+                    user={user}
+                    onSave={addWeighIn}
+                    onDelete={removeWeighIn}
+                    saving={savingWeight}
+                  />
+                )}
+                {view === "stats" && (
+                  <StatsView workouts={workouts} weighIns={weighIns} toCategory={toCategory} />
+                )}
               </div>
-            </div>
-            <RestTimer />
-          </>
-        )}
-      </div>
+
+              <div className="bottom-nav-wrap">
+                <div className="bottom-nav">
+                  {NAV_ITEMS.map(({ key, label, Icon }) => (
+                    <button
+                      key={key}
+                      className={`bottom-nav-btn ${view === key ? "bottom-nav-btn--active" : ""}`}
+                      onClick={() => setView(key)}
+                    >
+                      <Icon size={20} />
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <RestTimer />
+              {managingExercises && (
+                <ExerciseManager
+                  managed={managed}
+                  onUpdate={updateManagedExercise}
+                  onRemove={removeManagedExercise}
+                  onRestore={restoreManagedExercise}
+                  onClose={() => setManagingExercises(false)}
+                />
+              )}
+            </>
+          )}
+        </div>
+      </ManageExercisesContext.Provider>
     </NotesContext.Provider>
   );
 }

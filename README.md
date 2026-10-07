@@ -3,7 +3,7 @@
 A shared workout log for Diego and Kevin: log lifts, track history, weigh-ins,
 and personal records together.
 
-**Live at:** https://flexdaddies.com (once DNS is bound) / https://flexdaddies-log.unfoldeffect.workers.dev
+**Live at:** https://flexdaddies.com
 
 ## Stack
 

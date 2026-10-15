@@ -367,6 +367,9 @@
 }
 .exercise-field {
   flex: 1;
+  /* Let the field shrink so the move/remove buttons stay inside the card
+     on narrow phones (a select's natural width would otherwise push them out). */
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -571,6 +574,40 @@
   border-color: var(--fd-danger);
 }
 
+/* Reorder + remove controls on the right of each exercise card. */
+.exercise-head-actions {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+.exercise-head-actions .icon-btn {
+  margin-top: 0;
+}
+.exercise-head-actions > .icon-btn:first-child,
+.exercise-head-actions > .exercise-move:first-child {
+  margin-top: 30px;
+}
+.exercise-move {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.icon-btn--move {
+  width: 40px;
+  height: 36px;
+  border-radius: 12px;
+}
+.icon-btn--move:hover {
+  color: var(--fd-text);
+  border-color: var(--fd-text);
+}
+.icon-btn--move:disabled {
+  opacity: 0.3;
+  pointer-events: none;
+}
+
 .set-rows {
   display: flex;
   flex-direction: column;
@@ -732,6 +769,37 @@
   color: var(--fd-muted);
   font-size: 0.95rem;
   margin-top: 3px;
+}
+/* "Upper A" style tag on History cards for workouts started from a plan. */
+.history-plan-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(201, 162, 39, 0.16);
+  border: 1px solid var(--fd-gold);
+  color: var(--fd-gold-deep);
+  font-family: "Oswald", sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+/* Shown at the top of the Log form when a plan is loaded. */
+.plan-loaded-note {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0 0 12px;
+  color: var(--fd-muted);
+  font-size: 0.9rem;
+}
+.plan-loaded-note strong {
+  color: var(--fd-text);
 }
 .history-summary-right {
   display: flex;

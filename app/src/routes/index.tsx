@@ -257,6 +257,15 @@ function templateToDraft(
   });
 }
 
+/** Returns a copy of the list with the item at `index` shifted by `delta` (-1 up, +1 down). */
+function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
+  const target = index + delta;
+  if (index < 0 || index >= list.length || target < 0 || target >= list.length) return list;
+  const next = [...list];
+  [next[index], next[target]] = [next[target], next[index]];
+  return next;
+}
+
 function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
   return exercises.map((ex) => ({
     ...ex,
@@ -518,11 +527,20 @@ function ExerciseEditor({
   lastPerformanceOther,
   hideSets = false,
   showSavedNotes = false,
+  onMoveUp,
+  onMoveDown,
+  canMoveUp = false,
+  canMoveDown = false,
 }: {
   exercise: DraftExercise;
   onChange: (updated: DraftExercise) => void;
   onRemove: () => void;
   showRemove: boolean;
+  // Reorder controls — shown when the parent passes handlers.
+  onMoveUp?: () => void;
+  onMoveDown?: () => void;
+  canMoveUp?: boolean;
+  canMoveDown?: boolean;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
   lastPerformance: Record<string, Workout["exercises"][number]>;
@@ -674,8 +692,9 @@ function ExerciseEditor({
               />
               <input
                 type="number"
-                inputMode="numeric"
+                inputMode="decimal"
                 min="0"
+                step="any"
                 placeholder="0"
                 value={s.weight}
                 onChange={(e) => onSetChange(s.id, "weight", e.target.value)}
@@ -765,11 +784,35 @@ function ExerciseEditor({
             </>
           )}
         </div>
-        {showRemove && (
-          <button className="icon-btn" onClick={onRemove} aria-label="Remove exercise">
-            <XIcon size={20} />
-          </button>
-        )}
+        <div className="exercise-head-actions">
+          {(onMoveUp || onMoveDown) && (
+            <div className="exercise-move">
+              <button
+                type="button"
+                className="icon-btn icon-btn--move"
+                onClick={onMoveUp}
+                disabled={!canMoveUp}
+                aria-label="Move exercise up"
+              >
+                <ChevronUpIcon size={18} />
+              </button>
+              <button
+                type="button"
+                className="icon-btn icon-btn--move"
+                onClick={onMoveDown}
+                disabled={!canMoveDown}
+                aria-label="Move exercise down"
+              >
+                <ChevronDownIcon size={18} />
+              </button>
+            </div>
+          )}
+          {showRemove && (
+            <button className="icon-btn" onClick={onRemove} aria-label="Remove exercise">
+              <XIcon size={20} />
+            </button>
+          )}
+        </div>
       </div>
 
       {!hideSets && (
@@ -862,11 +905,14 @@ function workoutExercisesToDraft(
 
 // Unsaved Log-tab workouts are kept on the phone as you type, so closing the
 // app, a reload, or tapping Switch doesn't lose them. Cleared once logged.
+type TemplateLink = { id: string; name: string };
+
 type SavedDraft = {
   date: string;
   exercises: DraftExercise[];
   togetherMode: boolean;
   savedAt: string;
+  template?: TemplateLink | null;
 };
 
 function draftHasContent(exercises: DraftExercise[]) {
@@ -921,6 +967,7 @@ function WorkoutForm({
   draftKey,
   restoreDraft = false,
   onRestoreTogetherMode,
+  initialTemplate = null,
 }: {
   initialDate: string;
   initialExercises: DraftExercise[];
@@ -931,6 +978,7 @@ function WorkoutForm({
     exercises: Workout["exercises"];
     exercisesOther?: Workout["exercises"];
     notes: string;
+    template: TemplateLink | null;
   }) => Promise<boolean>;
   onCancel?: () => void;
   onRegisterExercise: (name: string, category: string) => void;
@@ -945,9 +993,12 @@ function WorkoutForm({
   draftKey?: string;
   restoreDraft?: boolean;
   onRestoreTogetherMode?: (v: boolean) => void;
+  /** The plan this form was pre-filled from, so History can show it. */
+  initialTemplate?: TemplateLink | null;
 }) {
   const [date, setDate] = useState(initialDate);
   const [exercises, setExercises] = useState<DraftExercise[]>(initialExercises);
+  const [template, setTemplate] = useState<TemplateLink | null>(initialTemplate);
   const [justSaved, setJustSaved] = useState(false);
   const [draftReady, setDraftReady] = useState(!draftKey);
   const [restoredAt, setRestoredAt] = useState<string | null>(null);
@@ -962,6 +1013,7 @@ function WorkoutForm({
         setExercises(d.exercises);
         if (d.date) setDate(d.date);
         if (d.togetherMode && onRestoreTogetherMode) onRestoreTogetherMode(true);
+        setTemplate(d.template ?? null);
         setRestoredAt(d.savedAt);
       }
     }
@@ -974,7 +1026,13 @@ function WorkoutForm({
     if (!draftKey || !draftReady) return;
     try {
       if (draftHasContent(exercises)) {
-        const d: SavedDraft = { date, exercises, togetherMode, savedAt: new Date().toISOString() };
+        const d: SavedDraft = {
+          date,
+          exercises,
+          togetherMode,
+          savedAt: new Date().toISOString(),
+          template,
+        };
         localStorage.setItem(draftKey, JSON.stringify(d));
       } else {
         localStorage.removeItem(draftKey);
@@ -982,12 +1040,13 @@ function WorkoutForm({
     } catch {
       // Storage full/blocked — nothing else to do.
     }
-  }, [draftKey, draftReady, date, exercises, togetherMode]);
+  }, [draftKey, draftReady, date, exercises, togetherMode, template]);
 
   const startFresh = () => {
     if (!confirm("Clear this unsaved workout and start fresh?")) return;
     setExercises([emptyExercise()]);
     setDate(todayISO());
+    setTemplate(null);
     setRestoredAt(null);
   };
   const notesApi = useContext(NotesContext);
@@ -998,6 +1057,14 @@ function WorkoutForm({
     setExercises((prev) => prev.map((ex) => (ex.id === id ? updated : ex)));
   const removeExercise = (id: string) => setExercises((prev) => prev.filter((ex) => ex.id !== id));
   const addExercise = () => setExercises((prev) => [...prev, emptyExercise()]);
+  const moveExercise = (id: string, delta: -1 | 1) =>
+    setExercises((prev) =>
+      moveItem(
+        prev,
+        prev.findIndex((ex) => ex.id === id),
+        delta,
+      ),
+    );
 
   const finalName = (ex: DraftExercise) =>
     ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name;
@@ -1066,6 +1133,7 @@ function WorkoutForm({
       exercises: cleaned,
       exercisesOther: togetherMode ? cleanedOther : undefined,
       notes: "",
+      template,
     });
     if (ok) {
       toRegister.forEach((r) => onRegisterExercise(r.name, r.category));
@@ -1076,6 +1144,7 @@ function WorkoutForm({
     if (ok && !onCancel) {
       setRestoredAt(null);
       setExercises([emptyExercise()]);
+      setTemplate(null);
       setDate(todayISO());
       setJustSaved(true);
       setTimeout(() => setJustSaved(false), 2200);
@@ -1097,6 +1166,11 @@ function WorkoutForm({
           </button>
         </div>
       )}
+      {template && (
+        <p className="plan-loaded-note">
+          <DumbbellIcon size={14} /> From plan: <strong>{template.name}</strong>
+        </p>
+      )}
       <div className="log-date-row">
         <label className="field-label" htmlFor="workout-date">
           DATE
@@ -1109,13 +1183,17 @@ function WorkoutForm({
         />
       </div>
 
-      {exercises.map((ex) => (
+      {exercises.map((ex, i) => (
         <ExerciseEditor
           key={ex.id}
           exercise={ex}
           onChange={(updated) => updateExercise(ex.id, updated)}
           onRemove={() => removeExercise(ex.id)}
           showRemove={exercises.length > 1}
+          onMoveUp={() => moveExercise(ex.id, -1)}
+          onMoveDown={() => moveExercise(ex.id, 1)}
+          canMoveUp={i > 0}
+          canMoveDown={i < exercises.length - 1}
           groups={groups}
           toCategory={toCategory}
           lastPerformance={lastPerformance}
@@ -1171,6 +1249,14 @@ function PlanEditForm({
     setExercises((prev) => prev.map((ex) => (ex.id === id ? updated : ex)));
   const removeExercise = (id: string) => setExercises((prev) => prev.filter((ex) => ex.id !== id));
   const addExercise = () => setExercises((prev) => [...prev, emptyExercise()]);
+  const moveExercise = (id: string, delta: -1 | 1) =>
+    setExercises((prev) =>
+      moveItem(
+        prev,
+        prev.findIndex((ex) => ex.id === id),
+        delta,
+      ),
+    );
 
   const finalName = (ex: DraftExercise) =>
     ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name;
@@ -1213,13 +1299,17 @@ function PlanEditForm({
         />
       </div>
 
-      {exercises.map((ex) => (
+      {exercises.map((ex, i) => (
         <ExerciseEditor
           key={ex.id}
           exercise={ex}
           onChange={(updated) => updateExercise(ex.id, updated)}
           onRemove={() => removeExercise(ex.id)}
           showRemove={exercises.length > 1}
+          onMoveUp={() => moveExercise(ex.id, -1)}
+          onMoveDown={() => moveExercise(ex.id, 1)}
+          canMoveUp={i > 0}
+          canMoveDown={i < exercises.length - 1}
           groups={groups}
           toCategory={toCategory}
           lastPerformance={{}}
@@ -1261,6 +1351,8 @@ function LogView({
   onDeleteTemplate,
   seedExercises,
   seedKey,
+  seedTemplate,
+  onSaved,
   lastPerformance,
   lastPerformanceOther,
   togetherMode,
@@ -1284,6 +1376,9 @@ function LogView({
   onDeleteTemplate: (id: string) => void;
   seedExercises: DraftExercise[] | null;
   seedKey: number;
+  seedTemplate: TemplateLink | null;
+  /** Called after a successful save so the loaded plan doesn't come back on the next visit. */
+  onSaved: () => void;
   lastPerformance: Record<string, Workout["exercises"][number]>;
   lastPerformanceOther: Record<string, Workout["exercises"][number]>;
   togetherMode: boolean;
@@ -1376,7 +1471,8 @@ function LogView({
         draftKey={`fd-draft-${user}`}
         restoreDraft={!seedExercises}
         onRestoreTogetherMode={setTogetherMode}
-        onSubmit={({ date, exercises, exercisesOther, notes }) => {
+        initialTemplate={seedExercises ? seedTemplate : null}
+        onSubmit={({ date, exercises, exercisesOther, notes, template }) => {
           const workout: Workout = {
             id: uid(),
             user,
@@ -1384,6 +1480,7 @@ function LogView({
             exercises,
             notes,
             loggedAt: new Date().toISOString(),
+            template,
           };
           if (togetherMode && exercisesOther) {
             const workoutOther: Workout = {
@@ -1393,10 +1490,17 @@ function LogView({
               exercises: exercisesOther,
               notes,
               loggedAt: new Date().toISOString(),
+              template,
             };
-            return onSaveBoth(workout, workoutOther);
+            return onSaveBoth(workout, workoutOther).then((ok) => {
+              if (ok) onSaved();
+              return ok;
+            });
           }
-          return onSave(workout);
+          return onSave(workout).then((ok) => {
+            if (ok) onSaved();
+            return ok;
+          });
         }}
       />
     </>
@@ -1495,7 +1599,14 @@ function HistoryView({
                 <div className="history-summary-left">
                   <Plate size={38} label={w.user[0]} color={userColor} />
                   <div>
-                    <div className="history-date">{formatDate(w.date)}</div>
+                    <div className="history-date">
+                      {formatDate(w.date)}
+                      {w.template && (
+                        <span className="history-plan-badge" title="Started from this plan">
+                          <DumbbellIcon size={11} /> {w.template.name}
+                        </span>
+                      )}
+                    </div>
                     <div className="history-meta">
                       {w.user} · {w.exercises.length} exercises · {totalSets} sets
                     </div>
@@ -2050,6 +2161,7 @@ function Index() {
   const notesAvailable = initialExerciseNotes.available;
   const [logSeed, setLogSeed] = useState<DraftExercise[] | null>(null);
   const [logSeedKey, setLogSeedKey] = useState(0);
+  const [logSeedTemplate, setLogSeedTemplate] = useState<TemplateLink | null>(null);
   const [saving, setSaving] = useState(false);
   const [savingEdit, setSavingEdit] = useState(false);
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -2258,18 +2370,26 @@ function Index() {
     [workouts, otherUser],
   );
 
-  function loadIntoLog(exercises: DraftExercise[]) {
+  function loadIntoLog(exercises: DraftExercise[], template: TemplateLink | null = null) {
     setLogSeed(exercises);
+    setLogSeedTemplate(template);
     setLogSeedKey((k) => k + 1);
     setView("log");
   }
 
   function loadTemplate(template: WorkoutTemplate) {
-    loadIntoLog(templateToDraft(template.exercises, toCategory));
+    loadIntoLog(templateToDraft(template.exercises, toCategory), {
+      id: template.id,
+      name: template.name,
+    });
   }
 
   function repeatWorkout(workout: Workout) {
-    loadIntoLog(blankDraftSets(workoutExercisesToDraft(workout.exercises, toCategory)));
+    // Repeating keeps the original plan label, if it had one.
+    loadIntoLog(
+      blankDraftSets(workoutExercisesToDraft(workout.exercises, toCategory)),
+      workout.template ?? null,
+    );
   }
 
   async function saveAsPlan(workout: Workout) {
@@ -2467,6 +2587,11 @@ function Index() {
                     onDeleteTemplate={removeTemplate}
                     seedExercises={logSeed}
                     seedKey={logSeedKey}
+                    seedTemplate={logSeedTemplate}
+                    onSaved={() => {
+                      setLogSeed(null);
+                      setLogSeedTemplate(null);
+                    }}
                     lastPerformance={lastPerformanceForUser}
                     lastPerformanceOther={lastPerformanceForOtherUser}
                     togetherMode={togetherMode}

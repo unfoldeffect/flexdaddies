@@ -17,6 +17,10 @@ const ExerciseSchema = z.object({
   notes: z.string().default(""),
 });
 
+// The plan a workout was started from, if any. Name is snapshotted at log
+// time so a later rename of the plan doesn't change old History entries.
+const TemplateLinkSchema = z.object({ id: z.string().min(1), name: z.string().min(1) });
+
 const WorkoutInputSchema = z.object({
   id: z.string().min(1),
   user: z.enum(["Diego", "Kevin"]),
@@ -24,6 +28,7 @@ const WorkoutInputSchema = z.object({
   exercises: z.array(ExerciseSchema).min(1),
   notes: z.string().default(""),
   loggedAt: z.string().min(1),
+  template: TemplateLinkSchema.nullable().optional(),
 });
 
 export type WorkoutUser = "Diego" | "Kevin";
@@ -39,6 +44,8 @@ export type Workout = {
   }[];
   notes: string;
   loggedAt: string;
+  /** Plan this workout was started from; null when logged from scratch. */
+  template?: { id: string; name: string } | null;
 };
 
 type WorkoutRow = {
@@ -48,6 +55,8 @@ type WorkoutRow = {
   exercises: string;
   notes: string;
   logged_at: string;
+  template_id: string | null;
+  template_name: string | null;
 };
 
 function rowToWorkout(row: WorkoutRow): Workout {
@@ -58,6 +67,10 @@ function rowToWorkout(row: WorkoutRow): Workout {
     exercises: JSON.parse(row.exercises),
     notes: row.notes,
     loggedAt: row.logged_at,
+    template:
+      row.template_id && row.template_name
+        ? { id: row.template_id, name: row.template_name }
+        : null,
   };
 }
 
@@ -66,7 +79,7 @@ export const listWorkouts = createServerFn({ method: "GET" }).handler(async () =
   await ensureMigrations(DB).catch(() => {});
   if (!DB) return [] as Workout[];
   const { results } = await DB.prepare(
-    "SELECT id, user, date, exercises, notes, logged_at FROM workouts ORDER BY date DESC, logged_at DESC",
+    "SELECT id, user, date, exercises, notes, logged_at, template_id, template_name FROM workouts ORDER BY date DESC, logged_at DESC",
   ).all<WorkoutRow>();
   return results.map(rowToWorkout);
 });
@@ -78,7 +91,7 @@ export const createWorkout = createServerFn({ method: "POST" })
     await ensureMigrations(DB).catch(() => {});
     if (!DB) throw new Error("Database unavailable");
     await DB.prepare(
-      "INSERT INTO workouts (id, user, date, exercises, notes, logged_at) VALUES (?, ?, ?, ?, ?, ?)",
+      "INSERT INTO workouts (id, user, date, exercises, notes, logged_at, template_id, template_name) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     )
       .bind(
         data.id,
@@ -87,6 +100,8 @@ export const createWorkout = createServerFn({ method: "POST" })
         JSON.stringify(data.exercises),
         data.notes,
         data.loggedAt,
+        data.template?.id ?? null,
+        data.template?.name ?? null,
       )
       .run();
     return { ok: true };

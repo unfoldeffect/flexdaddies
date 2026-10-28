@@ -39,6 +39,14 @@ import {
   type WeighIn,
 } from "../lib/api/weigh-ins.functions";
 import {
+  BODY_PARTS,
+  createBodyMeasurement,
+  deleteBodyMeasurement,
+  listBodyMeasurements,
+  type BodyMeasurement,
+  type BodyPart,
+} from "../lib/api/body-measurements.functions";
+import {
   createTemplate,
   deleteTemplate,
   updateTemplate,
@@ -77,6 +85,7 @@ export const Route = createFileRoute("/")({
   loader: async () => ({
     workouts: await listWorkouts(),
     weighIns: await listWeighIns(),
+    measurements: await listBodyMeasurements(),
     customExercises: await listCustomExercises(),
     templates: await listTemplates(),
     exerciseNotes: await listExerciseNotes(),
@@ -1977,28 +1986,147 @@ function WeightChart({ points, color }: { points: WeighIn[]; color: string }) {
   );
 }
 
+type WeightUnit = "lbs" | "kg";
+type LengthUnit = "in" | "cm";
+
+const LB_PER_KG = 2.20462262;
+const CM_PER_IN = 2.54;
+
+const BODY_PART_LABELS: Record<BodyPart, string> = {
+  waist: "Waist",
+  neck: "Neck",
+  arms: "Arms",
+  chest: "Chest",
+  thighs: "Thighs",
+  hips: "Hips",
+};
+
+function fmt1(n: number) {
+  return String(Number(n.toFixed(1)));
+}
+
+function signed(n: number) {
+  const r = Number(n.toFixed(1));
+  return `${r > 0 ? "+" : ""}${r}`;
+}
+
+function useStoredUnit<T extends string>(key: string, fallback: T, allowed: readonly T[]) {
+  const [unit, setUnit] = useState<T>(fallback);
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(key) as T | null;
+      if (saved && allowed.includes(saved)) setUnit(saved);
+    } catch {
+      /* storage unavailable — keep default */
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [key]);
+  const update = (next: T) => {
+    setUnit(next);
+    try {
+      localStorage.setItem(key, next);
+    } catch {
+      /* ignore */
+    }
+  };
+  return [unit, update] as const;
+}
+
+function UnitToggle<T extends string>({
+  options,
+  value,
+  onChange,
+}: {
+  options: readonly T[];
+  value: T;
+  onChange: (next: T) => void;
+}) {
+  return (
+    <div className="unit-toggle" role="group" aria-label="Units">
+      {options.map((o) => (
+        <button
+          key={o}
+          type="button"
+          className={`unit-toggle-btn ${value === o ? "unit-toggle-btn--on" : ""}`}
+          onClick={() => onChange(o)}
+          aria-pressed={value === o}
+        >
+          {o}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function LineChart({
+  values,
+  color,
+  height = 60,
+}: {
+  values: number[];
+  color: string;
+  height?: number;
+}) {
+  if (values.length < 2) return null;
+  const min = Math.min(...values);
+  const max = Math.max(...values);
+  const range = max - min || 1;
+  const w = 100;
+  const h = 40;
+  const stepX = w / (values.length - 1);
+  const pts = values.map((v, i) => [i * stepX, h - ((v - min) / range) * (h - 8) - 4] as const);
+  return (
+    <svg
+      viewBox={`0 0 ${w} ${h}`}
+      className="mini-chart"
+      style={{ height }}
+      preserveAspectRatio="none"
+    >
+      <polyline
+        points={pts.map((p) => p.join(",")).join(" ")}
+        fill="none"
+        stroke={color}
+        strokeWidth={2}
+        vectorEffect="non-scaling-stroke"
+      />
+      {pts.map(([x, y], i) => (
+        <circle key={i} cx={x} cy={y} r={2} fill={color} />
+      ))}
+    </svg>
+  );
+}
+
 function WeightView({
   weighIns,
+  measurements,
   user,
   onSave,
   onDelete,
   saving,
+  onSaveMeasurement,
+  onDeleteMeasurement,
+  savingMeasurement,
 }: {
   weighIns: WeighIn[];
+  measurements: BodyMeasurement[];
   user: WorkoutUser;
   onSave: (entry: WeighIn) => Promise<boolean>;
   onDelete: (id: string) => void;
   saving: boolean;
+  onSaveMeasurement: (entry: BodyMeasurement) => Promise<boolean>;
+  onDeleteMeasurement: (id: string) => void;
+  savingMeasurement: boolean;
 }) {
+  const [wUnit, setWUnit] = useStoredUnit<WeightUnit>("fd-weight-unit", "lbs", ["lbs", "kg"]);
+  const [lUnit, setLUnit] = useStoredUnit<LengthUnit>("fd-length-unit", "in", ["in", "cm"]);
+  const toW = (lbs: number) => (wUnit === "kg" ? lbs / LB_PER_KG : lbs);
+  const toL = (inches: number) => (lUnit === "cm" ? inches * CM_PER_IN : inches);
+
+  // ---------- Weight ----------
   const [date, setDate] = useState(todayISO());
   const [weight, setWeight] = useState("");
-  const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>(user);
+  const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>(null);
 
-  const mine = useMemo(
-    () => weighIns.filter((w) => w.user === user).sort((a, b) => b.date.localeCompare(a.date)),
-    [weighIns, user],
-  );
-  const chartData = useMemo(() => weighIns.filter((w) => w.user === user), [weighIns, user]);
   const byUser = useMemo(() => {
     const map: Record<WorkoutUser, WeighIn[]> = { Diego: [], Kevin: [] };
     USERS.forEach((u) => {
@@ -2006,19 +2134,23 @@ function WeightView({
     });
     return map;
   }, [weighIns]);
-
+  const mine = byUser[user];
   const latest = mine[0];
   const previous = mine[1];
+  const first = mine[mine.length - 1];
   const delta = latest && previous ? latest.weight - previous.weight : null;
+  const totalChange = latest && first && mine.length > 1 ? latest.weight - first.weight : null;
+  const weightSeries = useMemo(() => [...mine].reverse().map((w) => toW(w.weight)), [mine, wUnit]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const handleSave = async () => {
     const num = Number(weight);
     if (!weight || Number.isNaN(num) || num <= 0) return;
+    const lbs = wUnit === "kg" ? num * LB_PER_KG : num;
     const ok = await onSave({
       id: uid(),
       user,
       date,
-      weight: num,
+      weight: Math.round(lbs * 10) / 10,
       loggedAt: new Date().toISOString(),
     });
     if (ok) {
@@ -2027,75 +2159,152 @@ function WeightView({
     }
   };
 
+  // ---------- Measurements ----------
+  const [part, setPart] = useState<BodyPart>("waist");
+  const [mDate, setMDate] = useState(todayISO());
+  const [mValue, setMValue] = useState("");
+  const [mHistoryOpen, setMHistoryOpen] = useState(false);
+
+  const myByPart = useMemo(() => {
+    const map = {} as Record<BodyPart, BodyMeasurement[]>;
+    BODY_PARTS.forEach((p) => {
+      map[p] = measurements
+        .filter((m) => m.user === user && m.part === p)
+        .sort((a, b) => b.date.localeCompare(a.date) || b.loggedAt.localeCompare(a.loggedAt));
+    });
+    return map;
+  }, [measurements, user]);
+
+  // Totals across all six parts, in inches (negative = lost).
+  const totals = useMemo(() => {
+    let sinceStart = 0;
+    let sinceLast = 0;
+    let any = false;
+    BODY_PARTS.forEach((p) => {
+      const list = myByPart[p];
+      if (list.length > 1) {
+        any = true;
+        sinceStart += list[0].valueIn - list[list.length - 1].valueIn;
+        sinceLast += list[0].valueIn - list[1].valueIn;
+      }
+    });
+    return any ? { sinceStart, sinceLast } : null;
+  }, [myByPart]);
+
+  const partList = myByPart[part];
+  const partSeries = [...partList].reverse().map((m) => toL(m.valueIn));
+
+  const handleSaveMeasurement = async () => {
+    const num = Number(mValue);
+    if (!mValue || Number.isNaN(num) || num <= 0) return;
+    const inches = lUnit === "cm" ? num / CM_PER_IN : num;
+    const ok = await onSaveMeasurement({
+      id: uid(),
+      user,
+      date: mDate,
+      part,
+      valueIn: Math.round(inches * 100) / 100,
+      loggedAt: new Date().toISOString(),
+    });
+    if (ok) setMValue("");
+  };
+
+  const lostLabel = (changeIn: number) => {
+    const v = toL(changeIn);
+    if (Math.abs(v) < 0.05) return `0 ${lUnit}`;
+    return v < 0 ? `${fmt1(-v)} ${lUnit} lost` : `${fmt1(v)} ${lUnit} gained`;
+  };
+
   return (
     <div className="view">
-      <div className="hero-stat-card">
+      {/* ---------- WEIGHT (compact) ---------- */}
+      <div className="body-card">
         <div className="hero-stat-dots" />
-        <div className="hero-stat-number">
-          {latest ? latest.weight : "—"}
-          {latest && <span className="hero-stat-unit">lbs</span>}
+        <div className="body-card-top">
+          <div>
+            <div className="body-card-label">WEIGHT</div>
+            <div className="body-card-number">
+              {latest ? fmt1(toW(latest.weight)) : "—"}
+              {latest && <span className="hero-stat-unit">{wUnit}</span>}
+            </div>
+            <div className="body-card-meta">
+              {latest ? formatDate(latest.date) : "No weigh-ins yet"}
+            </div>
+          </div>
+          <div className="body-card-deltas">
+            {delta !== null && (
+              <div
+                className={`weight-delta ${delta <= 0 ? "weight-delta--down" : "weight-delta--up"}`}
+              >
+                {signed(toW(delta))} since last
+              </div>
+            )}
+            {totalChange !== null && (
+              <div
+                className={`weight-delta ${totalChange <= 0 ? "weight-delta--down" : "weight-delta--up"}`}
+              >
+                {signed(toW(totalChange))} total
+              </div>
+            )}
+          </div>
         </div>
-        <div className="hero-stat-label">
-          {latest ? `LATEST · ${formatDate(latest.date)}` : "NO WEIGH-INS YET"}
-        </div>
-        {delta !== null && (
-          <div className={`weight-delta ${delta <= 0 ? "weight-delta--down" : "weight-delta--up"}`}>
-            {delta > 0 ? "+" : ""}
-            {delta.toFixed(1)} lbs since last
+        {weightSeries.length >= 2 && (
+          <div className="body-card-chart">
+            <LineChart values={weightSeries} color="#c9a227" height={56} />
           </div>
         )}
       </div>
 
-      {chartData.length >= 2 && (
-        <div className="weight-chart-card">
-          <WeightChart points={chartData} color={USER_COLORS[user]} />
+      <div className="quick-log">
+        <div className="quick-log-field">
+          <label className="field-label" htmlFor="weight-date">
+            DATE
+          </label>
+          <input
+            id="weight-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+          />
         </div>
-      )}
-
-      <div className="log-date-row">
-        <label className="field-label" htmlFor="weight-date">
-          DATE
-        </label>
-        <input
-          id="weight-date"
-          type="date"
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-        />
+        <div className="quick-log-field">
+          <label className="field-label" htmlFor="weight-value">
+            WEIGHT
+          </label>
+          <div className="quick-log-value">
+            <input
+              id="weight-value"
+              type="number"
+              inputMode="decimal"
+              step="0.1"
+              min="0"
+              placeholder="0.0"
+              value={weight}
+              onChange={(e) => setWeight(e.target.value)}
+            />
+            <UnitToggle options={["lbs", "kg"] as const} value={wUnit} onChange={setWUnit} />
+          </div>
+        </div>
       </div>
-
-      <div className="weight-input-row">
-        <label className="field-label" htmlFor="weight-value">
-          WEIGHT (LBS)
-        </label>
-        <input
-          id="weight-value"
-          type="number"
-          inputMode="decimal"
-          step="0.1"
-          min="0"
-          placeholder="0.0"
-          value={weight}
-          onChange={(e) => setWeight(e.target.value)}
-        />
-      </div>
-
-      <button className="save-btn" onClick={handleSave} disabled={!weight || saving}>
+      <button
+        className="save-btn save-btn--compact"
+        onClick={handleSave}
+        disabled={!weight || saving}
+      >
         {saving ? "SAVING..." : "LOG WEIGHT"}
       </button>
 
-      <h3 className="section-heading weight-history-heading">History</h3>
       {USERS.map((u) => {
         const list = byUser[u];
         const open = expandedUser === u;
         return (
-          <div className="pr-accordion" key={u}>
+          <div className="pr-accordion pr-accordion--compact" key={u}>
             <button
               className="pr-accordion-header"
               onClick={() => setExpandedUser(open ? null : u)}
             >
               <div className="pr-accordion-left">
-                <Plate size={32} label={u[0]} color={USER_COLORS[u]} />
+                <Plate size={28} label={u[0]} color={USER_COLORS[u]} />
                 <span>{u}'s Weigh-Ins</span>
                 <span className="pr-count-badge">{list.length}</span>
               </div>
@@ -2113,7 +2322,9 @@ function WeightView({
                   list.map((w) => (
                     <div className="weight-row" key={w.id}>
                       <div className="weight-row-info">
-                        <div className="weight-row-value">{w.weight} lbs</div>
+                        <div className="weight-row-value">
+                          {fmt1(toW(w.weight))} {wUnit}
+                        </div>
                         <div className="weight-row-meta">{formatDate(w.date)}</div>
                       </div>
                       {w.user === user && (
@@ -2129,6 +2340,150 @@ function WeightView({
           </div>
         );
       })}
+
+      {/* ---------- BODY MEASUREMENTS ---------- */}
+      <div className="measure-heading">
+        <h3 className="section-heading">Body Measurements</h3>
+        <UnitToggle options={["in", "cm"] as const} value={lUnit} onChange={setLUnit} />
+      </div>
+
+      <div className="measure-summary">
+        <div className="measure-summary-item">
+          <div className="measure-summary-number">
+            {totals ? lostLabel(totals.sinceStart) : "—"}
+          </div>
+          <div className="measure-summary-label">TOTAL SINCE START</div>
+        </div>
+        <div className="measure-summary-item">
+          <div className="measure-summary-number">
+            {totals ? lostLabel(totals.sinceLast) : "—"}
+          </div>
+          <div className="measure-summary-label">SINCE LAST CHECK-IN</div>
+        </div>
+      </div>
+
+      <div className="measure-grid">
+        {BODY_PARTS.map((p) => {
+          const list = myByPart[p];
+          const last = list[0];
+          const prev = list[1];
+          const d = last && prev ? toL(last.valueIn - prev.valueIn) : null;
+          return (
+            <button
+              key={p}
+              type="button"
+              className={`measure-tile ${part === p ? "measure-tile--on" : ""}`}
+              onClick={() => {
+                setPart(p);
+                setMValue("");
+                setMHistoryOpen(false);
+              }}
+            >
+              <div className="measure-tile-label">{BODY_PART_LABELS[p]}</div>
+              <div className="measure-tile-number">
+                {last ? fmt1(toL(last.valueIn)) : "—"}
+                {last && <span className="measure-tile-unit">{lUnit}</span>}
+              </div>
+              {d !== null && (
+                <div
+                  className={`measure-tile-delta ${d <= 0 ? "measure-tile-delta--down" : "measure-tile-delta--up"}`}
+                >
+                  {signed(d)}
+                </div>
+              )}
+            </button>
+          );
+        })}
+      </div>
+
+      <div className="measure-panel">
+        <div className="measure-panel-title">{BODY_PART_LABELS[part]}</div>
+        {partSeries.length >= 2 ? (
+          <LineChart values={partSeries} color={USER_COLORS[user]} height={70} />
+        ) : (
+          <p className="empty-sub measure-panel-empty">
+            {partList.length === 0
+              ? "No measurements yet. Log your first one below."
+              : "Log another one to see the trend."}
+          </p>
+        )}
+
+        <div className="quick-log">
+          <div className="quick-log-field">
+            <label className="field-label" htmlFor="measure-date">
+              DATE
+            </label>
+            <input
+              id="measure-date"
+              type="date"
+              value={mDate}
+              onChange={(e) => setMDate(e.target.value)}
+            />
+          </div>
+          <div className="quick-log-field">
+            <label className="field-label" htmlFor="measure-value">
+              {BODY_PART_LABELS[part].toUpperCase()}
+            </label>
+            <div className="quick-log-value">
+              <input
+                id="measure-value"
+                type="number"
+                inputMode="decimal"
+                step="0.1"
+                min="0"
+                placeholder="0.0"
+                value={mValue}
+                onChange={(e) => setMValue(e.target.value)}
+              />
+              <UnitToggle options={["in", "cm"] as const} value={lUnit} onChange={setLUnit} />
+            </div>
+          </div>
+        </div>
+        <button
+          className="save-btn save-btn--compact"
+          onClick={handleSaveMeasurement}
+          disabled={!mValue || savingMeasurement}
+        >
+          {savingMeasurement ? "SAVING..." : `LOG ${BODY_PART_LABELS[part].toUpperCase()}`}
+        </button>
+
+        {partList.length > 0 && (
+          <>
+            <button
+              type="button"
+              className="measure-history-toggle"
+              onClick={() => setMHistoryOpen(!mHistoryOpen)}
+            >
+              {BODY_PART_LABELS[part]} history ({partList.length})
+              {mHistoryOpen ? (
+                <ChevronUpIcon size={16} color="#5b5d52" />
+              ) : (
+                <ChevronDownIcon size={16} color="#5b5d52" />
+              )}
+            </button>
+            {mHistoryOpen && (
+              <div className="weight-list">
+                {partList.map((m) => (
+                  <div className="weight-row" key={m.id}>
+                    <div className="weight-row-info">
+                      <div className="weight-row-value">
+                        {fmt1(toL(m.valueIn))} {lUnit}
+                      </div>
+                      <div className="weight-row-meta">{formatDate(m.date)}</div>
+                    </div>
+                    <button
+                      className="weight-row-delete"
+                      onClick={() => onDeleteMeasurement(m.id)}
+                    >
+                      <TrashIcon size={16} />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
     </div>
   );
 }
@@ -2144,6 +2499,7 @@ function Index() {
   const {
     workouts: initialWorkouts,
     weighIns: initialWeighIns,
+    measurements: initialMeasurements,
     customExercises: initialCustomExercises,
     templates: initialTemplates,
     exerciseNotes: initialExerciseNotes,
@@ -2153,6 +2509,8 @@ function Index() {
   const [view, setView] = useState<"log" | "history" | "weight" | "stats">("log");
   const [workouts, setWorkouts] = useState<Workout[]>(initialWorkouts);
   const [weighIns, setWeighIns] = useState<WeighIn[]>(initialWeighIns);
+  const [measurements, setMeasurements] = useState<BodyMeasurement[]>(initialMeasurements);
+  const [savingMeasurement, setSavingMeasurement] = useState(false);
   const [customExercises, setCustomExercises] = useState<CustomExercise[]>(initialCustomExercises);
   const [templates, setTemplates] = useState<WorkoutTemplate[]>(initialTemplates);
   const [exerciseNotes, setExerciseNotes] = useState<ExerciseNote[]>(initialExerciseNotes.notes);
@@ -2539,6 +2897,32 @@ function Index() {
     }
   }
 
+  async function addMeasurement(entry: BodyMeasurement) {
+    setSavingMeasurement(true);
+    setError(null);
+    try {
+      await createBodyMeasurement({ data: entry });
+      setMeasurements((prev) => [entry, ...prev]);
+      return true;
+    } catch {
+      setError("Couldn't save that — check your connection and try again.");
+      return false;
+    } finally {
+      setSavingMeasurement(false);
+    }
+  }
+
+  async function removeMeasurement(id: string) {
+    if (!user) return;
+    setError(null);
+    try {
+      await deleteBodyMeasurement({ data: { id, user } });
+      setMeasurements((prev) => prev.filter((m) => m.id !== id));
+    } catch {
+      setError("Couldn't delete that — check your connection and try again.");
+    }
+  }
+
   const sorted = useMemo(
     () =>
       [...workouts].sort(
@@ -2627,6 +3011,10 @@ function Index() {
                     onSave={addWeighIn}
                     onDelete={removeWeighIn}
                     saving={savingWeight}
+                    measurements={measurements}
+                    onSaveMeasurement={addMeasurement}
+                    onDeleteMeasurement={removeMeasurement}
+                    savingMeasurement={savingMeasurement}
                   />
                 )}
                 {view === "stats" && (

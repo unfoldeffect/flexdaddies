@@ -1808,3 +1808,57 @@
   padding: 10px;
   min-height: 44px;
 }
+
+/* Body tab — Together Mode (both people side by side) */
+.body-card-pair {
+  position: relative;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+.body-card-pair .body-card-top {
+  flex-direction: column;
+  gap: 6px;
+}
+.body-card-pair .body-card-deltas {
+  align-items: flex-start;
+}
+.body-card-pair .body-card-deltas .weight-delta {
+  font-size: 0.8rem;
+  padding: 3px 10px;
+}
+.body-card-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+.body-card-number--pair {
+  font-size: 2rem;
+}
+.measure-summary-who,
+.measure-tile-who {
+  font-family: "Inter", sans-serif;
+  font-weight: 800;
+  font-size: 0.8rem;
+  margin-right: 5px;
+  vertical-align: middle;
+}
+.measure-summary-who {
+  background: #ffffff;
+  border-radius: 999px;
+  padding: 1px 6px;
+}
+.measure-tile-person + .measure-tile-person {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--fd-line);
+}
+.measure-tile-number--pair {
+  font-size: 1.2rem;
+}
+.view > .together-toggle {
+  margin-bottom: 14px;
+}

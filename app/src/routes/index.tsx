@@ -2058,23 +2058,13 @@ function UnitToggle<T extends string>({
   );
 }
 
-function LineChart({
-  values,
-  color,
-  height = 60,
-}: {
-  values: number[];
-  color: string;
-  height?: number;
-}) {
-  if (values.length < 2) return null;
-  const min = Math.min(...values);
-  const max = Math.max(...values);
-  const range = max - min || 1;
+type ChartSeries = { values: number[]; color: string };
+
+function LineChart({ series, height = 60 }: { series: ChartSeries[]; height?: number }) {
+  const usable = series.filter((s) => s.values.length >= 2);
+  if (usable.length === 0) return null;
   const w = 100;
   const h = 40;
-  const stepX = w / (values.length - 1);
-  const pts = values.map((v, i) => [i * stepX, h - ((v - min) / range) * (h - 8) - 4] as const);
   return (
     <svg
       viewBox={`0 0 ${w} ${h}`}
@@ -2082,24 +2072,43 @@ function LineChart({
       style={{ height }}
       preserveAspectRatio="none"
     >
-      <polyline
-        points={pts.map((p) => p.join(",")).join(" ")}
-        fill="none"
-        stroke={color}
-        strokeWidth={2}
-        vectorEffect="non-scaling-stroke"
-      />
-      {pts.map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r={2} fill={color} />
-      ))}
+      {usable.map((s, si) => {
+        const min = Math.min(...s.values);
+        const max = Math.max(...s.values);
+        const range = max - min || 1;
+        const stepX = w / (s.values.length - 1);
+        const pts = s.values.map(
+          (v, i) => [i * stepX, h - ((v - min) / range) * (h - 8) - 4] as const,
+        );
+        return (
+          <g key={si}>
+            <polyline
+              points={pts.map((p) => p.join(",")).join(" ")}
+              fill="none"
+              stroke={s.color}
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+            {pts.map(([x, y], i) => (
+              <circle key={i} cx={x} cy={y} r={2} fill={s.color} />
+            ))}
+          </g>
+        );
+      })}
     </svg>
   );
 }
+
+// On the navy weight card: logged-in person in gold, partner in white.
+const CARD_LINE_COLORS = { me: "#c9a227", other: "#ffffff" };
 
 function WeightView({
   weighIns,
   measurements,
   user,
+  otherUser,
+  togetherMode,
+  onToggleTogether,
   onSave,
   onDelete,
   saving,
@@ -2110,6 +2119,9 @@ function WeightView({
   weighIns: WeighIn[];
   measurements: BodyMeasurement[];
   user: WorkoutUser;
+  otherUser: WorkoutUser;
+  togetherMode: boolean;
+  onToggleTogether: () => void;
   onSave: (entry: WeighIn) => Promise<boolean>;
   onDelete: (id: string) => void;
   saving: boolean;
@@ -2121,6 +2133,9 @@ function WeightView({
   const [lUnit, setLUnit] = useStoredUnit<LengthUnit>("fd-length-unit", "in", ["in", "cm"]);
   const toW = (lbs: number) => (wUnit === "kg" ? lbs / LB_PER_KG : lbs);
   const toL = (inches: number) => (lUnit === "cm" ? inches * CM_PER_IN : inches);
+
+  // Who is shown: just me, or both of us in Together Mode (me first).
+  const people: WorkoutUser[] = togetherMode ? [user, otherUser] : [user];
 
   // ---------- Weight ----------
   const [date, setDate] = useState(todayISO());
@@ -2134,13 +2149,19 @@ function WeightView({
     });
     return map;
   }, [weighIns]);
-  const mine = byUser[user];
-  const latest = mine[0];
-  const previous = mine[1];
-  const first = mine[mine.length - 1];
-  const delta = latest && previous ? latest.weight - previous.weight : null;
-  const totalChange = latest && first && mine.length > 1 ? latest.weight - first.weight : null;
-  const weightSeries = useMemo(() => [...mine].reverse().map((w) => toW(w.weight)), [mine, wUnit]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const weightStats = (u: WorkoutUser) => {
+    const list = byUser[u];
+    const latest = list[0];
+    const previous = list[1];
+    const first = list[list.length - 1];
+    return {
+      latest,
+      delta: latest && previous ? latest.weight - previous.weight : null,
+      total: latest && first && list.length > 1 ? latest.weight - first.weight : null,
+      series: [...list].reverse().map((w) => toW(w.weight)),
+    };
+  };
 
   const handleSave = async () => {
     const num = Number(weight);
@@ -2165,23 +2186,27 @@ function WeightView({
   const [mValue, setMValue] = useState("");
   const [mHistoryOpen, setMHistoryOpen] = useState(false);
 
-  const myByPart = useMemo(() => {
-    const map = {} as Record<BodyPart, BodyMeasurement[]>;
-    BODY_PARTS.forEach((p) => {
-      map[p] = measurements
-        .filter((m) => m.user === user && m.part === p)
-        .sort((a, b) => b.date.localeCompare(a.date) || b.loggedAt.localeCompare(a.loggedAt));
+  const byPersonPart = useMemo(() => {
+    const out = {} as Record<WorkoutUser, Record<BodyPart, BodyMeasurement[]>>;
+    USERS.forEach((u) => {
+      const map = {} as Record<BodyPart, BodyMeasurement[]>;
+      BODY_PARTS.forEach((p) => {
+        map[p] = measurements
+          .filter((m) => m.user === u && m.part === p)
+          .sort((a, b) => b.date.localeCompare(a.date) || b.loggedAt.localeCompare(a.loggedAt));
+      });
+      out[u] = map;
     });
-    return map;
-  }, [measurements, user]);
+    return out;
+  }, [measurements]);
 
   // Totals across all six parts, in inches (negative = lost).
-  const totals = useMemo(() => {
+  const totalsFor = (u: WorkoutUser) => {
     let sinceStart = 0;
     let sinceLast = 0;
     let any = false;
     BODY_PARTS.forEach((p) => {
-      const list = myByPart[p];
+      const list = byPersonPart[u][p];
       if (list.length > 1) {
         any = true;
         sinceStart += list[0].valueIn - list[list.length - 1].valueIn;
@@ -2189,10 +2214,12 @@ function WeightView({
       }
     });
     return any ? { sinceStart, sinceLast } : null;
-  }, [myByPart]);
+  };
 
-  const partList = myByPart[part];
-  const partSeries = [...partList].reverse().map((m) => toL(m.valueIn));
+  const partHistory = people
+    .flatMap((u) => byPersonPart[u][part])
+    .sort((a, b) => b.date.localeCompare(a.date) || b.loggedAt.localeCompare(a.loggedAt));
+  const partHasTrend = people.some((u) => byPersonPart[u][part].length >= 2);
 
   const handleSaveMeasurement = async () => {
     const num = Number(mValue);
@@ -2217,40 +2244,75 @@ function WeightView({
 
   return (
     <div className="view">
+      <button
+        className={`together-toggle ${togetherMode ? "together-toggle--active" : ""}`}
+        onClick={onToggleTogether}
+      >
+        <span className="together-toggle-dots">
+          <span style={{ background: USER_COLORS[user] }} />
+          <span style={{ background: USER_COLORS[otherUser] }} />
+        </span>
+        Together Mode
+        <span className="together-toggle-switch">
+          <span className="together-toggle-knob" />
+        </span>
+      </button>
+
       {/* ---------- WEIGHT (compact) ---------- */}
       <div className="body-card">
         <div className="hero-stat-dots" />
-        <div className="body-card-top">
-          <div>
-            <div className="body-card-label">WEIGHT</div>
-            <div className="body-card-number">
-              {latest ? fmt1(toW(latest.weight)) : "—"}
-              {latest && <span className="hero-stat-unit">{wUnit}</span>}
-            </div>
-            <div className="body-card-meta">
-              {latest ? formatDate(latest.date) : "No weigh-ins yet"}
-            </div>
-          </div>
-          <div className="body-card-deltas">
-            {delta !== null && (
-              <div
-                className={`weight-delta ${delta <= 0 ? "weight-delta--down" : "weight-delta--up"}`}
-              >
-                {signed(toW(delta))} since last
+        <div className={togetherMode ? "body-card-pair" : undefined}>
+          {people.map((u) => {
+            const st = weightStats(u);
+            const lineColor = u === user ? CARD_LINE_COLORS.me : CARD_LINE_COLORS.other;
+            return (
+              <div className="body-card-top" key={u}>
+                <div>
+                  <div className="body-card-label">
+                    {togetherMode && (
+                      <span className="body-card-dot" style={{ background: lineColor }} />
+                    )}
+                    {togetherMode ? u.toUpperCase() : "WEIGHT"}
+                  </div>
+                  <div
+                    className={`body-card-number ${togetherMode ? "body-card-number--pair" : ""}`}
+                  >
+                    {st.latest ? fmt1(toW(st.latest.weight)) : "—"}
+                    {st.latest && <span className="hero-stat-unit">{wUnit}</span>}
+                  </div>
+                  <div className="body-card-meta">
+                    {st.latest ? formatDate(st.latest.date) : "No weigh-ins yet"}
+                  </div>
+                </div>
+                <div className="body-card-deltas">
+                  {st.delta !== null && (
+                    <div
+                      className={`weight-delta ${st.delta <= 0 ? "weight-delta--down" : "weight-delta--up"}`}
+                    >
+                      {signed(toW(st.delta))} since last
+                    </div>
+                  )}
+                  {st.total !== null && (
+                    <div
+                      className={`weight-delta ${st.total <= 0 ? "weight-delta--down" : "weight-delta--up"}`}
+                    >
+                      {signed(toW(st.total))} total
+                    </div>
+                  )}
+                </div>
               </div>
-            )}
-            {totalChange !== null && (
-              <div
-                className={`weight-delta ${totalChange <= 0 ? "weight-delta--down" : "weight-delta--up"}`}
-              >
-                {signed(toW(totalChange))} total
-              </div>
-            )}
-          </div>
+            );
+          })}
         </div>
-        {weightSeries.length >= 2 && (
+        {people.some((u) => byUser[u].length >= 2) && (
           <div className="body-card-chart">
-            <LineChart values={weightSeries} color="#c9a227" height={56} />
+            <LineChart
+              series={people.map((u) => ({
+                values: weightStats(u).series,
+                color: u === user ? CARD_LINE_COLORS.me : CARD_LINE_COLORS.other,
+              }))}
+              height={56}
+            />
           </div>
         )}
       </div>
@@ -2269,7 +2331,7 @@ function WeightView({
         </div>
         <div className="quick-log-field">
           <label className="field-label" htmlFor="weight-value">
-            WEIGHT
+            {togetherMode ? `${user.toUpperCase()}'S WEIGHT` : "WEIGHT"}
           </label>
           <div className="quick-log-value">
             <input
@@ -2348,61 +2410,86 @@ function WeightView({
       </div>
 
       <div className="measure-summary">
-        <div className="measure-summary-item">
-          <div className="measure-summary-number">
-            {totals ? lostLabel(totals.sinceStart) : "—"}
+        {(["sinceStart", "sinceLast"] as const).map((key) => (
+          <div className="measure-summary-item" key={key}>
+            {people.map((u) => {
+              const t = totalsFor(u);
+              return (
+                <div className="measure-summary-number" key={u}>
+                  {togetherMode && (
+                    <span className="measure-summary-who" style={{ color: USER_COLORS[u] }}>
+                      {u[0]}
+                    </span>
+                  )}
+                  {t ? lostLabel(t[key]) : "—"}
+                </div>
+              );
+            })}
+            <div className="measure-summary-label">
+              {key === "sinceStart" ? "TOTAL SINCE START" : "SINCE LAST CHECK-IN"}
+            </div>
           </div>
-          <div className="measure-summary-label">TOTAL SINCE START</div>
-        </div>
-        <div className="measure-summary-item">
-          <div className="measure-summary-number">
-            {totals ? lostLabel(totals.sinceLast) : "—"}
-          </div>
-          <div className="measure-summary-label">SINCE LAST CHECK-IN</div>
-        </div>
+        ))}
       </div>
 
       <div className="measure-grid">
-        {BODY_PARTS.map((p) => {
-          const list = myByPart[p];
-          const last = list[0];
-          const prev = list[1];
-          const d = last && prev ? toL(last.valueIn - prev.valueIn) : null;
-          return (
-            <button
-              key={p}
-              type="button"
-              className={`measure-tile ${part === p ? "measure-tile--on" : ""}`}
-              onClick={() => {
-                setPart(p);
-                setMValue("");
-                setMHistoryOpen(false);
-              }}
-            >
-              <div className="measure-tile-label">{BODY_PART_LABELS[p]}</div>
-              <div className="measure-tile-number">
-                {last ? fmt1(toL(last.valueIn)) : "—"}
-                {last && <span className="measure-tile-unit">{lUnit}</span>}
-              </div>
-              {d !== null && (
-                <div
-                  className={`measure-tile-delta ${d <= 0 ? "measure-tile-delta--down" : "measure-tile-delta--up"}`}
-                >
-                  {signed(d)}
+        {BODY_PARTS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            className={`measure-tile ${part === p ? "measure-tile--on" : ""}`}
+            onClick={() => {
+              setPart(p);
+              setMValue("");
+              setMHistoryOpen(false);
+            }}
+          >
+            <div className="measure-tile-label">{BODY_PART_LABELS[p]}</div>
+            {people.map((u) => {
+              const list = byPersonPart[u][p];
+              const last = list[0];
+              const prev = list[1];
+              const d = last && prev ? toL(last.valueIn - prev.valueIn) : null;
+              return (
+                <div key={u} className={togetherMode ? "measure-tile-person" : undefined}>
+                  <div
+                    className={`measure-tile-number ${togetherMode ? "measure-tile-number--pair" : ""}`}
+                  >
+                    {togetherMode && (
+                      <span className="measure-tile-who" style={{ color: USER_COLORS[u] }}>
+                        {u[0]}
+                      </span>
+                    )}
+                    {last ? fmt1(toL(last.valueIn)) : "—"}
+                    {last && <span className="measure-tile-unit">{lUnit}</span>}
+                  </div>
+                  {d !== null && (
+                    <div
+                      className={`measure-tile-delta ${d <= 0 ? "measure-tile-delta--down" : "measure-tile-delta--up"}`}
+                    >
+                      {signed(d)}
+                    </div>
+                  )}
                 </div>
-              )}
-            </button>
-          );
-        })}
+              );
+            })}
+          </button>
+        ))}
       </div>
 
       <div className="measure-panel">
         <div className="measure-panel-title">{BODY_PART_LABELS[part]}</div>
-        {partSeries.length >= 2 ? (
-          <LineChart values={partSeries} color={USER_COLORS[user]} height={70} />
+        {partHasTrend ? (
+          <LineChart
+            series={people.map((u) => ({
+              values: [...byPersonPart[u][part]].reverse().map((m) => toL(m.valueIn)),
+              color: USER_COLORS[u],
+            }))}
+            height={70}
+          />
         ) : (
           <p className="empty-sub measure-panel-empty">
-            {partList.length === 0
+            {partHistory.length === 0
               ? "No measurements yet. Log your first one below."
               : "Log another one to see the trend."}
           </p>
@@ -2422,7 +2509,9 @@ function WeightView({
           </div>
           <div className="quick-log-field">
             <label className="field-label" htmlFor="measure-value">
-              {BODY_PART_LABELS[part].toUpperCase()}
+              {togetherMode
+                ? `${user.toUpperCase()}'S ${BODY_PART_LABELS[part].toUpperCase()}`
+                : BODY_PART_LABELS[part].toUpperCase()}
             </label>
             <div className="quick-log-value">
               <input
@@ -2447,14 +2536,14 @@ function WeightView({
           {savingMeasurement ? "SAVING..." : `LOG ${BODY_PART_LABELS[part].toUpperCase()}`}
         </button>
 
-        {partList.length > 0 && (
+        {partHistory.length > 0 && (
           <>
             <button
               type="button"
               className="measure-history-toggle"
               onClick={() => setMHistoryOpen(!mHistoryOpen)}
             >
-              {BODY_PART_LABELS[part]} history ({partList.length})
+              {BODY_PART_LABELS[part]} history ({partHistory.length})
               {mHistoryOpen ? (
                 <ChevronUpIcon size={16} color="#5b5d52" />
               ) : (
@@ -2463,20 +2552,23 @@ function WeightView({
             </button>
             {mHistoryOpen && (
               <div className="weight-list">
-                {partList.map((m) => (
+                {partHistory.map((m) => (
                   <div className="weight-row" key={m.id}>
+                    {togetherMode && <Plate size={26} label={m.user[0]} color={USER_COLORS[m.user]} />}
                     <div className="weight-row-info">
                       <div className="weight-row-value">
                         {fmt1(toL(m.valueIn))} {lUnit}
                       </div>
                       <div className="weight-row-meta">{formatDate(m.date)}</div>
                     </div>
-                    <button
-                      className="weight-row-delete"
-                      onClick={() => onDeleteMeasurement(m.id)}
-                    >
-                      <TrashIcon size={16} />
-                    </button>
+                    {m.user === user && (
+                      <button
+                        className="weight-row-delete"
+                        onClick={() => onDeleteMeasurement(m.id)}
+                      >
+                        <TrashIcon size={16} />
+                      </button>
+                    )}
                   </div>
                 ))}
               </div>
@@ -2491,7 +2583,7 @@ function WeightView({
 const NAV_ITEMS = [
   { key: "log", label: "Log", Icon: DumbbellIcon },
   { key: "history", label: "History", Icon: HistoryIcon },
-  { key: "weight", label: "Weight", Icon: ScaleIcon },
+  { key: "weight", label: "Body", Icon: ScaleIcon },
   { key: "stats", label: "Stats", Icon: BarChartIcon },
 ] as const;
 
@@ -3008,6 +3100,9 @@ function Index() {
                   <WeightView
                     weighIns={weighIns}
                     user={user}
+                    otherUser={otherUser!}
+                    togetherMode={togetherMode}
+                    onToggleTogether={() => setTogetherMode(!togetherMode)}
                     onSave={addWeighIn}
                     onDelete={removeWeighIn}
                     saving={savingWeight}

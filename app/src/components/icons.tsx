@@ -83,13 +83,13 @@ export function ChevronUpIcon({ size, color, className }: IconProps) {
   );
 }
 
+// Bathroom scale: square platform with a dial window and needle.
 export function ScaleIcon({ size, color, className }: IconProps) {
   return (
     <svg {...base(size)} color={color} className={className}>
-      <circle cx="12" cy="14" r="7" />
-      <path d="M12 3v4" />
-      <path d="M9 3h6" />
-      <path d="M12 11v3l2 2" />
+      <rect x="3" y="3" width="18" height="18" rx="4" />
+      <path d="M7.5 9a4.5 4.5 0 0 1 9 0Z" />
+      <path d="M12 9l1.6-2.4" />
     </svg>
   );
 }

@@ -935,6 +935,13 @@ function draftHasContent(exercises: DraftExercise[]) {
   );
 }
 
+// True when any reps, weight, time or intensity has been typed in.
+function draftHasEntries(exercises: DraftExercise[]) {
+  return exercises.some((ex) =>
+    [...ex.sets, ...ex.setsOther].some((s) => s.reps || s.weight || s.time || s.intensity),
+  );
+}
+
 function readDraft(key: string): SavedDraft | null {
   try {
     const raw = localStorage.getItem(key);
@@ -1478,7 +1485,7 @@ function LogView({
         otherUser={otherUser}
         lastPerformanceOther={lastPerformanceOther}
         draftKey={`fd-draft-${user}`}
-        restoreDraft={!seedExercises}
+        restoreDraft
         onRestoreTogetherMode={setTogetherMode}
         initialTemplate={seedExercises ? seedTemplate : null}
         onSubmit={({ date, exercises, exercisesOther, notes, template }) => {
@@ -2821,6 +2828,23 @@ function Index() {
   );
 
   function loadIntoLog(exercises: DraftExercise[], template: TemplateLink | null = null) {
+    // Starting a new plan replaces the unsaved workout, so ask first, then
+    // clear the old draft. (Coming back to Log later restores the draft.)
+    if (user) {
+      const key = `fd-draft-${user}`;
+      const existing = readDraft(key);
+      if (
+        existing &&
+        draftHasEntries(existing.exercises) &&
+        !confirm("You have an unsaved workout. Replace it with this one?")
+      )
+        return;
+      try {
+        localStorage.removeItem(key);
+      } catch {
+        // Storage blocked — nothing else to do.
+      }
+    }
     setLogSeed(exercises);
     setLogSeedTemplate(template);
     setLogSeedKey((k) => k + 1);

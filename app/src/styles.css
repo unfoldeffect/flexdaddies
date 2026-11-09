@@ -589,6 +589,35 @@
 .exercise-head-actions > .exercise-move:first-child {
   margin-top: 30px;
 }
+/* Drag handle: sits in the gap above the move buttons. touch-action: none
+   lets a finger drag the card instead of scrolling the page. */
+.exercise-drag-handle {
+  width: 44px;
+  height: 26px;
+  margin-bottom: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--fd-muted);
+  border-radius: 10px;
+  cursor: grab;
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+.exercise-drag-handle:hover {
+  color: var(--fd-text);
+  background: rgba(0, 0, 0, 0.05);
+}
+.exercise-card--dragging {
+  z-index: 5;
+  box-shadow: 0 14px 30px rgba(11, 37, 69, 0.28);
+  opacity: 0.96;
+}
+.exercise-card--dragging .exercise-drag-handle {
+  cursor: grabbing;
+}
 .exercise-move {
   display: flex;
   flex-direction: column;
@@ -800,6 +829,24 @@
 }
 .plan-loaded-note strong {
   color: var(--fd-text);
+}
+.plan-loaded-note {
+  flex-wrap: wrap;
+}
+.plan-order-btn {
+  margin-left: auto;
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: 2px solid var(--fd-gold);
+  background: rgba(201, 162, 39, 0.16);
+  color: var(--fd-gold-deep);
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+.plan-order-saved {
+  margin-left: auto;
+  color: var(--fd-gold-deep);
+  font-weight: 700;
 }
 .history-summary-right {
   display: flex;

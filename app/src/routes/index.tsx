@@ -1,5 +1,12 @@
 import { createFileRoute } from "@tanstack/react-router";
-import { createContext, useContext, useEffect, useMemo, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useEffect,
+  useMemo,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from "react";
 
 import {
   BarChartIcon,
@@ -7,6 +14,7 @@ import {
   ChevronUpIcon,
   DumbbellIcon,
   EditIcon,
+  GripIcon,
   HistoryIcon,
   PlusIcon,
   ScaleIcon,
@@ -15,6 +23,7 @@ import {
   XIcon,
 } from "../components/icons";
 import { RestTimer } from "../components/rest-timer";
+import { useDragReorder } from "../hooks/use-drag-reorder";
 import {
   addCustomExercise,
   listCustomExercises,
@@ -80,6 +89,13 @@ import {
   type ManagedExercise,
   type WorkoutUser,
 } from "../lib/workout-data";
+import {
+  applyOrderToPlan,
+  moveItem,
+  parseWeight,
+  sameExerciseOrder,
+  sanitizeWeightInput,
+} from "../lib/workout-helpers";
 
 export const Route = createFileRoute("/")({
   loader: async () => ({
@@ -264,15 +280,6 @@ function templateToDraft(
       notes: "",
     };
   });
-}
-
-/** Returns a copy of the list with the item at `index` shifted by `delta` (-1 up, +1 down). */
-function moveItem<T>(list: T[], index: number, delta: -1 | 1): T[] {
-  const target = index + delta;
-  if (index < 0 || index >= list.length || target < 0 || target >= list.length) return list;
-  const next = [...list];
-  [next[index], next[target]] = [next[target], next[index]];
-  return next;
 }
 
 function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
@@ -540,6 +547,8 @@ function ExerciseEditor({
   onMoveDown,
   canMoveUp = false,
   canMoveDown = false,
+  dragHandleProps,
+  dragging = false,
 }: {
   exercise: DraftExercise;
   onChange: (updated: DraftExercise) => void;
@@ -550,6 +559,9 @@ function ExerciseEditor({
   onMoveDown?: () => void;
   canMoveUp?: boolean;
   canMoveDown?: boolean;
+  // Drag handle — shown when the parent passes its pointer handlers.
+  dragHandleProps?: { onPointerDown: (e: ReactPointerEvent<HTMLElement>) => void };
+  dragging?: boolean;
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
   lastPerformance: Record<string, Workout["exercises"][number]>;
@@ -699,14 +711,19 @@ function ExerciseEditor({
                 value={s.reps}
                 onChange={(e) => onSetChange(s.id, "reps", e.target.value)}
               />
+              {/* Text box (not type="number") so decimals like 22.5 stay
+                  exactly as typed; sanitizeWeightInput keeps it numeric. */}
               <input
-                type="number"
+                type="text"
                 inputMode="decimal"
-                min="0"
-                step="any"
+                pattern="[0-9]*[.]?[0-9]*"
+                autoComplete="off"
+                aria-label={`Set ${i + 1} weight in lbs`}
                 placeholder="0"
                 value={s.weight}
-                onChange={(e) => onSetChange(s.id, "weight", e.target.value)}
+                onChange={(e) =>
+                  onSetChange(s.id, "weight", sanitizeWeightInput(e.target.value, s.weight))
+                }
               />
             </>
           )}
@@ -716,7 +733,11 @@ function ExerciseEditor({
   );
 
   return (
-    <div className="exercise-card" style={{ borderColor: category ? accent : undefined }}>
+    <div
+      className={`exercise-card ${dragging ? "exercise-card--dragging" : ""}`}
+      style={{ borderColor: category ? accent : undefined }}
+      data-reorder-id={exercise.id}
+    >
       <div className="exercise-head">
         <div className="exercise-field">
           {category && (
@@ -794,6 +815,17 @@ function ExerciseEditor({
           )}
         </div>
         <div className="exercise-head-actions">
+          {dragHandleProps && (
+            <span
+              className="exercise-drag-handle"
+              role="img"
+              aria-label="Drag to reorder"
+              title="Drag to reorder"
+              {...dragHandleProps}
+            >
+              <GripIcon size={20} />
+            </span>
+          )}
           {(onMoveUp || onMoveDown) && (
             <div className="exercise-move">
               <button
@@ -984,6 +1016,8 @@ function WorkoutForm({
   restoreDraft = false,
   onRestoreTogetherMode,
   initialTemplate = null,
+  templates,
+  onSavePlanOrder,
 }: {
   initialDate: string;
   initialExercises: DraftExercise[];
@@ -1011,6 +1045,9 @@ function WorkoutForm({
   onRestoreTogetherMode?: (v: boolean) => void;
   /** The plan this form was pre-filled from, so History can show it. */
   initialTemplate?: TemplateLink | null;
+  /** Saved plans + a way to store a new exercise order on one (Log tab only). */
+  templates?: WorkoutTemplate[];
+  onSavePlanOrder?: (template: WorkoutTemplate, exercises: TemplateExercise[]) => Promise<boolean>;
 }) {
   const [date, setDate] = useState(initialDate);
   const [exercises, setExercises] = useState<DraftExercise[]>(initialExercises);
@@ -1081,9 +1118,31 @@ function WorkoutForm({
         delta,
       ),
     );
+  const drag = useDragReorder(moveExercise);
 
   const finalName = (ex: DraftExercise) =>
     ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name;
+
+  // Reordering here only changes this workout. If it came from a plan and the
+  // order now differs, offer to store the new order on the plan as well.
+  const [savingOrder, setSavingOrder] = useState(false);
+  const [orderSaved, setOrderSaved] = useState(false);
+  const plan = template && onSavePlanOrder ? templates?.find((t) => t.id === template.id) : null;
+  const reorderedPlan = plan
+    ? applyOrderToPlan(plan.exercises, exercises.map(finalName).filter(Boolean))
+    : null;
+  const planOrderChanged =
+    !!plan && !!reorderedPlan && !sameExerciseOrder(plan.exercises, reorderedPlan);
+  const savePlanOrder = async () => {
+    if (!plan || !reorderedPlan || !onSavePlanOrder) return;
+    setSavingOrder(true);
+    const ok = await onSavePlanOrder(plan, reorderedPlan);
+    setSavingOrder(false);
+    if (ok) {
+      setOrderSaved(true);
+      setTimeout(() => setOrderSaved(false), 2200);
+    }
+  };
 
   const canSave = exercises.some(
     (ex) =>
@@ -1106,7 +1165,7 @@ function WorkoutForm({
           .filter((s) => s.reps !== "" || s.weight !== "")
           .map((s) => ({
             reps: Number(s.reps) || 0,
-            weight: Number(s.weight) || 0,
+            weight: parseWeight(s.weight),
             time: 0,
             intensity: 0,
           }));
@@ -1185,6 +1244,14 @@ function WorkoutForm({
       {template && (
         <p className="plan-loaded-note">
           <DumbbellIcon size={14} /> From plan: <strong>{template.name}</strong>
+          {planOrderChanged && (
+            <button className="plan-order-btn" onClick={savePlanOrder} disabled={savingOrder}>
+              {savingOrder ? "Saving..." : "Save this order to plan"}
+            </button>
+          )}
+          {!planOrderChanged && orderSaved && (
+            <span className="plan-order-saved">Order saved ✓</span>
+          )}
         </p>
       )}
       <div className="log-date-row">
@@ -1199,27 +1266,31 @@ function WorkoutForm({
         />
       </div>
 
-      {exercises.map((ex, i) => (
-        <ExerciseEditor
-          key={ex.id}
-          exercise={ex}
-          onChange={(updated) => updateExercise(ex.id, updated)}
-          onRemove={() => removeExercise(ex.id)}
-          showRemove={exercises.length > 1}
-          onMoveUp={() => moveExercise(ex.id, -1)}
-          onMoveDown={() => moveExercise(ex.id, 1)}
-          canMoveUp={i > 0}
-          canMoveDown={i < exercises.length - 1}
-          groups={groups}
-          toCategory={toCategory}
-          lastPerformance={lastPerformance}
-          togetherMode={togetherMode}
-          currentUser={currentUser}
-          otherUser={otherUser}
-          lastPerformanceOther={lastPerformanceOther ?? {}}
-          showSavedNotes={showSavedNotes}
-        />
-      ))}
+      <div data-reorder-list>
+        {exercises.map((ex, i) => (
+          <ExerciseEditor
+            key={ex.id}
+            exercise={ex}
+            onChange={(updated) => updateExercise(ex.id, updated)}
+            onRemove={() => removeExercise(ex.id)}
+            showRemove={exercises.length > 1}
+            onMoveUp={() => moveExercise(ex.id, -1)}
+            onMoveDown={() => moveExercise(ex.id, 1)}
+            canMoveUp={i > 0}
+            canMoveDown={i < exercises.length - 1}
+            dragHandleProps={exercises.length > 1 ? drag.handleProps(ex.id) : undefined}
+            dragging={drag.draggingId === ex.id}
+            groups={groups}
+            toCategory={toCategory}
+            lastPerformance={lastPerformance}
+            togetherMode={togetherMode}
+            currentUser={currentUser}
+            otherUser={otherUser}
+            lastPerformanceOther={lastPerformanceOther ?? {}}
+            showSavedNotes={showSavedNotes}
+          />
+        ))}
+      </div>
 
       <button className="add-exercise-btn" onClick={addExercise}>
         <PlusIcon size={20} /> Add Another Exercise
@@ -1273,6 +1344,7 @@ function PlanEditForm({
         delta,
       ),
     );
+  const drag = useDragReorder(moveExercise);
 
   const finalName = (ex: DraftExercise) =>
     ex.name === OTHER_VALUE ? ex.customName.trim() : ex.name;
@@ -1315,27 +1387,31 @@ function PlanEditForm({
         />
       </div>
 
-      {exercises.map((ex, i) => (
-        <ExerciseEditor
-          key={ex.id}
-          exercise={ex}
-          onChange={(updated) => updateExercise(ex.id, updated)}
-          onRemove={() => removeExercise(ex.id)}
-          showRemove={exercises.length > 1}
-          onMoveUp={() => moveExercise(ex.id, -1)}
-          onMoveDown={() => moveExercise(ex.id, 1)}
-          canMoveUp={i > 0}
-          canMoveDown={i < exercises.length - 1}
-          groups={groups}
-          toCategory={toCategory}
-          lastPerformance={{}}
-          togetherMode={false}
-          currentUser="Diego"
-          otherUser="Kevin"
-          lastPerformanceOther={{}}
-          hideSets
-        />
-      ))}
+      <div data-reorder-list>
+        {exercises.map((ex, i) => (
+          <ExerciseEditor
+            key={ex.id}
+            exercise={ex}
+            onChange={(updated) => updateExercise(ex.id, updated)}
+            onRemove={() => removeExercise(ex.id)}
+            showRemove={exercises.length > 1}
+            onMoveUp={() => moveExercise(ex.id, -1)}
+            onMoveDown={() => moveExercise(ex.id, 1)}
+            canMoveUp={i > 0}
+            canMoveDown={i < exercises.length - 1}
+            dragHandleProps={exercises.length > 1 ? drag.handleProps(ex.id) : undefined}
+            dragging={drag.draggingId === ex.id}
+            groups={groups}
+            toCategory={toCategory}
+            lastPerformance={{}}
+            togetherMode={false}
+            currentUser="Diego"
+            otherUser="Kevin"
+            lastPerformanceOther={{}}
+            hideSets
+          />
+        ))}
+      </div>
 
       <button className="add-exercise-btn" onClick={addExercise}>
         <PlusIcon size={20} /> Add Exercise
@@ -1378,6 +1454,7 @@ function LogView({
   onCancelEditTemplate,
   onSaveTemplateEdits,
   savingTemplateEdit,
+  onSavePlanOrder,
 }: {
   user: WorkoutUser;
   otherUser: WorkoutUser;
@@ -1404,6 +1481,7 @@ function LogView({
   onCancelEditTemplate: () => void;
   onSaveTemplateEdits: (name: string, exercises: TemplateExercise[]) => Promise<boolean>;
   savingTemplateEdit: boolean;
+  onSavePlanOrder: (template: WorkoutTemplate, exercises: TemplateExercise[]) => Promise<boolean>;
 }) {
   if (editingTemplate) {
     return (
@@ -1488,6 +1566,8 @@ function LogView({
         restoreDraft
         onRestoreTogetherMode={setTogetherMode}
         initialTemplate={seedExercises ? seedTemplate : null}
+        templates={templates}
+        onSavePlanOrder={onSavePlanOrder}
         onSubmit={({ date, exercises, exercisesOther, notes, template }) => {
           const workout: Workout = {
             id: uid(),
@@ -2927,6 +3007,19 @@ function Index() {
     }
   }
 
+  // Stores a new exercise order on a plan, from a workout in progress.
+  async function savePlanOrder(template: WorkoutTemplate, exercises: TemplateExercise[]) {
+    setError(null);
+    try {
+      await updateTemplate({ data: { id: template.id, name: template.name, exercises } });
+      setTemplates((prev) => prev.map((t) => (t.id === template.id ? { ...t, exercises } : t)));
+      return true;
+    } catch {
+      setError("Couldn't save that order to the plan — check your connection and try again.");
+      return false;
+    }
+  }
+
   async function addWorkout(workout: Workout) {
     setSaving(true);
     setError(null);
@@ -3101,6 +3194,7 @@ function Index() {
                     onCancelEditTemplate={cancelEditTemplate}
                     onSaveTemplateEdits={saveTemplateEdits}
                     savingTemplateEdit={savingTemplateEdit}
+                    onSavePlanOrder={savePlanOrder}
                   />
                 )}
                 {view === "history" && (

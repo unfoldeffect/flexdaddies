@@ -113,3 +113,11 @@ export function TrashIcon({ size, color, className }: IconProps) {
     </svg>
   );
 }
+
+export function GripIcon({ size, color, className }: IconProps) {
+  return (
+    <svg {...base(size)} color={color} className={className} strokeWidth={2.6}>
+      <path d="M5 9h14M5 15h14" />
+    </svg>
+  );
+}

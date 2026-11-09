@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { bindings } from "../bindings.server";
 import { ensureMigrations } from "../migrate.server";
+import { templateLinkFromRow } from "../workout-helpers";
 
 const SetSchema = z.object({
   reps: z.number().min(0).default(0),
@@ -67,10 +68,7 @@ function rowToWorkout(row: WorkoutRow): Workout {
     exercises: JSON.parse(row.exercises),
     notes: row.notes,
     loggedAt: row.logged_at,
-    template:
-      row.template_id && row.template_name
-        ? { id: row.template_id, name: row.template_name }
-        : null,
+    template: templateLinkFromRow(row.template_id, row.template_name),
   };
 }
 

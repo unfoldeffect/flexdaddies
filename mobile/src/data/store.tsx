@@ -5,7 +5,15 @@
 // which are named after the website's server functions. To connect the real
 // Flex Daddies backend later, only this file needs to change: each action
 // would send the same data to the server instead of (or as well as) the phone.
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import type {
   BodyMeasurement,
@@ -32,7 +40,8 @@ import * as ops from './db';
 import { buildSampleData, hasSampleData, removeSampleData } from './sample-data';
 import { DEFAULT_PREFS, loadDb, loadPrefs, saveDb, savePrefs, type Prefs } from './storage';
 
-const SAVE_FAILED = "Couldn't save that to this phone. Check the phone has free space and try again.";
+const SAVE_FAILED =
+  "Couldn't save that to this phone. Check the phone has free space and try again.";
 
 export type NotesApi = {
   notes: ExerciseNote[];
@@ -79,7 +88,11 @@ export type Store = {
   savePlanOrder: (template: WorkoutTemplate, exercises: TemplateExercise[]) => Promise<boolean>;
 
   registerExercise: (name: string, category: string) => void;
-  updateManagedExercise: (ex: ManagedExercise, newName: string, category: string) => Promise<boolean>;
+  updateManagedExercise: (
+    ex: ManagedExercise,
+    newName: string,
+    category: string,
+  ) => Promise<boolean>;
   removeManagedExercise: (ex: ManagedExercise) => Promise<boolean>;
   restoreManagedExercise: (ex: ManagedExercise) => Promise<boolean>;
 

@@ -1,4 +1,9 @@
-import { STARTER_PLANS, buildSampleData, hasSampleData, removeSampleData } from '../data/sample-data';
+import {
+  STARTER_PLANS,
+  buildSampleData,
+  hasSampleData,
+  removeSampleData,
+} from '../data/sample-data';
 import * as storage from '../data/storage';
 import { DEFAULT_PREFS, normalizeDb, normalizePrefs } from '../data/storage';
 import { EMPTY_DB } from '../lib/types';
@@ -28,7 +33,14 @@ describe('sample data', () => {
   });
 
   it('can be removed without touching plans or anything logged on the phone', () => {
-    const mine = { id: 'real-1', user: 'Diego' as const, date: '2026-11-09', exercises: [], notes: '', loggedAt: 'x' };
+    const mine = {
+      id: 'real-1',
+      user: 'Diego' as const,
+      date: '2026-11-09',
+      exercises: [],
+      notes: '',
+      loggedAt: 'x',
+    };
     const cleared = removeSampleData({ ...db, workouts: [mine, ...db.workouts] });
     expect(hasSampleData(db)).toBe(true);
     expect(hasSampleData(cleared)).toBe(false);
@@ -45,17 +57,29 @@ describe('reading saved data', () => {
   });
 
   it('fills in lists missing from older saved data', () => {
-    expect(normalizeDb({ workouts: [{ id: 'w' }] })).toEqual({ ...EMPTY_DB, workouts: [{ id: 'w' }] });
+    expect(normalizeDb({ workouts: [{ id: 'w' }] })).toEqual({
+      ...EMPTY_DB,
+      workouts: [{ id: 'w' }],
+    });
     expect(normalizeDb({ workouts: 'broken' })).toEqual(EMPTY_DB);
   });
 
   it('falls back to safe settings for anything unexpected', () => {
     expect(normalizePrefs(null)).toEqual(DEFAULT_PREFS);
-    expect(normalizePrefs({ user: 'Someone Else', weightUnit: 'stone', restSeconds: 7, restSound: false })).toEqual({
+    expect(
+      normalizePrefs({
+        user: 'Someone Else',
+        weightUnit: 'stone',
+        restSeconds: 7,
+        restSound: false,
+      }),
+    ).toEqual({
       ...DEFAULT_PREFS,
       restSound: false,
     });
-    expect(normalizePrefs({ user: 'Kevin', weightUnit: 'kg', lengthUnit: 'cm', restSeconds: 90 })).toEqual({
+    expect(
+      normalizePrefs({ user: 'Kevin', weightUnit: 'kg', lengthUnit: 'cm', restSeconds: 90 }),
+    ).toEqual({
       user: 'Kevin',
       weightUnit: 'kg',
       lengthUnit: 'cm',
@@ -79,7 +103,17 @@ describe('saving to the phone', () => {
   it('keeps a separate unfinished workout per person', async () => {
     const draft = {
       date: '2026-11-09',
-      exercises: [{ id: 'e1', name: 'Deadlift', customName: '', customCategory: '', sets: [], setsOther: [], notes: '' }],
+      exercises: [
+        {
+          id: 'e1',
+          name: 'Deadlift',
+          customName: '',
+          customCategory: '',
+          sets: [],
+          setsOther: [],
+          notes: '',
+        },
+      ],
       togetherMode: false,
       savedAt: '2026-11-09T12:00:00.000Z',
       template: null,

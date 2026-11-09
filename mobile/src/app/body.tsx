@@ -5,6 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/components/app-header';
 import { DateField } from '@/components/date-field';
 import { KeyboardScroll } from '@/components/keyboard-scroll';
+import { KeyboardSpace } from '@/components/keyboard-space';
 import { LineChart, describeTrend } from '@/components/line-chart';
 import { NumberField } from '@/components/number-field';
 import { TogetherToggle } from '@/components/together-toggle';
@@ -37,7 +38,14 @@ import {
   weightSummary,
 } from '@/lib/stats';
 import { BODY_PARTS, BODY_PART_LABELS, type BodyPart } from '@/lib/types';
-import { USERS, USER_COLORS, formatDate, todayISO, uid, type WorkoutUser } from '@/lib/workout-data';
+import {
+  USERS,
+  USER_COLORS,
+  formatDate,
+  todayISO,
+  uid,
+  type WorkoutUser,
+} from '@/lib/workout-data';
 import { sanitizeWeightInput } from '@/lib/workout-helpers';
 import { colors, fonts } from '@/theme';
 
@@ -123,7 +131,7 @@ export default function BodyScreen() {
   const partLabel = BODY_PART_LABELS[part];
 
   return (
-    <View style={styles.root}>
+    <KeyboardSpace>
       <AppHeader />
       <KeyboardScroll bottomSpace={190}>
         {store.error && <ErrorBanner message={store.error} onDismiss={store.clearError} />}
@@ -146,7 +154,9 @@ export default function BodyScreen() {
                   <View>
                     <View style={styles.weightLabelRow}>
                       {togetherMode && <Dot color={lineColor} size={9} />}
-                      <Text style={styles.weightLabel}>{togetherMode ? u.toUpperCase() : 'WEIGHT'}</Text>
+                      <Text style={styles.weightLabel}>
+                        {togetherMode ? u.toUpperCase() : 'WEIGHT'}
+                      </Text>
                     </View>
                     <Text style={[styles.weightNumber, togetherMode && { fontSize: 32 }]}>
                       {st.latest ? fmt1(toW(st.latest.weight)) : '—'}
@@ -233,7 +243,8 @@ export default function BodyScreen() {
                   tapLight();
                   setExpandedUser(open ? null : u);
                 }}
-                style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}>
+                style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}
+              >
                 <Plate size={28} label={u[0]} color={USER_COLORS[u]} />
                 <Text style={styles.accordionTitle}>{u}&apos;s Weigh-Ins</Text>
                 <View style={styles.countBadge}>
@@ -294,7 +305,9 @@ export default function BodyScreen() {
                 return (
                   <Text style={styles.summaryNumber} key={u}>
                     {togetherMode && (
-                      <Text style={[styles.who, { color: u === user ? colors.gold : colors.white }]}>
+                      <Text
+                        style={[styles.who, { color: u === user ? colors.gold : colors.white }]}
+                      >
                         {u[0]}{' '}
                       </Text>
                     )}
@@ -329,7 +342,8 @@ export default function BodyScreen() {
                   setMValue('');
                   setMHistoryOpen(false);
                 }}
-                style={[styles.tile, on && styles.tileOn]}>
+                style={[styles.tile, on && styles.tileOn]}
+              >
                 <Text style={styles.tileLabel}>{BODY_PART_LABELS[p]}</Text>
                 {people.map((u) => {
                   const list = byPersonPart[u][p];
@@ -430,11 +444,16 @@ export default function BodyScreen() {
                   tapLight();
                   setMHistoryOpen(!mHistoryOpen);
                 }}
-                style={({ pressed }) => [styles.historyToggle, pressed && { opacity: 0.7 }]}>
+                style={({ pressed }) => [styles.historyToggle, pressed && { opacity: 0.7 }]}
+              >
                 <Text style={styles.historyToggleText}>
                   {partLabel} history ({partHistory.length})
                 </Text>
-                <Icon name={mHistoryOpen ? 'chevron-up' : 'chevron-down'} size={18} color={colors.muted} />
+                <Icon
+                  name={mHistoryOpen ? 'chevron-up' : 'chevron-down'}
+                  size={18}
+                  color={colors.muted}
+                />
               </Pressable>
               {mHistoryOpen && (
                 <View style={styles.historyList}>
@@ -469,7 +488,7 @@ export default function BodyScreen() {
           )}
         </View>
       </KeyboardScroll>
-    </View>
+    </KeyboardSpace>
   );
 }
 
@@ -503,10 +522,14 @@ function DeltaPill({
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
   weightCard: { padding: 18, marginBottom: 14 },
   pair: { flexDirection: 'row', gap: 14 },
-  weightTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', gap: 12 },
+  weightTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
   weightTopPair: { flex: 1, flexDirection: 'column', gap: 6 },
   weightLabelRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   weightLabel: { fontFamily: fonts.heading, fontSize: 15, letterSpacing: 1.2, color: colors.white },
@@ -531,9 +554,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 10,
   },
-  accordionHead: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 56, paddingHorizontal: 14 },
+  accordionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    minHeight: 56,
+    paddingHorizontal: 14,
+  },
   accordionTitle: { fontFamily: fonts.heading, fontSize: 17, color: colors.text },
-  countBadge: { backgroundColor: colors.line, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2 },
+  countBadge: {
+    backgroundColor: colors.line,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
   countText: { fontSize: 13, fontWeight: '700', color: colors.muted },
   accordionBody: { paddingHorizontal: 14, paddingBottom: 14, gap: 8 },
   emptySub: { fontSize: 15, color: colors.muted },
@@ -562,8 +596,19 @@ const styles = StyleSheet.create({
   },
   measureTitle: { fontSize: 21, marginBottom: 0 },
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-  summaryItem: { flex: 1, backgroundColor: colors.ink, borderRadius: 16, padding: 12, alignItems: 'center' },
-  summaryNumber: { fontFamily: fonts.headingBold, fontSize: 19, color: colors.gold, textAlign: 'center' },
+  summaryItem: {
+    flex: 1,
+    backgroundColor: colors.ink,
+    borderRadius: 16,
+    padding: 12,
+    alignItems: 'center',
+  },
+  summaryNumber: {
+    fontFamily: fonts.headingBold,
+    fontSize: 19,
+    color: colors.gold,
+    textAlign: 'center',
+  },
   summaryLabel: {
     fontSize: 12,
     fontWeight: '600',

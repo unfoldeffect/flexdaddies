@@ -31,7 +31,13 @@ const opts = {
 function exercise(patch: Partial<DraftExercise>): DraftExercise {
   return { ...emptyExercise(), ...patch };
 }
-const set = (reps: string, weight: string) => ({ id: `${reps}-${weight}`, reps, weight, time: '', intensity: '' });
+const set = (reps: string, weight: string) => ({
+  id: `${reps}-${weight}`,
+  reps,
+  weight,
+  time: '',
+  intensity: '',
+});
 
 describe('sets', () => {
   it('makes between 1 and the usual number of blank sets', () => {
@@ -68,7 +74,11 @@ describe('starting a workout', () => {
   it('builds a draft from a logged workout and can blank it for Repeat', () => {
     const draft = workoutExercisesToDraft(
       [
-        { name: 'Leg Press Machine', sets: [{ reps: 10, weight: 222.5, time: 0, intensity: 0 }], notes: 'deep' },
+        {
+          name: 'Leg Press Machine',
+          sets: [{ reps: 10, weight: 222.5, time: 0, intensity: 0 }],
+          notes: 'deep',
+        },
         { name: 'Treadmill', sets: [{ reps: 0, weight: 0, time: 10, intensity: 3 }], notes: '' },
       ],
       toCategory,
@@ -134,16 +144,26 @@ describe('saving', () => {
       { reps: 10, weight: 22.5, time: 0, intensity: 0 },
       { reps: 8, weight: 0, time: 0, intensity: 0 },
     ]);
-    expect(cleanSets([{ id: 'a', reps: '', weight: '', time: '30', intensity: '6' }], true)).toEqual([
-      { reps: 0, weight: 0, time: 30, intensity: 6 },
-    ]);
+    expect(
+      cleanSets([{ id: 'a', reps: '', weight: '', time: '30', intensity: '6' }], true),
+    ).toEqual([{ reps: 0, weight: 0, time: 30, intensity: 6 }]);
   });
 
   it('builds the workout, new exercises to remember, and notes to keep', () => {
     const built = buildFromDraft(
       [
-        exercise({ name: 'Deadlift', sets: [set('5', '225')], notes: ' brace hard ', sessionNotes: ['belt on'] }),
-        exercise({ name: OTHER_VALUE, customName: ' Log Press ', customCategory: 'Shoulders', sets: [set('3', '150')] }),
+        exercise({
+          name: 'Deadlift',
+          sets: [set('5', '225')],
+          notes: ' brace hard ',
+          sessionNotes: ['belt on'],
+        }),
+        exercise({
+          name: OTHER_VALUE,
+          customName: ' Log Press ',
+          customCategory: 'Shoulders',
+          sets: [set('3', '150')],
+        }),
         exercise({ name: 'Pull-Ups' }),
         exercise({ sets: [set('9', '9')] }),
       ],
@@ -158,7 +178,14 @@ describe('saving', () => {
 
   it('Together Mode builds a second workout for the partner', () => {
     const built = buildFromDraft(
-      [exercise({ name: 'Deadlift', sets: [set('5', '225')], setsOther: [set('5', '245')], notes: 'felt easy' })],
+      [
+        exercise({
+          name: 'Deadlift',
+          sets: [set('5', '225')],
+          setsOther: [set('5', '245')],
+          notes: 'felt easy',
+        }),
+      ],
       { ...opts, togetherMode: true },
     );
     expect(built.exercises[0].sets[0].weight).toBe(225);
@@ -168,7 +195,14 @@ describe('saving', () => {
 
   it('when editing an old workout, notes stay on the workout only', () => {
     const built = buildFromDraft(
-      [exercise({ name: 'Deadlift', sets: [set('5', '225')], notes: 'grip slipped', sessionNotes: ['ignored'] })],
+      [
+        exercise({
+          name: 'Deadlift',
+          sets: [set('5', '225')],
+          notes: 'grip slipped',
+          sessionNotes: ['ignored'],
+        }),
+      ],
       { ...opts, withSavedNotes: false },
     );
     expect(built.exercises[0].notes).toBe('grip slipped');
@@ -202,19 +236,31 @@ describe('labels', () => {
     expect(resolveCategory(exercise({}), toCategory)).toBeNull();
     expect(resolveCategory(exercise({ name: 'Deadlift' }), toCategory)?.label).toBe('Back');
     expect(resolveCategory(exercise({ name: OTHER_VALUE }), toCategory)?.label).toBe('Other');
-    expect(resolveCategory(exercise({ name: OTHER_VALUE, customCategory: 'Cardio' }), toCategory)?.label).toBe('Cardio');
+    expect(
+      resolveCategory(exercise({ name: OTHER_VALUE, customCategory: 'Cardio' }), toCategory)?.label,
+    ).toBe('Cardio');
     expect(resolveCategory(exercise({ name: 'Gone From List' }), toCategory)?.label).toBe('Other');
   });
 
   it('summarises the last workout', () => {
     expect(
       lastWorkoutSummary(
-        { name: 'Deadlift', notes: '', sets: [{ reps: 5, weight: 225, time: 0, intensity: 0 }, { reps: 0, weight: 0, time: 0, intensity: 0 }] },
+        {
+          name: 'Deadlift',
+          notes: '',
+          sets: [
+            { reps: 5, weight: 225, time: 0, intensity: 0 },
+            { reps: 0, weight: 0, time: 0, intensity: 0 },
+          ],
+        },
         false,
       ),
     ).toBe('5×225lbs');
     expect(
-      lastWorkoutSummary({ name: 'Treadmill', notes: '', sets: [{ reps: 0, weight: 0, time: 10, intensity: 3 }] }, true),
+      lastWorkoutSummary(
+        { name: 'Treadmill', notes: '', sets: [{ reps: 0, weight: 0, time: 10, intensity: 3 }] },
+        true,
+      ),
     ).toBe('10min @ 3/10');
     expect(lastWorkoutSummary(undefined, false)).toBe('');
   });

@@ -110,7 +110,12 @@ export function SavedNotesList({
 
 const styles = StyleSheet.create({
   wrap: { marginBottom: 12, gap: 6 },
-  label: { fontFamily: fonts.headingBold, fontSize: 12, letterSpacing: 0.9, color: colors.goldNote },
+  label: {
+    fontFamily: fonts.headingBold,
+    fontSize: 12,
+    letterSpacing: 0.9,
+    color: colors.goldNote,
+  },
   note: {
     flexDirection: 'row',
     alignItems: 'flex-start',

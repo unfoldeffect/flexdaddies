@@ -13,7 +13,12 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme';
 import { Icon, type IconName } from './ui';
 
-const TABS: { name: string; href: '/' | '/history' | '/body' | '/stats'; label: string; icon: IconName }[] = [
+const TABS: {
+  name: string;
+  href: '/' | '/history' | '/body' | '/stats';
+  label: string;
+  icon: IconName;
+}[] = [
   { name: 'index', href: '/', label: 'Log', icon: 'dumbbell' },
   { name: 'history', href: '/history', label: 'History', icon: 'history' },
   { name: 'body', href: '/body', label: 'Body', icon: 'scale-bathroom' },
@@ -56,7 +61,8 @@ function TabButton({
       {...(props as object)}
       accessibilityRole="tab"
       accessibilityState={{ selected: !!isFocused }}
-      style={[styles.btn, isFocused && styles.btnOn]}>
+      style={[styles.btn, isFocused && styles.btnOn]}
+    >
       <Icon name={icon} size={20} color={isFocused ? colors.ink : 'rgba(255,255,255,0.6)'} />
       <Text style={[styles.label, isFocused && { color: colors.ink }]}>{label}</Text>
     </Pressable>

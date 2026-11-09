@@ -18,7 +18,8 @@ export function ProfileSelect() {
       contentContainerStyle={[
         styles.content,
         { paddingTop: insets.top + 32, paddingBottom: insets.bottom + 24 },
-      ]}>
+      ]}
+    >
       <Image
         source={require('../../assets/images/logo.png')}
         style={styles.logo}
@@ -39,7 +40,11 @@ export function ProfileSelect() {
                 tapMedium();
                 setPrefs({ user: u });
               }}
-              style={({ pressed }) => [styles.pill, pressed && { backgroundColor: colors.goldDeep }]}>
+              style={({ pressed }) => [
+                styles.pill,
+                pressed && { backgroundColor: colors.goldDeep },
+              ]}
+            >
               <View style={[styles.pillDot, { backgroundColor: USER_COLORS[u] }]}>
                 <Text style={styles.pillDotText}>{u[0]}</Text>
               </View>
@@ -56,7 +61,13 @@ const styles = StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { alignItems: 'center', paddingHorizontal: 22, flexGrow: 1, justifyContent: 'center' },
   logo: { width: 240, height: 240, marginBottom: 24 },
-  card: { width: '100%', maxWidth: 520, borderRadius: 28, paddingVertical: 34, paddingHorizontal: 24 },
+  card: {
+    width: '100%',
+    maxWidth: 520,
+    borderRadius: 28,
+    paddingVertical: 34,
+    paddingHorizontal: 24,
+  },
   prompt: {
     color: colors.white,
     fontFamily: fonts.heading,
@@ -74,7 +85,13 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     backgroundColor: colors.gold,
   },
-  pillDot: { width: 36, height: 36, borderRadius: 18, alignItems: 'center', justifyContent: 'center' },
+  pillDot: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   pillDotText: { color: colors.white, fontFamily: fonts.headingBold, fontSize: 17 },
   pillText: { fontFamily: fonts.headingBold, fontSize: 20, letterSpacing: 0.8, color: colors.ink },
 });

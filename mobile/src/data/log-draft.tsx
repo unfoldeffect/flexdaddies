@@ -3,7 +3,15 @@
 // It is saved to the phone as you type, so closing the app, a restart, or
 // tapping Switch never loses it. It is cleared once the workout is logged.
 // Each person has their own unfinished workout.
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react';
 
 import {
   draftHasContent,

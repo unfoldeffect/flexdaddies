@@ -50,7 +50,8 @@ export function DateField({ value, onChange, label, onWhite }: Props) {
             mode: 'date',
             onValueChange: (_event, picked) => onChange(toISODate(picked)),
           })
-        }>
+        }
+      >
         <Text style={styles.text}>{formatDate(value)}</Text>
         <Icon name="calendar-blank-outline" color={colors.muted} />
       </Pressable>

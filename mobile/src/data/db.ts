@@ -30,7 +30,13 @@ export function createWorkout(db: Db, workout: Workout): Db {
 /** Only the person who logged a workout can change or delete it. */
 export function updateWorkout(
   db: Db,
-  input: { id: string; user: WorkoutUser; date: string; exercises: WorkoutExercise[]; notes: string },
+  input: {
+    id: string;
+    user: WorkoutUser;
+    date: string;
+    exercises: WorkoutExercise[];
+    notes: string;
+  },
 ): Db {
   return {
     ...db,
@@ -210,7 +216,9 @@ export function removeExercise(
     return {
       ...db,
       exerciseOverrides: existing
-        ? db.exerciseOverrides.map((o) => (o.originalName === original ? { ...o, hidden: true } : o))
+        ? db.exerciseOverrides.map((o) =>
+            o.originalName === original ? { ...o, hidden: true } : o,
+          )
         : [
             ...db.exerciseOverrides,
             { originalName: original, name: input.name, category: input.category, hidden: true },

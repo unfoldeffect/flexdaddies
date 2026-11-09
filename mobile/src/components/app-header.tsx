@@ -18,7 +18,12 @@ export function AppHeader() {
 
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
-      <View style={styles.wordmark} accessible accessibilityRole="header" accessibilityLabel="Flex Daddies">
+      <View
+        style={styles.wordmark}
+        accessible
+        accessibilityRole="header"
+        accessibilityLabel="Flex Daddies"
+      >
         <Text style={styles.wordText} allowFontScaling={false}>
           FLEX
         </Text>
@@ -36,7 +41,8 @@ export function AppHeader() {
             tapLight();
             setPrefs({ user: null });
           }}
-          style={({ pressed }) => [styles.switch, pressed && { opacity: 0.75 }]}>
+          style={({ pressed }) => [styles.switch, pressed && { opacity: 0.75 }]}
+        >
           <Plate size={28} label={user[0]} color={USER_COLORS[user]} />
           <Icon name="account-switch-outline" size={17} color={colors.white} />
           <Text style={styles.switchText}>Switch</Text>

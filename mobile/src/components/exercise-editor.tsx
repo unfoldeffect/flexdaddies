@@ -128,11 +128,12 @@ export function ExerciseEditor({
     });
   };
 
-  const updateSet = (which: 'sets' | 'setsOther') => (setId: string, field: SetField, value: string) =>
-    onChange({
-      ...exercise,
-      [which]: exercise[which].map((s) => (s.id === setId ? { ...s, [field]: value } : s)),
-    });
+  const updateSet =
+    (which: 'sets' | 'setsOther') => (setId: string, field: SetField, value: string) =>
+      onChange({
+        ...exercise,
+        [which]: exercise[which].map((s) => (s.id === setId ? { ...s, [field]: value } : s)),
+      });
 
   const saveNote = async () => {
     const text = exercise.notes.trim();
@@ -180,7 +181,8 @@ export function ExerciseEditor({
               accessible
               accessibilityRole="adjustable"
               accessibilityLabel="Drag to reorder"
-              accessibilityHint="Hold and drag up or down. The arrows next to this also move the exercise.">
+              accessibilityHint="Hold and drag up or down. The arrows next to this also move the exercise."
+            >
               <Icon name="drag-horizontal-variant" size={24} color={colors.muted} />
             </View>,
           )}
@@ -224,7 +226,8 @@ export function ExerciseEditor({
             accessibilityLabel="Edit the exercise list"
             hitSlop={12}
             onPress={onManageExercises}
-            style={({ pressed }) => [styles.editList, pressed && { opacity: 0.6 }]}>
+            style={({ pressed }) => [styles.editList, pressed && { opacity: 0.6 }]}
+          >
             <Icon name="pencil-outline" size={14} color={colors.goldDeep} />
             <Text style={styles.editListText}>Edit list</Text>
           </Pressable>
@@ -237,8 +240,12 @@ export function ExerciseEditor({
           exerciseName ? `Exercise: ${exerciseName}. Tap to change.` : 'Choose an exercise'
         }
         onPress={() => setPickerOpen(true)}
-        style={({ pressed }) => [styles.select, pressed && { opacity: 0.7 }]}>
-        <Text style={[styles.selectText, !exercise.name && { color: colors.muted }]} numberOfLines={2}>
+        style={({ pressed }) => [styles.select, pressed && { opacity: 0.7 }]}
+      >
+        <Text
+          style={[styles.selectText, !exercise.name && { color: colors.muted }]}
+          numberOfLines={2}
+        >
           {isOther ? 'Other (type your own)' : exercise.name || 'Choose an exercise'}
         </Text>
         <Icon name="chevron-down" color={colors.muted} />
@@ -263,7 +270,8 @@ export function ExerciseEditor({
             keyboardShouldPersistTaps="handled"
             contentContainerStyle={styles.catChips}
             accessibilityRole="radiogroup"
-            accessibilityLabel="Category">
+            accessibilityLabel="Category"
+          >
             {['', ...CATEGORY_LABELS].map((cat) => {
               const on = exercise.customCategory === cat;
               const color = cat ? CATEGORY_COLORS[cat] : OTHER_CATEGORY.color;
@@ -274,11 +282,8 @@ export function ExerciseEditor({
                   accessibilityState={{ checked: on }}
                   accessibilityLabel={`Category: ${cat || 'Other'}`}
                   onPress={() => pickCustomCategory(cat)}
-                  style={[
-                    styles.catChip,
-                    { borderColor: color },
-                    on && { backgroundColor: color },
-                  ]}>
+                  style={[styles.catChip, { borderColor: color }, on && { backgroundColor: color }]}
+                >
                   <Text style={[styles.catChipText, { color: on ? colors.white : color }]}>
                     {cat || 'Other'}
                   </Text>
@@ -301,7 +306,9 @@ export function ExerciseEditor({
             <Text style={[styles.person, { color: USER_COLORS[currentUser] }]}>{currentUser}</Text>
           )}
           {lastWorkout(lastPerformance)}
-          {notesApi && <SavedNotesList api={notesApi} user={currentUser} exerciseName={exerciseName} />}
+          {notesApi && (
+            <SavedNotesList api={notesApi} user={currentUser} exerciseName={exerciseName} />
+          )}
           <SetRows
             sets={exercise.sets}
             cardio={isCardio}
@@ -330,7 +337,8 @@ export function ExerciseEditor({
 
           <View style={styles.notes}>
             <FieldLabel>
-              {notesEnabled ? 'ADD A NOTE' : 'NOTES'} <Text style={styles.optional}>(optional)</Text>
+              {notesEnabled ? 'ADD A NOTE' : 'NOTES'}{' '}
+              <Text style={styles.optional}>(optional)</Text>
             </FieldLabel>
             <TextInput
               style={[styles.textInput, styles.notesInput]}
@@ -346,7 +354,11 @@ export function ExerciseEditor({
                 gold
                 icon="plus"
                 label={
-                  savingNote ? 'Saving...' : togetherMode ? `Save Note for ${currentUser}` : 'Save Note'
+                  savingNote
+                    ? 'Saving...'
+                    : togetherMode
+                      ? `Save Note for ${currentUser}`
+                      : 'Save Note'
                 }
                 disabled={savingNote || !exercise.notes.trim() || !exerciseName}
                 onPress={saveNote}
@@ -429,7 +441,9 @@ function SetRows({
                 value={s.intensity}
                 maxLength={2}
                 accessibilityLabel={`${prefix}intensity, 1 to 10`}
-                onChangeText={(v) => onChange(s.id, 'intensity', sanitizeIntensityInput(v, s.intensity))}
+                onChangeText={(v) =>
+                  onChange(s.id, 'intensity', sanitizeIntensityInput(v, s.intensity))
+                }
               />
             </>
           ) : (
@@ -556,7 +570,13 @@ const styles = StyleSheet.create({
   setIndexCol: { width: 40 },
   setCol: { flex: 1, flexBasis: 0, minWidth: 0 },
   setHeader: { fontSize: 13, fontWeight: '600', letterSpacing: 0.4, color: colors.muted },
-  setIndex: { width: 34, height: 34, borderRadius: 17, alignItems: 'center', justifyContent: 'center' },
+  setIndex: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   setIndexText: { color: colors.white, fontFamily: fonts.headingBold, fontSize: 16 },
   notes: { marginTop: 14, gap: 6 },
   optional: { fontFamily: undefined, fontWeight: '400', letterSpacing: 0, fontSize: 13 },

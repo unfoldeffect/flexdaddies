@@ -1,6 +1,15 @@
 // Asks for one line of text (used for "Name this plan").
 import { useState } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { colors, fonts } from '../theme';
 import { OutlineButton, PrimaryButton } from './ui';
@@ -21,7 +30,8 @@ export function PromptSheet(props: Props) {
       transparent
       animationType="fade"
       onRequestClose={props.onCancel}
-      statusBarTranslucent>
+      statusBarTranslucent
+    >
       {/* Mounted fresh each time it opens, so it always starts from the suggested text. */}
       {props.visible && <PromptBody {...props} />}
     </Modal>
@@ -33,36 +43,37 @@ function PromptBody({ title, initialValue, confirmLabel = 'Save', onSubmit, onCa
   const trimmed = value.trim();
 
   return (
-      <KeyboardAvoidingView
-        style={styles.backdrop}
-        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-        <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Cancel" />
-        <View style={styles.card} accessibilityViewIsModal>
-          <Text accessibilityRole="header" style={styles.title}>
-            {title}
-          </Text>
-          <TextInput
-            style={styles.input}
-            value={value}
-            onChangeText={setValue}
-            autoFocus
-            selectTextOnFocus
-            returnKeyType="done"
-            onSubmitEditing={() => trimmed && onSubmit(trimmed)}
-            accessibilityLabel={title}
+    <KeyboardAvoidingView
+      style={styles.backdrop}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
+      <Pressable style={StyleSheet.absoluteFill} onPress={onCancel} accessibilityLabel="Cancel" />
+      <View style={styles.card} accessibilityViewIsModal>
+        <Text accessibilityRole="header" style={styles.title}>
+          {title}
+        </Text>
+        <TextInput
+          style={styles.input}
+          value={value}
+          onChangeText={setValue}
+          autoFocus
+          selectTextOnFocus
+          returnKeyType="done"
+          onSubmitEditing={() => trimmed && onSubmit(trimmed)}
+          accessibilityLabel={title}
+        />
+        <View style={styles.actions}>
+          <OutlineButton label="Cancel" onPress={onCancel} style={styles.action} />
+          <PrimaryButton
+            compact
+            label={confirmLabel.toUpperCase()}
+            disabled={!trimmed}
+            onPress={() => onSubmit(trimmed)}
+            style={styles.action}
           />
-          <View style={styles.actions}>
-            <OutlineButton label="Cancel" onPress={onCancel} style={styles.action} />
-            <PrimaryButton
-              compact
-              label={confirmLabel.toUpperCase()}
-              disabled={!trimmed}
-              onPress={() => onSubmit(trimmed)}
-              style={styles.action}
-            />
-          </View>
         </View>
-      </KeyboardAvoidingView>
+      </View>
+    </KeyboardAvoidingView>
   );
 }
 

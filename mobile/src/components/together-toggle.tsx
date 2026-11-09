@@ -27,7 +27,8 @@ export function TogetherToggle({
       accessibilityLabel="Together Mode"
       accessibilityHint={`Log for ${user} and ${otherUser} at the same time`}
       onPress={() => toggle(!on)}
-      style={[styles.wrap, on && styles.wrapOn]}>
+      style={[styles.wrap, on && styles.wrapOn]}
+    >
       <View style={styles.dots}>
         <View style={[styles.dot, { backgroundColor: USER_COLORS[user] }]} />
         <View style={[styles.dot, styles.dotSecond, { backgroundColor: USER_COLORS[otherUser] }]} />

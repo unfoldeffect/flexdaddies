@@ -1,6 +1,14 @@
 // "Manage Exercises": rename, recategorise, remove and restore exercises.
 import { useMemo, useState } from 'react';
-import { Pressable, ScrollView, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import {
+  Pressable,
+  ScrollView,
+  SectionList,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from 'react-native';
 
 import { useStore } from '../data/store';
 import { confirm } from '../lib/dialogs';
@@ -20,8 +28,15 @@ const CATEGORIES = [...CATEGORY_LABELS, OTHER_CATEGORY.label];
 
 type Row = { ex: ManagedExercise; hidden: boolean };
 
-export function ManageExercisesSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { managed, updateManagedExercise, removeManagedExercise, restoreManagedExercise } = useStore();
+export function ManageExercisesSheet({
+  visible,
+  onClose,
+}: {
+  visible: boolean;
+  onClose: () => void;
+}) {
+  const { managed, updateManagedExercise, removeManagedExercise, restoreManagedExercise } =
+    useStore();
   const [search, setSearch] = useState('');
   const [editingKey, setEditingKey] = useState<string | null>(null);
   const [editName, setEditName] = useState('');
@@ -120,6 +135,7 @@ export function ManageExercisesSheet({ visible, onClose }: { visible: boolean; o
         sections={sections}
         keyExtractor={(row) => keyOf(row.ex)}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         stickySectionHeadersEnabled
         initialNumToRender={20}
         extraData={[editingKey, editName, editCategory, editError, busy]}
@@ -169,7 +185,9 @@ export function ManageExercisesSheet({ visible, onClose }: { visible: boolean; o
                   horizontal
                   showsHorizontalScrollIndicator={false}
                   keyboardShouldPersistTaps="handled"
-                  contentContainerStyle={styles.catChips}>
+                  automaticallyAdjustKeyboardInsets
+                  contentContainerStyle={styles.catChips}
+                >
                   {CATEGORIES.map((c) => {
                     const on = editCategory === c;
                     const color = CATEGORY_COLORS[c] ?? OTHER_CATEGORY.color;
@@ -183,8 +201,15 @@ export function ManageExercisesSheet({ visible, onClose }: { visible: boolean; o
                           tapLight();
                           setEditCategory(c);
                         }}
-                        style={[styles.catChip, { borderColor: color }, on && { backgroundColor: color }]}>
-                        <Text style={[styles.catChipText, { color: on ? colors.white : color }]}>{c}</Text>
+                        style={[
+                          styles.catChip,
+                          { borderColor: color },
+                          on && { backgroundColor: color },
+                        ]}
+                      >
+                        <Text style={[styles.catChipText, { color: on ? colors.white : color }]}>
+                          {c}
+                        </Text>
                       </Pressable>
                     );
                   })}
@@ -245,7 +270,12 @@ const styles = StyleSheet.create({
   },
   search: { flex: 1, minHeight: 48, fontSize: 17, color: colors.text },
   listContent: { paddingBottom: 40 },
-  sectionHeader: { paddingHorizontal: 18, paddingTop: 14, paddingBottom: 6, backgroundColor: colors.bg },
+  sectionHeader: {
+    paddingHorizontal: 18,
+    paddingTop: 14,
+    paddingBottom: 6,
+    backgroundColor: colors.bg,
+  },
   sectionTitle: { fontFamily: fonts.headingBold, fontSize: 14, letterSpacing: 0.8 },
   row: {
     minHeight: 54,

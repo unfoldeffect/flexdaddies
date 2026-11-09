@@ -16,7 +16,12 @@ import {
 } from '../lib/draft';
 import { buzzSuccess, tapLight } from '../lib/haptics';
 import { moveToIndex } from '../lib/reorder';
-import type { TemplateExercise, TemplateLink, WorkoutExercise, WorkoutTemplate } from '../lib/types';
+import type {
+  TemplateExercise,
+  TemplateLink,
+  WorkoutExercise,
+  WorkoutTemplate,
+} from '../lib/types';
 import type { ExerciseGroup, WorkoutUser } from '../lib/workout-data';
 import { applyOrderToPlan, moveItem, sameExerciseOrder } from '../lib/workout-helpers';
 import { colors } from '../theme';
@@ -215,7 +220,13 @@ export function WorkoutForm({
 }
 
 const styles = StyleSheet.create({
-  planNote: { flexDirection: 'row', alignItems: 'center', flexWrap: 'wrap', gap: 6, marginBottom: 12 },
+  planNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 6,
+    marginBottom: 12,
+  },
   planNoteText: { fontSize: 15, color: colors.muted },
   planNoteName: { fontWeight: '700', color: colors.text },
   orderBtn: {
@@ -225,6 +236,11 @@ const styles = StyleSheet.create({
   },
   orderSaved: { marginLeft: 'auto', fontWeight: '700', color: colors.goldDeep },
   dateRow: { gap: 8, marginBottom: 18 },
-  addBtn: { borderStyle: 'dashed', backgroundColor: colors.surface, minHeight: 56, marginBottom: 18 },
+  addBtn: {
+    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+    minHeight: 56,
+    marginBottom: 18,
+  },
   cancel: { marginTop: 10 },
 });

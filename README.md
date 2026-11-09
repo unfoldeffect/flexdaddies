@@ -11,6 +11,14 @@ and personal records together.
 - **Cloudflare Workers** — hosting/runtime
 - **Cloudflare D1** (SQLite) — shared database
 
+## Phone app
+
+A native iPhone and Android version (Expo / React Native) lives in
+[`mobile/`](./mobile). It is separate from the website: it has its own
+install, keeps its data on the phone for now, and is not part of the
+Cloudflare deploy. See [`mobile/README.md`](./mobile/README.md) for how to
+open it on a phone and build it.
+
 ## Project layout
 
 The actual app lives in [`app/`](./app) — that's the working directory for

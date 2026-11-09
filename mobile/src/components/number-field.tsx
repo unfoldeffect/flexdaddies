@@ -6,7 +6,10 @@ import { StyleSheet, TextInput } from 'react-native';
 
 import { colors, fonts } from '../theme';
 
-export type NumberFieldProps = Omit<ComponentProps<typeof TextInput>, 'keyboardType' | 'onChange'> & {
+export type NumberFieldProps = Omit<
+  ComponentProps<typeof TextInput>,
+  'keyboardType' | 'onChange'
+> & {
   /** Allow a decimal point (weights and measurements). */
   decimal?: boolean;
   /** Bigger headline-style digits (Body screen). */

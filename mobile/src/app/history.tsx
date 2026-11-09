@@ -126,7 +126,8 @@ export default function HistoryScreen() {
                   tapLight();
                   setOpenId(open ? null : w.id);
                 }}
-                style={({ pressed }) => [styles.summary, pressed && { opacity: 0.75 }]}>
+                style={({ pressed }) => [styles.summary, pressed && { opacity: 0.75 }]}
+              >
                 <Plate size={40} label={w.user[0]} color={USER_COLORS[w.user]} />
                 <View style={styles.summaryMid}>
                   <Text style={styles.date}>{formatDate(w.date)}</Text>
@@ -168,16 +169,26 @@ export default function HistoryScreen() {
                               : `${s.reps} reps × ${s.weight} lbs`}
                           </Text>
                         ))}
-                        {!!ex.notes && <Text style={styles.exerciseNotes}>&quot;{ex.notes}&quot;</Text>}
+                        {!!ex.notes && (
+                          <Text style={styles.exerciseNotes}>&quot;{ex.notes}&quot;</Text>
+                        )}
                       </View>
                     );
                   })}
                   <View style={styles.actions}>
                     <LinkButton icon="history" label="Repeat" onPress={() => repeat(w)} />
-                    <LinkButton icon="plus" label="Save as Plan" onPress={() => setNamingPlanFor(w)} />
+                    <LinkButton
+                      icon="plus"
+                      label="Save as Plan"
+                      onPress={() => setNamingPlanFor(w)}
+                    />
                     {w.user === user && (
                       <>
-                        <LinkButton icon="pencil-outline" label="Edit" onPress={() => setEditing(w)} />
+                        <LinkButton
+                          icon="pencil-outline"
+                          label="Edit"
+                          onPress={() => setEditing(w)}
+                        />
                         <LinkButton
                           icon="trash-can-outline"
                           label="Delete"
@@ -270,6 +281,12 @@ const styles = StyleSheet.create({
   exerciseName: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 2 },
   exerciseNameText: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.text },
   setLine: { fontSize: 15, color: colors.muted, marginLeft: 18 },
-  exerciseNotes: { fontSize: 14, fontStyle: 'italic', color: colors.goldNote, marginLeft: 18, marginTop: 2 },
+  exerciseNotes: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: colors.goldNote,
+    marginLeft: 18,
+    marginTop: 2,
+  },
   actions: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 18, rowGap: 4, marginTop: 2 },
 });

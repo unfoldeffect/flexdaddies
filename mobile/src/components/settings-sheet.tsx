@@ -11,7 +11,8 @@ import { Sheet } from './sheet';
 import { Chip, OutlineButton, UnitToggle } from './ui';
 
 export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
-  const { prefs, setPrefs, db, hasSample, removeSample, resetToSample, eraseEverything } = useStore();
+  const { prefs, setPrefs, db, hasSample, removeSample, resetToSample, eraseEverything } =
+    useStore();
 
   const ask = async (
     title: string,
@@ -76,7 +77,9 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
               onChange={(lengthUnit) => setPrefs({ lengthUnit })}
             />
           </View>
-          <Text style={styles.hint}>Weights you lift are always logged in lbs, like the website.</Text>
+          <Text style={styles.hint}>
+            Weights you lift are always logged in lbs, like the website.
+          </Text>
         </View>
 
         <Text style={styles.heading}>DATA ON THIS PHONE</Text>
@@ -87,8 +90,8 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             do not show up here.
           </Text>
           <Text style={styles.hint}>
-            {db.workouts.length} workouts · {db.weighIns.length} weigh-ins · {db.measurements.length}{' '}
-            measurements · {db.templates.length} plans
+            {db.workouts.length} workouts · {db.weighIns.length} weigh-ins ·{' '}
+            {db.measurements.length} measurements · {db.templates.length} plans
           </Text>
           {hasSample && (
             <OutlineButton
@@ -152,7 +155,13 @@ const styles = StyleSheet.create({
     padding: 16,
     gap: 12,
   },
-  row: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 12, minHeight: 44 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    minHeight: 44,
+  },
   rowLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 14 },

@@ -8,7 +8,13 @@ import { Dot, DotCard, EmptyState, Icon, Plate, SectionHeading } from '@/compone
 import { useStore } from '@/data/store';
 import { tapLight } from '@/lib/haptics';
 import { computeWorkoutStats, weighInsByUser, weightLoss } from '@/lib/stats';
-import { OTHER_CATEGORY, USERS, USER_COLORS, formatDate, type WorkoutUser } from '@/lib/workout-data';
+import {
+  OTHER_CATEGORY,
+  USERS,
+  USER_COLORS,
+  formatDate,
+  type WorkoutUser,
+} from '@/lib/workout-data';
 import { colors, fonts, hexToRgba } from '@/theme';
 
 export default function StatsScreen() {
@@ -23,7 +29,11 @@ export default function StatsScreen() {
     return (
       <View style={styles.root}>
         <AppHeader />
-        <EmptyState plateLabel="0" title="No data yet." sub="Stats show up once you start logging." />
+        <EmptyState
+          plateLabel="0"
+          title="No data yet."
+          sub="Stats show up once you start logging."
+        />
       </View>
     );
   }
@@ -43,7 +53,10 @@ export default function StatsScreen() {
             <Text style={styles.tileLabel}>Last 7 Days</Text>
           </View>
           {USERS.map((u) => (
-            <View key={u} style={[styles.tile, { backgroundColor: hexToRgba(USER_COLORS[u], 0.12) }]}>
+            <View
+              key={u}
+              style={[styles.tile, { backgroundColor: hexToRgba(USER_COLORS[u], 0.12) }]}
+            >
               <Text style={[styles.tileNumber, { color: USER_COLORS[u] }]}>
                 {stats.perUser[u].count}
               </Text>
@@ -85,8 +98,11 @@ export default function StatsScreen() {
                   <View
                     style={[
                       styles.lossPill,
-                      { backgroundColor: loss >= 0 ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.1)' },
-                    ]}>
+                      {
+                        backgroundColor: loss >= 0 ? 'rgba(22,163,74,0.12)' : 'rgba(220,38,38,0.1)',
+                      },
+                    ]}
+                  >
                     <Text style={[styles.lossText, { color: loss >= 0 ? colors.down : colors.up }]}>
                       {loss > 0 ? '−' : loss < 0 ? '+' : ''}
                       {Math.abs(loss).toFixed(1)} lbs {loss >= 0 ? 'lost' : 'gained'}
@@ -121,7 +137,8 @@ export default function StatsScreen() {
                   tapLight();
                   setExpandedUser(open ? null : u);
                 }}
-                style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}>
+                style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}
+              >
                 <Plate size={32} label={u[0]} color={USER_COLORS[u]} />
                 <Text style={styles.accordionTitle} numberOfLines={1}>
                   {u}&apos;s Personal Records
@@ -177,11 +194,29 @@ const styles = StyleSheet.create({
   },
   hero: { paddingVertical: 30, paddingHorizontal: 24, alignItems: 'center', marginBottom: 14 },
   heroNumber: { fontFamily: fonts.headingBold, fontSize: 52, color: colors.gold },
-  heroLabel: { fontSize: 15, fontWeight: '600', letterSpacing: 1, color: colors.white, marginTop: 2 },
+  heroLabel: {
+    fontSize: 15,
+    fontWeight: '600',
+    letterSpacing: 1,
+    color: colors.white,
+    marginTop: 2,
+  },
   tiles: { flexDirection: 'row', gap: 10, marginBottom: 24 },
-  tile: { flex: 1, borderRadius: 18, paddingVertical: 16, paddingHorizontal: 8, alignItems: 'center' },
+  tile: {
+    flex: 1,
+    borderRadius: 18,
+    paddingVertical: 16,
+    paddingHorizontal: 8,
+    alignItems: 'center',
+  },
   tileNumber: { fontFamily: fonts.headingBold, fontSize: 26, color: colors.ink },
-  tileLabel: { fontSize: 13, fontWeight: '600', color: colors.ink, marginTop: 2, textAlign: 'center' },
+  tileLabel: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: colors.ink,
+    marginTop: 2,
+    textAlign: 'center',
+  },
   chartCard: {
     backgroundColor: colors.surface,
     borderWidth: 2,
@@ -191,7 +226,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
     gap: 8,
   },
-  chartHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: 8 },
+  chartHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
   chartHeadLeft: { flexDirection: 'row', alignItems: 'center', gap: 6, flexShrink: 1 },
   chartLabel: { fontFamily: fonts.heading, fontSize: 14, letterSpacing: 0.6, color: colors.muted },
   lossPill: { paddingHorizontal: 10, paddingVertical: 3, borderRadius: 999 },
@@ -205,9 +245,20 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
     marginBottom: 12,
   },
-  accordionHead: { flexDirection: 'row', alignItems: 'center', gap: 12, minHeight: 60, paddingHorizontal: 16 },
+  accordionHead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    minHeight: 60,
+    paddingHorizontal: 16,
+  },
   accordionTitle: { flex: 1, fontFamily: fonts.heading, fontSize: 17, color: colors.text },
-  countBadge: { backgroundColor: colors.line, borderRadius: 999, paddingHorizontal: 10, paddingVertical: 2 },
+  countBadge: {
+    backgroundColor: colors.line,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 2,
+  },
   countText: { fontSize: 13, fontWeight: '700', color: colors.muted },
   prList: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
   prRow: {

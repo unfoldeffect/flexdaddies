@@ -16,13 +16,24 @@ export function KeyboardScroll({
       keyboardDismissMode={Platform.OS === 'ios' ? 'interactive' : 'on-drag'}
       automaticallyAdjustKeyboardInsets
       showsVerticalScrollIndicator={false}
-      contentContainerStyle={[styles.content, { paddingBottom: bottomSpace }, contentContainerStyle]}
-      {...rest}>
+      contentContainerStyle={[
+        styles.content,
+        { paddingBottom: bottomSpace },
+        contentContainerStyle,
+      ]}
+      {...rest}
+    >
       {children}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { paddingHorizontal: 16, paddingTop: 12, width: '100%', maxWidth: 620, alignSelf: 'center' },
+  content: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    width: '100%',
+    maxWidth: 620,
+    alignSelf: 'center',
+  },
 });

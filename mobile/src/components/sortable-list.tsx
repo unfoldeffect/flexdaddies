@@ -87,15 +87,15 @@ export function useScrollBridge(bottomInset = 0) {
   }, [windowHeight, bottomInset]);
 
   const [bridge] = useState<ScrollBridge>(() => {
-    const place = (fingerY: number) => ghostY.setValue(fingerY - hostTop.current - GHOST_HEIGHT / 2);
+    const place = (fingerY: number) =>
+      ghostY.setValue(fingerY - hostTop.current - GHOST_HEIGHT / 2);
     const measureHost = () =>
       measureInWindow(hostRef.current, (_x, y, _w, h) => {
         if (!Number.isFinite(y) || !Number.isFinite(h)) return;
         hostTop.current = y;
         viewport.current = {
           top: y,
-          bottom:
-            Math.min(y + h, insetRef.current.windowHeight) - insetRef.current.bottomInset,
+          bottom: Math.min(y + h, insetRef.current.windowHeight) - insetRef.current.bottomInset,
         };
       });
     return {
@@ -142,7 +142,8 @@ export function useScrollBridge(bottomInset = 0) {
       pointerEvents="none"
       accessibilityElementsHidden
       importantForAccessibility="no-hide-descendants"
-      style={[styles.ghost, shadow, { transform: [{ translateY: ghostY }] }]}>
+      style={[styles.ghost, shadow, { transform: [{ translateY: ghostY }] }]}
+    >
       <View style={[styles.ghostDot, { backgroundColor: ghost.color }]} />
       <Text style={styles.ghostText} numberOfLines={1}>
         {ghost.title}
@@ -341,7 +342,8 @@ export function SortableList<T>({
             onLayout={(rect) => layouts.current.set(key, rect)}
             onBegin={begin}
             onUpdate={update}
-            onEnd={end}>
+            onEnd={end}
+          >
             {(drag) => renderItem(item, index, drag)}
           </SortableRow>
         );
@@ -398,7 +400,8 @@ function SortableRow({
       onLayout={(e: LayoutChangeEvent) =>
         onLayout({ y: e.nativeEvent.layout.y, height: e.nativeEvent.layout.height })
       }
-      style={[{ paddingBottom: gap }, dragging && styles.dimmed]}>
+      style={[{ paddingBottom: gap }, dragging && styles.dimmed]}
+    >
       {children({ handle, isDragging: dragging })}
     </View>
   );

@@ -16,7 +16,13 @@ import { parseWeight } from './workout-helpers';
 
 export type SetField = 'reps' | 'weight' | 'time' | 'intensity';
 
-export type DraftSet = { id: string; reps: string; weight: string; time: string; intensity: string };
+export type DraftSet = {
+  id: string;
+  reps: string;
+  weight: string;
+  time: string;
+  intensity: string;
+};
 
 export type DraftExercise = {
   id: string;
@@ -74,7 +80,10 @@ export function emptyExercise(): DraftExercise {
   };
 }
 
-export function templateToDraft(items: TemplateExercise[], toCategory: ToCategory): DraftExercise[] {
+export function templateToDraft(
+  items: TemplateExercise[],
+  toCategory: ToCategory,
+): DraftExercise[] {
   if (!items.length) return [emptyExercise()];
   return items.map((t) => {
     const known = !!toCategory[t.name];

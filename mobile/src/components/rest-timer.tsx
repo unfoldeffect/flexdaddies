@@ -47,7 +47,9 @@ export function RestTimer() {
 
   useEffect(() => {
     // Let the chime play even with the ring/silent switch off, mixed with any music.
-    setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' }).catch(() => {});
+    setAudioModeAsync({ playsInSilentMode: true, interruptionMode: 'mixWithOthers' }).catch(
+      () => {},
+    );
   }, []);
 
   useEffect(() => {
@@ -108,9 +110,17 @@ export function RestTimer() {
           : `Start ${restSeconds} second rest timer`
       }
       onPress={start}
-      style={({ pressed }) => [styles.button, shadow, { bottom }, pressed && styles.pressed]}>
+      style={({ pressed }) => [styles.button, shadow, { bottom }, pressed && styles.pressed]}
+    >
       <Svg width={SIZE} height={SIZE} style={StyleSheet.absoluteFill}>
-        <Circle cx={SIZE / 2} cy={SIZE / 2} r={R} stroke={colors.gold} strokeWidth={RING} fill={colors.ink} />
+        <Circle
+          cx={SIZE / 2}
+          cy={SIZE / 2}
+          r={R}
+          stroke={colors.gold}
+          strokeWidth={RING}
+          fill={colors.ink}
+        />
         {running && (
           <Circle
             cx={SIZE / 2}

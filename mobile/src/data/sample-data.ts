@@ -115,7 +115,11 @@ function sampleExercise(
   const n = nameNumber(item.name);
   if (EXERCISE_TO_CATEGORY[item.name]?.label === CARDIO_LABEL) {
     const minutes = parseInt(item.reps ?? '', 10) || 20;
-    return { name: item.name, sets: [{ reps: 0, weight: 0, time: minutes, intensity: 4 + (n % 4) }], notes: '' };
+    return {
+      name: item.name,
+      sets: [{ reps: 0, weight: 0, time: minutes, intensity: 4 + (n % 4) }],
+      notes: '',
+    };
   }
   const bodyweight = item.name.startsWith('TRX');
   const lowReps = parseInt(item.reps ?? '', 10) || 10;

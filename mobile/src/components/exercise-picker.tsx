@@ -72,6 +72,7 @@ export function ExercisePicker({
         sections={sections}
         keyExtractor={(item) => item}
         keyboardShouldPersistTaps="handled"
+        automaticallyAdjustKeyboardInsets
         keyboardDismissMode="on-drag"
         stickySectionHeadersEnabled
         initialNumToRender={24}
@@ -84,10 +85,13 @@ export function ExercisePicker({
               tapLight();
               onPickCustom(exactMatch ? '' : search.trim());
               close();
-            }}>
+            }}
+          >
             <Icon name="plus" color={colors.goldDeep} />
             <Text style={styles.customText}>
-              {q && !exactMatch ? `Add "${search.trim()}" as a new exercise` : 'Other (type your own)'}
+              {q && !exactMatch
+                ? `Add "${search.trim()}" as a new exercise`
+                : 'Other (type your own)'}
             </Text>
           </Pressable>
         }
@@ -110,7 +114,8 @@ export function ExercisePicker({
                 tapLight();
                 onPick(item);
                 close();
-              }}>
+              }}
+            >
               <Text style={[styles.rowText, isSelected && styles.rowTextSelected]}>{item}</Text>
               {isSelected && <Icon name="check" color={colors.goldDeep} />}
             </Pressable>
@@ -127,7 +132,8 @@ export function ExercisePicker({
               onPress={() => {
                 close();
                 onManage();
-              }}>
+              }}
+            >
               <Icon name="pencil-outline" size={16} color={colors.goldDeep} />
               <Text style={styles.manageText}>Edit this list</Text>
             </Pressable>

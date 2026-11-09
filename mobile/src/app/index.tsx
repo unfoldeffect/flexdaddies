@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { KeyboardScroll } from '@/components/keyboard-scroll';
+import { KeyboardSpace } from '@/components/keyboard-space';
 import { ManageExercisesSheet } from '@/components/manage-exercises';
 import { PlanEditorSheet } from '@/components/plan-editor-sheet';
 import { useScrollBridge } from '@/components/sortable-list';
@@ -81,104 +82,108 @@ export default function LogScreen() {
   };
 
   return (
-    <View style={styles.root}>
+    <KeyboardSpace>
       <AppHeader />
       <View {...hostProps}>
-      <KeyboardScroll {...scrollProps} bottomSpace={190}>
-        {store.error && <ErrorBanner message={store.error} onDismiss={store.clearError} />}
+        <KeyboardScroll {...scrollProps} bottomSpace={190}>
+          {store.error && <ErrorBanner message={store.error} onDismiss={store.clearError} />}
 
-        <TogetherToggle
-          on={togetherMode}
-          onChange={store.setTogetherMode}
-          user={user}
-          otherUser={otherUser}
-        />
+          <TogetherToggle
+            on={togetherMode}
+            onChange={store.setTogetherMode}
+            user={user}
+            otherUser={otherUser}
+          />
 
-        {db.templates.length > 0 && (
-          <View style={styles.plans}>
-            <Text style={styles.plansLabel}>START FROM A PLAN</Text>
-            <ScrollView
-              horizontal
-              showsHorizontalScrollIndicator={false}
-              keyboardShouldPersistTaps="handled"
-              contentContainerStyle={styles.planChips}>
-              {db.templates.map((t) => (
-                <View key={t.id} style={styles.planChip}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Start from plan ${t.name}`}
-                    onPress={() => loadPlan(t)}
-                    style={({ pressed }) => [styles.planChipMain, pressed && styles.pressed]}>
-                    <Icon name="dumbbell" size={16} color={colors.text} />
-                    <Text style={styles.planChipText}>{t.name}</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Edit ${t.name} plan`}
-                    hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-                    onPress={() => setEditingPlan(t)}
-                    style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}>
-                    <Icon name="pencil-outline" size={17} color={colors.muted} />
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={`Delete ${t.name} plan`}
-                    hitSlop={{ top: 10, bottom: 10, left: 4, right: 8 }}
-                    onPress={() => deletePlan(t)}
-                    style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}>
-                    <Icon name="close" size={17} color={colors.muted} />
-                  </Pressable>
-                </View>
-              ))}
-            </ScrollView>
-          </View>
-        )}
+          {db.templates.length > 0 && (
+            <View style={styles.plans}>
+              <Text style={styles.plansLabel}>START FROM A PLAN</Text>
+              <ScrollView
+                horizontal
+                showsHorizontalScrollIndicator={false}
+                keyboardShouldPersistTaps="handled"
+                contentContainerStyle={styles.planChips}
+              >
+                {db.templates.map((t) => (
+                  <View key={t.id} style={styles.planChip}>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Start from plan ${t.name}`}
+                      onPress={() => loadPlan(t)}
+                      style={({ pressed }) => [styles.planChipMain, pressed && styles.pressed]}
+                    >
+                      <Icon name="dumbbell" size={16} color={colors.text} />
+                      <Text style={styles.planChipText}>{t.name}</Text>
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Edit ${t.name} plan`}
+                      hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
+                      onPress={() => setEditingPlan(t)}
+                      style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}
+                    >
+                      <Icon name="pencil-outline" size={17} color={colors.muted} />
+                    </Pressable>
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={`Delete ${t.name} plan`}
+                      hitSlop={{ top: 10, bottom: 10, left: 4, right: 8 }}
+                      onPress={() => deletePlan(t)}
+                      style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}
+                    >
+                      <Icon name="close" size={17} color={colors.muted} />
+                    </Pressable>
+                  </View>
+                ))}
+              </ScrollView>
+            </View>
+          )}
 
-        {draft.restoredAt && (
-          <View style={styles.banner}>
-            <Text style={styles.bannerText}>
-              <Text style={styles.bannerStrong}>Unsaved workout restored</Text>
-              {formatDraftTime(draft.restoredAt) && ` · last edited ${formatDraftTime(draft.restoredAt)}`}
-              {'\n'}Tap Log Workout when you&apos;re done to save it.
-            </Text>
-            <OutlineButton compact label="Start fresh" onPress={startFresh} />
-          </View>
-        )}
+          {draft.restoredAt && (
+            <View style={styles.banner}>
+              <Text style={styles.bannerText}>
+                <Text style={styles.bannerStrong}>Unsaved workout restored</Text>
+                {formatDraftTime(draft.restoredAt) &&
+                  ` · last edited ${formatDraftTime(draft.restoredAt)}`}
+                {'\n'}Tap Log Workout when you&apos;re done to save it.
+              </Text>
+              <OutlineButton compact label="Start fresh" onPress={startFresh} />
+            </View>
+          )}
 
-        <WorkoutForm
-          date={draft.date}
-          onChangeDate={actions.setDate}
-          exercises={draft.exercises}
-          onChangeExercises={actions.setExercises}
-          template={draft.template}
-          submitLabel={togetherMode ? 'LOG BOTH WORKOUTS' : 'LOG WORKOUT'}
-          saving={saving}
-          groups={store.groups}
-          toCategory={store.toCategory}
-          lastPerformance={computeLastPerformance(db.workouts, user)}
-          lastPerformanceOther={computeLastPerformance(db.workouts, otherUser)}
-          togetherMode={togetherMode}
-          currentUser={user}
-          otherUser={otherUser}
-          notesApi={store.notesApi}
-          templates={db.templates}
-          onSavePlanOrder={store.savePlanOrder}
-          onManageExercises={() => setManaging(true)}
-          scroll={bridge}
-          onSubmit={async (built) => {
-            const now = new Date().toISOString();
-            const mine: Workout = {
-              id: uid(),
-              user,
-              date: built.date,
-              exercises: built.exercises,
-              notes: '',
-              loggedAt: now,
-              template: draft.template,
-            };
-            setSaving(true);
-            const ok =
-              togetherMode
+          <WorkoutForm
+            date={draft.date}
+            onChangeDate={actions.setDate}
+            exercises={draft.exercises}
+            onChangeExercises={actions.setExercises}
+            template={draft.template}
+            submitLabel={togetherMode ? 'LOG BOTH WORKOUTS' : 'LOG WORKOUT'}
+            saving={saving}
+            groups={store.groups}
+            toCategory={store.toCategory}
+            lastPerformance={computeLastPerformance(db.workouts, user)}
+            lastPerformanceOther={computeLastPerformance(db.workouts, otherUser)}
+            togetherMode={togetherMode}
+            currentUser={user}
+            otherUser={otherUser}
+            notesApi={store.notesApi}
+            templates={db.templates}
+            onSavePlanOrder={store.savePlanOrder}
+            onManageExercises={() => setManaging(true)}
+            scroll={bridge}
+            onSubmit={async (built) => {
+              const now = new Date().toISOString();
+              const mine: Workout = {
+                id: uid(),
+                user,
+                date: built.date,
+                exercises: built.exercises,
+                notes: '',
+                loggedAt: now,
+                template: draft.template,
+              };
+              setSaving(true);
+              const ok = togetherMode
                 ? await store.addWorkoutForBoth(mine, {
                     ...mine,
                     id: uid(),
@@ -186,30 +191,29 @@ export default function LogScreen() {
                     exercises: built.exercisesOther,
                   })
                 : await store.addWorkout(mine);
-            setSaving(false);
-            if (ok) {
-              built.toRegister.forEach((r) => store.registerExercise(r.name, r.category));
-              // Anything typed in a note box but not saved yet joins the saved
-              // notes list too, so it shows up next time.
-              for (const n of built.notesToSave) await store.notesApi.add(n.user, n.name, n.text);
-              actions.reset();
-              bridge.ref.current?.scrollTo({ y: 0, animated: true });
-            }
-            return ok;
-          }}
-        />
-      </KeyboardScroll>
-      {overlay}
+              setSaving(false);
+              if (ok) {
+                built.toRegister.forEach((r) => store.registerExercise(r.name, r.category));
+                // Anything typed in a note box but not saved yet joins the saved
+                // notes list too, so it shows up next time.
+                for (const n of built.notesToSave) await store.notesApi.add(n.user, n.name, n.text);
+                actions.reset();
+                bridge.ref.current?.scrollTo({ y: 0, animated: true });
+              }
+              return ok;
+            }}
+          />
+        </KeyboardScroll>
+        {overlay}
       </View>
 
       <PlanEditorSheet template={editingPlan} onClose={() => setEditingPlan(null)} />
       <ManageExercisesSheet visible={managing} onClose={() => setManaging(false)} />
-    </View>
+    </KeyboardSpace>
   );
 }
 
 const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: colors.bg },
   pressed: { opacity: 0.6 },
   plans: { marginBottom: 16 },
   plansLabel: {
@@ -231,7 +235,13 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  planChipMain: { flexDirection: 'row', alignItems: 'center', gap: 6, minHeight: 42, paddingRight: 6 },
+  planChipMain: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minHeight: 42,
+    paddingRight: 6,
+  },
   planChipText: { fontSize: 15, fontWeight: '600', color: colors.text },
   planChipIcon: { width: 30, height: 42, alignItems: 'center', justifyContent: 'center' },
   banner: {

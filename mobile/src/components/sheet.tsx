@@ -1,10 +1,12 @@
 // A page that slides up over the app (a native sheet on iPhone, a full
 // screen on Android) with a title and a close button.
 import type { ReactNode } from 'react';
-import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
 import { colors, fonts } from '../theme';
+import { KeyboardSpace } from './keyboard-space';
 
 export function Sheet({
   visible,
@@ -26,30 +28,36 @@ export function Sheet({
       presentationStyle="pageSheet"
       onRequestClose={onClose}
       statusBarTranslucent
-      navigationBarTranslucent>
-      {/* A sheet is its own window, so it needs its own safe-area measurements. */}
-      <SafeAreaProvider>
-        <SafeAreaView style={styles.root} edges={Platform.OS === 'ios' ? ['bottom'] : undefined}>
-          <KeyboardAvoidingView
-            style={styles.root}
-            behavior={Platform.OS === 'ios' ? 'padding' : 'height'}>
-            <View style={styles.header}>
-              <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
-                {title}
-              </Text>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={closeLabel}
-                hitSlop={10}
-                onPress={onClose}
-                style={({ pressed }) => [styles.close, pressed && { opacity: 0.6 }]}>
-                <Text style={styles.closeText}>{closeLabel}</Text>
-              </Pressable>
-            </View>
-            {visible ? children : null}
-          </KeyboardAvoidingView>
-        </SafeAreaView>
-      </SafeAreaProvider>
+      navigationBarTranslucent
+    >
+      {/* A sheet is its own window, so it needs its own safe-area measurements
+          and its own gesture root (for drag-to-reorder inside a sheet). */}
+      <GestureHandlerRootView style={styles.root}>
+        <SafeAreaProvider>
+          <KeyboardSpace>
+            <SafeAreaView
+              style={styles.root}
+              edges={Platform.OS === 'ios' ? ['bottom'] : undefined}
+            >
+              <View style={styles.header}>
+                <Text accessibilityRole="header" style={styles.title} numberOfLines={1}>
+                  {title}
+                </Text>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={closeLabel}
+                  hitSlop={10}
+                  onPress={onClose}
+                  style={({ pressed }) => [styles.close, pressed && { opacity: 0.6 }]}
+                >
+                  <Text style={styles.closeText}>{closeLabel}</Text>
+                </Pressable>
+              </View>
+              {visible ? children : null}
+            </SafeAreaView>
+          </KeyboardSpace>
+        </SafeAreaProvider>
+      </GestureHandlerRootView>
     </Modal>
   );
 }

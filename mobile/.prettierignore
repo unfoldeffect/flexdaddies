@@ -1,0 +1,4 @@
+# Copied from the website as-is; must stay identical (see src/__tests__/shared-with-website.test.ts)
+src/lib/workout-data.ts
+src/lib/workout-helpers.ts
+package-lock.json

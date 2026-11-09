@@ -57,3 +57,7 @@ AuthKey_*.p8
 # Test output
 coverage/
 test-results/
+
+# Browser screen checks
+e2e/screenshots/
+dist-web/

@@ -150,5 +150,10 @@ const styles = StyleSheet.create({
     fontSize: 17,
     paddingHorizontal: 14,
   },
-  addBtn: { borderStyle: 'dashed', backgroundColor: colors.surface, minHeight: 56, marginBottom: 18 },
+  addBtn: {
+    borderStyle: 'dashed',
+    backgroundColor: colors.surface,
+    minHeight: 56,
+    marginBottom: 18,
+  },
 });

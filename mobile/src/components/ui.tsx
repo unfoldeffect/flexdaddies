@@ -42,13 +42,22 @@ export function Icon({
 }
 
 /** The round coloured badge with a letter in it (like a weight plate). */
-export function Plate({ size = 28, label, color }: { size?: number; label: string; color?: string }) {
+export function Plate({
+  size = 28,
+  label,
+  color,
+}: {
+  size?: number;
+  label: string;
+  color?: string;
+}) {
   return (
     <View
       style={[
         styles.plate,
         { width: size, height: size, borderRadius: size / 2, backgroundColor: color ?? '#2555c7' },
-      ]}>
+      ]}
+    >
       <Text style={[styles.plateText, { fontSize: size * 0.4 }]} allowFontScaling={false}>
         {label}
       </Text>
@@ -56,11 +65,23 @@ export function Plate({ size = 28, label, color }: { size?: number; label: strin
   );
 }
 
-export function FieldLabel({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
+export function FieldLabel({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
   return <Text style={[type.label, style]}>{children}</Text>;
 }
 
-export function SectionHeading({ children, style }: { children: ReactNode; style?: StyleProp<TextStyle> }) {
+export function SectionHeading({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<TextStyle>;
+}) {
   return (
     <Text accessibilityRole="header" style={[type.heading, styles.sectionHeading, style]}>
       {children}
@@ -90,14 +111,16 @@ export function PrimaryButton({ label, icon, compact, disabled, style, ...rest }
         pressed && styles.pressed,
         style,
       ]}
-      {...rest}>
+      {...rest}
+    >
       {icon && <Icon name={icon} size={20} color={disabled ? colors.muted : colors.ink} />}
       <Text
         style={[
           styles.primaryText,
           compact && styles.primaryTextCompact,
           disabled && { color: colors.muted },
-        ]}>
+        ]}
+      >
         {label}
       </Text>
     </Pressable>
@@ -120,7 +143,8 @@ export function OutlineButton({ label, icon, compact, disabled, style, ...rest }
         pressed && styles.pressed,
         style,
       ]}
-      {...rest}>
+      {...rest}
+    >
       {icon && <Icon name={icon} size={16} color={colors.muted} />}
       <Text style={[styles.outlineText, compact && styles.outlineTextCompact]}>{label}</Text>
     </Pressable>
@@ -151,7 +175,8 @@ export function SmallButton({
         pressed && styles.pressed,
         style,
       ]}
-      {...rest}>
+      {...rest}
+    >
       {icon && <Icon name={icon} size={16} color={fg} />}
       <Text style={[styles.smallText, { color: fg }]}>{label}</Text>
     </Pressable>
@@ -172,7 +197,8 @@ export function LinkButton({
       accessibilityLabel={label}
       hitSlop={8}
       style={({ pressed }) => [styles.link, pressed && styles.pressed, style]}
-      {...rest}>
+      {...rest}
+    >
       {icon && <Icon name={icon} size={17} color={color} />}
       <Text style={[styles.linkText, { color }]}>{label}</Text>
     </Pressable>
@@ -211,7 +237,8 @@ export function IconButton({
         pressed && styles.pressed,
         style,
       ]}
-      {...rest}>
+      {...rest}
+    >
       <Icon name={icon} size={iconSize} color={color} />
     </Pressable>
   );
@@ -244,7 +271,8 @@ export function Chip({
         active && { backgroundColor: activeColor, borderColor: activeColor },
         pressed && styles.pressed,
         style,
-      ]}>
+      ]}
+    >
       <Text style={[styles.chipText, active && { color: colors.white }]}>{label}</Text>
     </Pressable>
   );
@@ -263,7 +291,10 @@ export function UnitToggle<T extends string>({
   vertical?: boolean;
 }) {
   return (
-    <View style={[styles.unitToggle, vertical && { flexDirection: 'column' }]} accessibilityRole="radiogroup">
+    <View
+      style={[styles.unitToggle, vertical && { flexDirection: 'column' }]}
+      accessibilityRole="radiogroup"
+    >
       {options.map((o) => {
         const on = value === o;
         return (
@@ -276,7 +307,8 @@ export function UnitToggle<T extends string>({
               if (!on) tapLight();
               onChange(o);
             }}
-            style={[styles.unitBtn, vertical && styles.unitBtnVertical, on && styles.unitBtnOn]}>
+            style={[styles.unitBtn, vertical && styles.unitBtnVertical, on && styles.unitBtnOn]}
+          >
             <Text style={[styles.unitText, on && { color: colors.gold }]}>{o}</Text>
           </Pressable>
         );
@@ -286,7 +318,13 @@ export function UnitToggle<T extends string>({
 }
 
 /** The navy card with the faint gold dot pattern. */
-export function DotCard({ children, style }: { children: ReactNode; style?: StyleProp<ViewStyle> }) {
+export function DotCard({
+  children,
+  style,
+}: {
+  children: ReactNode;
+  style?: StyleProp<ViewStyle>;
+}) {
   // Each card needs its own pattern name, or two cards on screen can clash.
   const patternId = `fd-dots-${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
@@ -312,7 +350,8 @@ export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss
       accessibilityRole="alert"
       accessibilityHint="Tap to dismiss"
       onPress={onDismiss}
-      style={styles.error}>
+      style={styles.error}
+    >
       <Icon name="alert-circle-outline" color={colors.danger} />
       <Text style={styles.errorText}>{message}</Text>
     </Pressable>
@@ -341,7 +380,9 @@ export function EmptyState({
 
 /** A small coloured dot (category or person colour). */
 export function Dot({ color, size = 8 }: { color: string; size?: number }) {
-  return <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />;
+  return (
+    <View style={{ width: size, height: size, borderRadius: size / 2, backgroundColor: color }} />
+  );
 }
 
 const styles = StyleSheet.create({
@@ -362,7 +403,12 @@ const styles = StyleSheet.create({
   },
   primaryCompact: { minHeight: 50 },
   primaryDisabled: { backgroundColor: colors.surface2 },
-  primaryText: { fontFamily: fonts.headingBold, fontSize: 19, letterSpacing: 0.6, color: colors.ink },
+  primaryText: {
+    fontFamily: fonts.headingBold,
+    fontSize: 19,
+    letterSpacing: 0.6,
+    color: colors.ink,
+  },
   primaryTextCompact: { fontSize: 17 },
   outline: {
     minHeight: 50,
@@ -419,7 +465,13 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface2,
     overflow: 'hidden',
   },
-  unitBtn: { minWidth: 46, minHeight: 40, paddingHorizontal: 12, alignItems: 'center', justifyContent: 'center' },
+  unitBtn: {
+    minWidth: 46,
+    minHeight: 40,
+    paddingHorizontal: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   unitBtnVertical: { minHeight: 24, flex: 1 },
   unitBtnOn: { backgroundColor: colors.ink },
   unitText: { fontFamily: fonts.heading, fontSize: 14, color: colors.muted },

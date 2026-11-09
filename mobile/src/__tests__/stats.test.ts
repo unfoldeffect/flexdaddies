@@ -19,18 +19,31 @@ import {
 } from '../lib/stats';
 import type { BodyMeasurement, WeighIn, Workout } from '../lib/types';
 
-const w = (id: string, user: 'Diego' | 'Kevin', date: string, lifts: [string, number, number][], loggedAt = `${date}T18:00:00.000Z`): Workout => ({
+const w = (
+  id: string,
+  user: 'Diego' | 'Kevin',
+  date: string,
+  lifts: [string, number, number][],
+  loggedAt = `${date}T18:00:00.000Z`,
+): Workout => ({
   id,
   user,
   date,
-  exercises: lifts.map(([name, reps, weight]) => ({ name, sets: [{ reps, weight, time: 0, intensity: 0 }], notes: '' })),
+  exercises: lifts.map(([name, reps, weight]) => ({
+    name,
+    sets: [{ reps, weight, time: 0, intensity: 0 }],
+    notes: '',
+  })),
   notes: '',
   loggedAt,
 });
 
 const workouts = [
   w('a', 'Diego', '2026-11-01', [['Deadlift', 5, 200]]),
-  w('b', 'Diego', '2026-11-08', [['Deadlift', 5, 225], ['Pull-Ups', 8, 0]]),
+  w('b', 'Diego', '2026-11-08', [
+    ['Deadlift', 5, 225],
+    ['Pull-Ups', 8, 0],
+  ]),
   w('c', 'Kevin', '2026-11-08', [['Deadlift', 3, 245]]),
   w('d', 'Diego', '2026-11-08', [['Squat', 5, 135]], '2026-11-08T20:00:00.000Z'),
 ];
@@ -59,7 +72,10 @@ describe('workouts', () => {
     expect(stats.perUser.Diego).toEqual({ count: 3, volume: 1000 + 1125 + 675 });
     expect(stats.perUser.Kevin.count).toBe(1);
     // Records are the heaviest weight per exercise; bodyweight (0 lbs) is left out.
-    expect(stats.prs.Diego.map((p) => [p.name, p.weight])).toEqual([['Deadlift', 225], ['Squat', 135]]);
+    expect(stats.prs.Diego.map((p) => [p.name, p.weight])).toEqual([
+      ['Deadlift', 225],
+      ['Squat', 135],
+    ]);
     expect(stats.prs.Kevin[0]).toMatchObject({ name: 'Deadlift', weight: 245, date: '2026-11-08' });
     expect(stats.volumeSeries).toEqual([
       { date: '2026-11-01', total: 1000 },
@@ -76,8 +92,19 @@ describe('workouts', () => {
 });
 
 describe('body weight', () => {
-  const wi = (id: string, user: 'Diego' | 'Kevin', date: string, weight: number): WeighIn => ({ id, user, date, weight, loggedAt: `${date}T08:00:00.000Z` });
-  const byUser = weighInsByUser([wi('1', 'Diego', '2026-10-01', 205), wi('3', 'Diego', '2026-11-01', 201.4), wi('2', 'Diego', '2026-10-15', 203), wi('4', 'Kevin', '2026-11-01', 190)]);
+  const wi = (id: string, user: 'Diego' | 'Kevin', date: string, weight: number): WeighIn => ({
+    id,
+    user,
+    date,
+    weight,
+    loggedAt: `${date}T08:00:00.000Z`,
+  });
+  const byUser = weighInsByUser([
+    wi('1', 'Diego', '2026-10-01', 205),
+    wi('3', 'Diego', '2026-11-01', 201.4),
+    wi('2', 'Diego', '2026-10-15', 203),
+    wi('4', 'Kevin', '2026-11-01', 190),
+  ]);
 
   it('summarises the latest weigh-in and the changes', () => {
     const s = weightSummary(byUser.Diego);
@@ -103,8 +130,27 @@ describe('body weight', () => {
 });
 
 describe('body measurements', () => {
-  const m = (id: string, part: BodyMeasurement['part'], date: string, valueIn: number): BodyMeasurement => ({ id, user: 'Diego', part, date, valueIn, loggedAt: `${date}T08:00:00.000Z` });
-  const by = measurementsByPersonPart([m('1', 'waist', '2026-10-01', 38), m('2', 'waist', '2026-10-15', 37.5), m('3', 'waist', '2026-11-01', 37), m('4', 'arms', '2026-10-01', 14), m('5', 'arms', '2026-11-01', 14.25), m('6', 'neck', '2026-11-01', 16)]);
+  const m = (
+    id: string,
+    part: BodyMeasurement['part'],
+    date: string,
+    valueIn: number,
+  ): BodyMeasurement => ({
+    id,
+    user: 'Diego',
+    part,
+    date,
+    valueIn,
+    loggedAt: `${date}T08:00:00.000Z`,
+  });
+  const by = measurementsByPersonPart([
+    m('1', 'waist', '2026-10-01', 38),
+    m('2', 'waist', '2026-10-15', 37.5),
+    m('3', 'waist', '2026-11-01', 37),
+    m('4', 'arms', '2026-10-01', 14),
+    m('5', 'arms', '2026-11-01', 14.25),
+    m('6', 'neck', '2026-11-01', 16),
+  ]);
 
   it('adds up the change across body parts', () => {
     expect(by.Diego.waist.map((x) => x.id)).toEqual(['3', '2', '1']);

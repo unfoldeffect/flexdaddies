@@ -15,7 +15,8 @@ export default function AppTabs() {
       labelStyle={{
         default: { color: colors.muted },
         selected: { color: colors.ink },
-      }}>
+      }}
+    >
       <NativeTabs.Trigger name="index">
         <NativeTabs.Trigger.Label>Log</NativeTabs.Trigger.Label>
         <NativeTabs.Trigger.Icon sf="dumbbell.fill" md="fitness_center" />

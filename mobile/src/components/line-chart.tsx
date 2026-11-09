@@ -39,7 +39,8 @@ export function LineChart({
       style={{ height, width: '100%' }}
       accessible
       accessibilityRole="image"
-      accessibilityLabel={label}>
+      accessibilityLabel={label}
+    >
       {width > 0 && (
         <Svg width={width} height={height}>
           {usable.map((s, si) => {

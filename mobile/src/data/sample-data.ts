@@ -197,7 +197,9 @@ export function buildSampleData(today: Date = new Date()): Db {
     BODY_PARTS.forEach((part, partIndex) => {
       for (let i = 0; i <= 2; i++) {
         const day = daysAgo(today, (2 - i) * 14);
-        const change = part === 'arms' || part === 'chest' ? 0.125 * i : -0.25 * i;
+        // Kevin's numbers move at a different pace so the two trend lines do not sit on top of each other.
+        const pace = user === 'Kevin' ? (i === 1 ? 0.25 : 0.75) : 1;
+        const change = (part === 'arms' || part === 'chest' ? 0.125 * i : -0.25 * i) * pace;
         measurements.push({
           id: `${SAMPLE_PREFIX}m-${user}-${part}-${i}`,
           user,

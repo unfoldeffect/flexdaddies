@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-const REST_SECONDS = 60;
+import { useRestSeconds, useRestSound } from "../lib/prefs";
 
 function playChime(ctx: AudioContext) {
   try {
@@ -76,7 +76,17 @@ function useKeepScreenOn() {
 
 export function RestTimer() {
   useKeepScreenOn();
-  const [remaining, setRemaining] = useState(REST_SECONDS);
+  // Length and chime come from Settings (kept on this phone).
+  const [restSeconds] = useRestSeconds();
+  const [restSound] = useRestSound();
+  const restSecondsRef = useRef(restSeconds);
+  restSecondsRef.current = restSeconds;
+  const restSoundRef = useRef(restSound);
+  restSoundRef.current = restSound;
+  const [remaining, setRemaining] = useState(restSeconds);
+  // The length the running countdown started with, so changing Settings
+  // mid-rest doesn't distort the ring.
+  const [runLength, setRunLength] = useState(restSeconds);
   const [running, setRunning] = useState(false);
   const [justFinished, setJustFinished] = useState(false);
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
@@ -117,8 +127,9 @@ export function RestTimer() {
   function start() {
     ensureAudioUnlocked();
     setJustFinished(false);
-    endAtRef.current = Date.now() + REST_SECONDS * 1000;
-    setRemaining(REST_SECONDS);
+    endAtRef.current = Date.now() + restSeconds * 1000;
+    setRunLength(restSeconds);
+    setRemaining(restSeconds);
     setRunning(true);
   }
 
@@ -133,10 +144,10 @@ export function RestTimer() {
       if (intervalRef.current) clearInterval(intervalRef.current);
       setRunning(false);
       setJustFinished(true);
-      setRemaining(REST_SECONDS);
+      setRemaining(restSecondsRef.current);
       if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
       const ctx = audioCtxRef.current;
-      if (ctx) {
+      if (ctx && restSoundRef.current) {
         if (ctx.state === "suspended") {
           ctx
             .resume()
@@ -165,7 +176,7 @@ export function RestTimer() {
     return () => clearTimeout(t);
   }, [justFinished]);
 
-  const progress = running ? remaining / REST_SECONDS : 1;
+  const progress = running ? remaining / runLength : 1;
   // Circular progress ring via conic-gradient, gold when idle/finished, navy sweep while running.
   const ringStyle = running
     ? {
@@ -177,7 +188,7 @@ export function RestTimer() {
     <button
       type="button"
       onClick={start}
-      aria-label="Start 60 second rest timer"
+      aria-label={`Start ${restSeconds} second rest timer`}
       className="fixed bottom-[104px] right-5 z-50 flex h-24 w-24 items-center justify-center rounded-full border-2 border-[#0b2545] bg-[#c9a227] shadow-lg transition-transform active:scale-95"
       style={ringStyle}
     >
@@ -186,7 +197,7 @@ export function RestTimer() {
           <span className="text-[21px] leading-none">GO!</span>
         ) : (
           <>
-            <span className="text-[27px] leading-none">{running ? remaining : REST_SECONDS}</span>
+            <span className="text-[27px] leading-none">{running ? remaining : restSeconds}</span>
             <span className="mt-0.5 text-[13px] leading-none tracking-wide text-[#c9a227]">
               {running ? "REST" : "TAP"}
             </span>

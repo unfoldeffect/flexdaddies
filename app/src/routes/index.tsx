@@ -4,26 +4,39 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type PointerEvent as ReactPointerEvent,
 } from "react";
+import { createPortal } from "react-dom";
 
 import {
   BarChartIcon,
   ChevronDownIcon,
   ChevronUpIcon,
   DumbbellIcon,
+  CheckIcon,
   EditIcon,
+  GearIcon,
   GripIcon,
   HistoryIcon,
   PlusIcon,
   ScaleIcon,
+  SearchIcon,
   TrashIcon,
   UserIcon,
   XIcon,
 } from "../components/icons";
 import { RestTimer } from "../components/rest-timer";
 import { useDragReorder } from "../hooks/use-drag-reorder";
+import {
+  PREF_KEYS,
+  REST_CHOICES,
+  restLabel,
+  useRestSeconds,
+  useRestSound,
+  useStoredPref,
+} from "../lib/prefs";
 import {
   addCustomExercise,
   listCustomExercises,
@@ -327,6 +340,216 @@ function Plate({ size = 28, label, color }: { size?: number; label: string; colo
 
 const ManageExercisesContext = createContext<(() => void) | null>(null);
 
+// Locks page scrolling behind a sheet and closes it on Escape.
+function useSheet(onClose: () => void) {
+  const onCloseRef = useRef(onClose);
+  onCloseRef.current = onClose;
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") onCloseRef.current();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener("keydown", onKey);
+    };
+  }, []);
+}
+
+// The exercise list as a sheet: search at the top, exercises grouped by
+// colour-coded category, and "type your own" for anything not listed.
+function ExercisePicker({
+  groups,
+  selected,
+  onPick,
+  onPickCustom,
+  onManage,
+  onClose,
+}: {
+  groups: ExerciseGroup[];
+  /** The exercise currently chosen ("" for none). */
+  selected: string;
+  onPick: (name: string) => void;
+  /** "Type your own", optionally starting from what was searched for. */
+  onPickCustom: (startingName: string) => void;
+  onManage?: () => void;
+  onClose: () => void;
+}) {
+  useSheet(onClose);
+  const [search, setSearch] = useState("");
+  const typed = search.trim();
+  const q = typed.toLowerCase();
+  const sections = groups
+    .map((g) => ({ ...g, options: g.options.filter((o) => o.toLowerCase().includes(q)) }))
+    .filter((g) => g.options.length);
+  const exact = groups.some((g) => g.options.some((o) => o.toLowerCase() === q));
+
+  return createPortal(
+    <div
+      className="exman-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Choose an exercise"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="exman-panel expick-panel">
+        <div className="exman-head">
+          <h2 className="exman-title">Choose an Exercise</h2>
+          <button className="icon-btn" onClick={onClose} aria-label="Close">
+            <XIcon size={20} />
+          </button>
+        </div>
+        <div className="expick-search-wrap">
+          <SearchIcon size={20} />
+          <input
+            className="exercise-custom-input expick-search"
+            type="search"
+            inputMode="search"
+            enterKeyHint="search"
+            autoComplete="off"
+            autoCorrect="off"
+            placeholder="Search exercises..."
+            aria-label="Search exercises"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
+        </div>
+
+        <div className="exman-scroll">
+          {sections.map((g) => (
+            <div className="exman-group" key={g.label}>
+              <p className="exman-group-label expick-group-label" style={{ color: g.color }}>
+                <span className="category-tile-dot" style={{ background: g.color }} />
+                {g.label.toUpperCase()}
+              </p>
+              {g.options.map((opt) => (
+                <button
+                  type="button"
+                  key={opt}
+                  className={`expick-row ${opt === selected ? "expick-row--on" : ""}`}
+                  onClick={() => onPick(opt)}
+                  aria-pressed={opt === selected}
+                >
+                  <span className="expick-name">{opt}</span>
+                  {opt === selected && <CheckIcon size={20} />}
+                </button>
+              ))}
+            </div>
+          ))}
+          {sections.length === 0 && <p className="expick-empty">No exercise matches "{typed}".</p>}
+
+          <button
+            type="button"
+            className="expick-row expick-row--custom"
+            onClick={() => onPickCustom(exact ? "" : typed)}
+          >
+            <PlusIcon size={18} />
+            <span className="expick-name">
+              {typed && !exact ? `Add "${typed}" as your own` : "Other (type your own)"}
+            </span>
+          </button>
+          {onManage && (
+            <button type="button" className="exman-open-btn expick-manage" onClick={onManage}>
+              <EditIcon size={14} /> Edit the exercise list
+            </button>
+          )}
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
+// Settings kept on this phone: rest timer length, chime, and units.
+function SettingsSheet({ onClose }: { onClose: () => void }) {
+  useSheet(onClose);
+  const [restSeconds, setRestSeconds] = useRestSeconds();
+  const [restSound, setRestSound] = useRestSound();
+  const [wUnit, setWUnit] = useStoredPref<WeightUnit>(PREF_KEYS.weightUnit, "lbs", ["lbs", "kg"]);
+  const [lUnit, setLUnit] = useStoredPref<LengthUnit>(PREF_KEYS.lengthUnit, "in", ["in", "cm"]);
+
+  return createPortal(
+    <div
+      className="exman-overlay"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Settings"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div className="exman-panel">
+        <div className="exman-head">
+          <h2 className="exman-title">Settings</h2>
+          <button className="settings-done" onClick={onClose}>
+            Done
+          </button>
+        </div>
+        <div className="exman-scroll">
+          <p className="settings-heading">REST TIMER</p>
+          <div className="settings-card">
+            <p className="settings-label">Rest between sets</p>
+            <div className="settings-chips" role="group" aria-label="Rest between sets">
+              {REST_CHOICES.map((s) => (
+                <button
+                  type="button"
+                  key={s}
+                  className={`settings-chip ${restSeconds === s ? "settings-chip--on" : ""}`}
+                  onClick={() => setRestSeconds(s)}
+                  aria-pressed={restSeconds === s}
+                >
+                  {restLabel(s)}
+                </button>
+              ))}
+            </div>
+            <div className="settings-row">
+              <span className="settings-label" id="settings-chime-label">
+                Chime when rest is over
+              </span>
+              <button
+                type="button"
+                role="switch"
+                aria-checked={restSound}
+                aria-labelledby="settings-chime-label"
+                className={`settings-switch ${restSound ? "settings-switch--on" : ""}`}
+                onClick={() => setRestSound(!restSound)}
+              >
+                <span className="settings-switch-knob" />
+              </button>
+            </div>
+            <p className="settings-hint">
+              Phones that can vibrate from a web page (most Android phones) still buzz when rest is
+              over.
+            </p>
+          </div>
+
+          <p className="settings-heading">UNITS</p>
+          <div className="settings-card">
+            <div className="settings-row">
+              <span className="settings-label">Body weight</span>
+              <UnitToggle options={["lbs", "kg"] as const} value={wUnit} onChange={setWUnit} />
+            </div>
+            <div className="settings-row">
+              <span className="settings-label">Body measurements</span>
+              <UnitToggle options={["in", "cm"] as const} value={lUnit} onChange={setLUnit} />
+            </div>
+            <p className="settings-hint">Weights you lift are always logged in lbs.</p>
+          </div>
+
+          <p className="settings-hint settings-foot">
+            These settings are saved on this phone only. Each phone keeps its own.
+          </p>
+        </div>
+      </div>
+    </div>,
+    document.body,
+  );
+}
+
 function ExerciseManager({
   managed,
   onUpdate,
@@ -575,6 +798,7 @@ function ExerciseEditor({
   const notesApi = useContext(NotesContext);
   const openManager = useContext(ManageExercisesContext);
   const [savingNote, setSavingNote] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
   const updateSet = (
     setId: string,
     field: "reps" | "weight" | "time" | "intensity",
@@ -737,6 +961,7 @@ function ExerciseEditor({
       className={`exercise-card ${dragging ? "exercise-card--dragging" : ""}`}
       style={{ borderColor: category ? accent : undefined }}
       data-reorder-id={exercise.id}
+      data-reorder-label={exerciseName || undefined}
     >
       <div className="exercise-head">
         <div className="exercise-field">
@@ -757,30 +982,61 @@ function ExerciseEditor({
               </button>
             )}
           </div>
-          <select
-            className="exercise-select"
-            value={exercise.name}
-            onChange={(e) => handleNameChange(e.target.value)}
+          <button
+            type="button"
+            className={`exercise-select exercise-pick-btn ${exercise.name ? "" : "exercise-pick-btn--empty"}`}
+            onClick={() => setPickerOpen(true)}
+            aria-haspopup="dialog"
+            aria-label={
+              exercise.name
+                ? `Exercise: ${isOther ? "Other (type your own)" : exercise.name}. Tap to change.`
+                : "Choose an exercise"
+            }
           >
-            <option value="" disabled>
-              Choose an exercise
-            </option>
-            {exercise.name &&
-              !isOther &&
-              !groups.some((g) => g.options.includes(exercise.name)) && (
-                <option value={exercise.name}>{exercise.name}</option>
-              )}
-            {groups.map((g) => (
-              <optgroup label={g.label.toUpperCase()} key={g.label} style={{ color: g.color }}>
-                {g.options.map((opt) => (
-                  <option value={opt} key={opt}>
-                    {opt}
-                  </option>
-                ))}
-              </optgroup>
-            ))}
-            <option value={OTHER_VALUE}>Other (type your own)</option>
-          </select>
+            <span className="exercise-pick-text">
+              {!exercise.name
+                ? "Choose an exercise"
+                : isOther
+                  ? "Other (type your own)"
+                  : exercise.name}
+            </span>
+            <ChevronDownIcon size={20} />
+          </button>
+          {pickerOpen && (
+            <ExercisePicker
+              groups={groups}
+              selected={exercise.name}
+              onPick={(name) => {
+                setPickerOpen(false);
+                handleNameChange(name);
+              }}
+              onPickCustom={(startingName) => {
+                setPickerOpen(false);
+                onChange({
+                  ...exercise,
+                  name: OTHER_VALUE,
+                  customName: startingName || exercise.customName,
+                  sets: clampSetsForCategory(
+                    exercise.sets,
+                    exercise.customCategory === CARDIO_LABEL,
+                  ),
+                  setsOther: clampSetsForCategory(
+                    exercise.setsOther,
+                    exercise.customCategory === CARDIO_LABEL,
+                  ),
+                });
+              }}
+              onManage={
+                openManager
+                  ? () => {
+                      setPickerOpen(false);
+                      openManager();
+                    }
+                  : undefined
+              }
+              onClose={() => setPickerOpen(false)}
+            />
+          )}
           {isOther && (
             <>
               <input
@@ -1278,7 +1534,9 @@ function WorkoutForm({
             onMoveDown={() => moveExercise(ex.id, 1)}
             canMoveUp={i > 0}
             canMoveDown={i < exercises.length - 1}
-            dragHandleProps={exercises.length > 1 ? drag.handleProps(ex.id) : undefined}
+            dragHandleProps={
+              exercises.length > 1 ? drag.handleProps(ex.id, finalName(ex)) : undefined
+            }
             dragging={drag.draggingId === ex.id}
             groups={groups}
             toCategory={toCategory}
@@ -1399,7 +1657,9 @@ function PlanEditForm({
             onMoveDown={() => moveExercise(ex.id, 1)}
             canMoveUp={i > 0}
             canMoveDown={i < exercises.length - 1}
-            dragHandleProps={exercises.length > 1 ? drag.handleProps(ex.id) : undefined}
+            dragHandleProps={
+              exercises.length > 1 ? drag.handleProps(ex.id, finalName(ex)) : undefined
+            }
             dragging={drag.draggingId === ex.id}
             groups={groups}
             toCategory={toCategory}
@@ -2097,28 +2357,6 @@ function signed(n: number) {
   return `${r > 0 ? "+" : ""}${r}`;
 }
 
-function useStoredUnit<T extends string>(key: string, fallback: T, allowed: readonly T[]) {
-  const [unit, setUnit] = useState<T>(fallback);
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem(key) as T | null;
-      if (saved && allowed.includes(saved)) setUnit(saved);
-    } catch {
-      /* storage unavailable — keep default */
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [key]);
-  const update = (next: T) => {
-    setUnit(next);
-    try {
-      localStorage.setItem(key, next);
-    } catch {
-      /* ignore */
-    }
-  };
-  return [unit, update] as const;
-}
-
 function UnitToggle<T extends string>({
   options,
   value,
@@ -2216,8 +2454,8 @@ function WeightView({
   onDeleteMeasurement: (id: string) => void;
   savingMeasurement: boolean;
 }) {
-  const [wUnit, setWUnit] = useStoredUnit<WeightUnit>("fd-weight-unit", "lbs", ["lbs", "kg"]);
-  const [lUnit, setLUnit] = useStoredUnit<LengthUnit>("fd-length-unit", "in", ["in", "cm"]);
+  const [wUnit, setWUnit] = useStoredPref<WeightUnit>(PREF_KEYS.weightUnit, "lbs", ["lbs", "kg"]);
+  const [lUnit, setLUnit] = useStoredPref<LengthUnit>(PREF_KEYS.lengthUnit, "in", ["in", "cm"]);
   const toW = (lbs: number) => (wUnit === "kg" ? lbs / LB_PER_KG : lbs);
   const toL = (inches: number) => (lUnit === "cm" ? inches * CM_PER_IN : inches);
 
@@ -2641,7 +2879,9 @@ function WeightView({
               <div className="weight-list">
                 {partHistory.map((m) => (
                   <div className="weight-row" key={m.id}>
-                    {togetherMode && <Plate size={26} label={m.user[0]} color={USER_COLORS[m.user]} />}
+                    {togetherMode && (
+                      <Plate size={26} label={m.user[0]} color={USER_COLORS[m.user]} />
+                    )}
                     <div className="weight-row-info">
                       <div className="weight-row-value">
                         {fmt1(toL(m.valueIn))} {lUnit}
@@ -2695,6 +2935,7 @@ function Index() {
   const [exerciseNotes, setExerciseNotes] = useState<ExerciseNote[]>(initialExerciseNotes.notes);
   const [overrides, setOverrides] = useState<ExerciseOverride[]>(initialOverrides);
   const [managingExercises, setManagingExercises] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const notesAvailable = initialExerciseNotes.available;
   const [logSeed, setLogSeed] = useState<DraftExercise[] | null>(null);
   const [logSeedKey, setLogSeedKey] = useState(0);
@@ -3156,10 +3397,19 @@ function Index() {
                 <div className="top-wordmark">
                   FLEX<span>DADDIES</span>
                 </div>
-                <button className="switch-user" onClick={() => setUser(null)}>
-                  <Plate size={26} label={user[0]} color={userColor} /> <UserIcon size={16} />{" "}
-                  Switch
-                </button>
+                <div className="top-actions">
+                  <button className="switch-user" onClick={() => setUser(null)}>
+                    <Plate size={26} label={user[0]} color={userColor} /> <UserIcon size={16} />{" "}
+                    Switch
+                  </button>
+                  <button
+                    className="settings-open"
+                    onClick={() => setSettingsOpen(true)}
+                    aria-label="Settings"
+                  >
+                    <GearIcon size={22} />
+                  </button>
+                </div>
               </div>
 
               <div className="content-wrap">
@@ -3250,6 +3500,7 @@ function Index() {
                 </div>
               </div>
               <RestTimer />
+              {settingsOpen && <SettingsSheet onClose={() => setSettingsOpen(false)} />}
               {managingExercises && (
                 <ExerciseManager
                   managed={managed}

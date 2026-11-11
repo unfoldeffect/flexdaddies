@@ -610,13 +610,59 @@
   color: var(--fd-text);
   background: rgba(0, 0, 0, 0.05);
 }
+/* While dragging, the card stays put and fades; a tag follows the finger
+   and a gold line marks where the card will land. */
 .exercise-card--dragging {
-  z-index: 5;
-  box-shadow: 0 14px 30px rgba(11, 37, 69, 0.28);
-  opacity: 0.96;
+  opacity: 0.45;
 }
 .exercise-card--dragging .exercise-drag-handle {
   cursor: grabbing;
+}
+.drag-tag {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: 2000;
+  max-width: min(72vw, 320px);
+  padding: 10px 18px;
+  border-radius: 18px;
+  background: var(--fd-ink);
+  border: 2px solid var(--fd-gold);
+  color: #ffffff;
+  font-family: "Oswald", sans-serif;
+  font-weight: 600;
+  font-size: 1.1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  box-shadow: 0 10px 24px rgba(11, 37, 69, 0.35);
+  pointer-events: none;
+  will-change: transform;
+}
+.drag-tag span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.drag-tag-where {
+  font-family: "Inter", sans-serif;
+  font-size: 0.9rem;
+  font-weight: 600;
+  color: var(--fd-gold);
+}
+.drag-tag-where:empty {
+  display: none;
+}
+.drag-line {
+  position: fixed;
+  top: 0;
+  z-index: 899;
+  height: 6px;
+  border-radius: 3px;
+  background: var(--fd-gold);
+  box-shadow: 0 0 0 2px #ffffff, 0 2px 8px rgba(11, 37, 69, 0.3);
+  pointer-events: none;
+  will-change: transform;
 }
 .exercise-move {
   display: flex;
@@ -1908,4 +1954,267 @@
 }
 .view > .together-toggle {
   margin-bottom: 14px;
+}
+
+/* Top bar: Switch + Settings */
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.settings-open {
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #ffffff;
+  border: 2px solid var(--fd-line);
+  border-radius: 999px;
+  color: var(--fd-ink);
+}
+.settings-open:hover {
+  background: var(--fd-surface);
+}
+
+/* Exercise picker: the button on the card, and the sheet */
+.exercise-pick-btn {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  text-align: left;
+  font-weight: 600;
+  cursor: pointer;
+}
+.exercise-pick-btn--empty .exercise-pick-text {
+  color: var(--fd-muted);
+  font-weight: 400;
+}
+.exercise-pick-text {
+  flex: 1;
+  min-width: 0;
+}
+.exercise-pick-btn svg {
+  flex-shrink: 0;
+  color: var(--fd-muted);
+}
+.expick-panel {
+  height: 92vh;
+  height: 92dvh;
+}
+.expick-search-wrap {
+  position: relative;
+  color: var(--fd-muted);
+}
+.expick-search-wrap svg {
+  position: absolute;
+  left: 14px;
+  top: 50%;
+  transform: translateY(-50%);
+  pointer-events: none;
+}
+.expick-search {
+  width: 100%;
+  box-sizing: border-box;
+  padding-left: 44px;
+}
+.expick-group-label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.9rem;
+  margin-top: 4px;
+}
+.expick-row {
+  width: 100%;
+  min-height: 52px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--fd-line);
+  border-radius: 0;
+  color: var(--fd-text);
+  font-size: 1.1rem;
+  text-align: left;
+  cursor: pointer;
+}
+.expick-row:active {
+  background: var(--fd-surface-2);
+}
+.expick-row--on {
+  background: var(--fd-surface);
+  font-weight: 700;
+}
+.expick-row--on svg {
+  color: var(--fd-gold-deep);
+  flex-shrink: 0;
+}
+.expick-row--custom {
+  justify-content: flex-start;
+  margin-top: 6px;
+  border: 2px dashed var(--fd-line);
+  border-radius: 14px;
+  font-weight: 600;
+}
+.expick-name {
+  flex: 1;
+  min-width: 0;
+}
+.expick-empty {
+  margin: 14px 4px;
+  color: var(--fd-muted);
+  font-size: 1rem;
+}
+.expick-manage {
+  margin: 16px 4px 8px;
+  font-size: 0.95rem;
+  min-height: 44px;
+}
+
+/* Settings sheet */
+.settings-done {
+  background: var(--fd-ink);
+  color: #ffffff;
+  border: none;
+  border-radius: 999px;
+  font-weight: 700;
+  font-size: 1rem;
+  padding: 10px 20px;
+  min-height: 44px;
+}
+.settings-heading {
+  font-family: "Oswald", sans-serif;
+  font-weight: 700;
+  font-size: 0.85rem;
+  letter-spacing: 0.06em;
+  color: var(--fd-muted);
+  margin: 14px 0 8px;
+}
+.settings-card {
+  background: var(--fd-surface);
+  border: 2px solid var(--fd-line);
+  border-radius: 20px;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.settings-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+}
+.settings-label {
+  margin: 0;
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 600;
+  color: var(--fd-text);
+}
+.settings-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.settings-chip {
+  min-height: 44px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  border: 2px solid var(--fd-line);
+  background: #ffffff;
+  color: var(--fd-text);
+  font-family: "Oswald", sans-serif;
+  font-weight: 600;
+  font-size: 1.05rem;
+}
+.settings-chip--on {
+  background: var(--fd-ink);
+  border-color: var(--fd-ink);
+  color: var(--fd-gold);
+}
+.settings-row .unit-toggle {
+  flex-direction: row;
+}
+.settings-row .unit-toggle-btn {
+  padding: 8px 14px;
+  min-height: 40px;
+}
+.settings-switch {
+  position: relative;
+  width: 58px;
+  height: 34px;
+  flex-shrink: 0;
+  padding: 0;
+  border: none;
+  border-radius: 999px;
+  background: #b9bcae;
+  transition: background 0.15s;
+}
+.settings-switch--on {
+  background: var(--fd-ink);
+}
+.settings-switch-knob {
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: #ffffff;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+  transition: transform 0.15s;
+}
+.settings-switch--on .settings-switch-knob {
+  transform: translateX(24px);
+  background: var(--fd-gold);
+}
+.settings-hint {
+  margin: 0;
+  font-size: 0.9rem;
+  color: var(--fd-muted);
+}
+.settings-foot {
+  margin: 16px 4px 4px;
+  text-align: center;
+}
+
+/* Narrow phones: keep the wordmark, Switch and Settings on one line. */
+@media (max-width: 430px) {
+  .top-bar {
+    padding-left: 14px;
+    padding-right: 14px;
+  }
+  .top-wordmark {
+    font-size: 1.35rem;
+  }
+  .top-actions {
+    gap: 6px;
+  }
+  .switch-user {
+    padding-right: 12px;
+    gap: 6px;
+  }
+}
+@media (max-width: 360px) {
+  .top-wordmark {
+    font-size: 1.15rem;
+  }
+}
+@media (max-width: 340px) {
+  .top-wordmark {
+    font-size: 1rem;
+  }
+  .settings-open {
+    width: 40px;
+    height: 40px;
+  }
 }

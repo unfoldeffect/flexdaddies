@@ -24,8 +24,8 @@ const opts = {
   toCategory,
   togetherMode: false,
   withSavedNotes: true,
-  currentUser: 'Diego',
-  otherUser: 'Kevin',
+  currentUser: 'me',
+  otherUser: 'partner',
 } as const;
 
 function exercise(patch: Partial<DraftExercise>): DraftExercise {
@@ -172,7 +172,7 @@ describe('saving', () => {
     expect(built.exercises.map((e) => e.name)).toEqual(['Deadlift', 'Log Press']);
     expect(built.exercises[0].notes).toBe('belt on\nbrace hard');
     expect(built.toRegister).toEqual([{ name: 'Log Press', category: 'Shoulders' }]);
-    expect(built.notesToSave).toEqual([{ user: 'Diego', name: 'Deadlift', text: 'brace hard' }]);
+    expect(built.notesToSave).toEqual([{ user: 'me', name: 'Deadlift', text: 'brace hard' }]);
     expect(built.exercisesOther).toEqual([]);
   });
 
@@ -190,7 +190,7 @@ describe('saving', () => {
     );
     expect(built.exercises[0].sets[0].weight).toBe(225);
     expect(built.exercisesOther[0].sets[0].weight).toBe(245);
-    expect(built.notesToSave.map((n) => n.user)).toEqual(['Diego', 'Kevin']);
+    expect(built.notesToSave.map((n) => n.user)).toEqual(['me', 'partner']);
   });
 
   it('when editing an old workout, notes stay on the workout only', () => {

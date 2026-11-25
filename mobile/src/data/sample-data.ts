@@ -26,7 +26,7 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
   {
     id: 'preset-upper-a',
     name: '1 - Upper A',
-    createdBy: 'Diego',
+    createdBy: 'me',
     exercises: [
       { name: 'Bench Press', equipment: 'Machine', sets: 3, reps: '8-10' },
       { name: 'Incline Bench Press', equipment: 'Dumbbell', sets: 3, reps: '8-10' },
@@ -40,7 +40,7 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
   {
     id: 'preset-lower-a',
     name: '2 - Lower A',
-    createdBy: 'Diego',
+    createdBy: 'me',
     exercises: [
       { name: 'Leg Press', equipment: 'Machine', sets: 3, reps: '8-10' },
       { name: 'Leg Extension', equipment: 'Machine', sets: 3, reps: '12-15' },
@@ -55,7 +55,7 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
   {
     id: 'preset-upper-b',
     name: '3 - Upper B',
-    createdBy: 'Diego',
+    createdBy: 'me',
     exercises: [
       { name: 'Chest Fly', equipment: 'Machine', sets: 3, reps: '12-15' },
       { name: 'Incline Bench Press', equipment: 'Machine', sets: 3, reps: '8-10' },
@@ -69,7 +69,7 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
   {
     id: 'preset-lower-b',
     name: '4 - Lower B',
-    createdBy: 'Diego',
+    createdBy: 'me',
     exercises: [
       { name: 'Squat', equipment: 'Machine', sets: 3, reps: '8-10' },
       { name: 'Leg Curl', equipment: 'Machine', sets: 3, reps: '10-12' },
@@ -83,7 +83,7 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
   {
     id: 'preset-trx-treadmill',
     name: '5 - Cardio + Rehab',
-    createdBy: 'Diego',
+    createdBy: 'me',
     exercises: [
       { name: 'Bike', sets: 1, reps: '30 min, 125-140 bpm' },
       { name: 'Treadmill', sets: 1, reps: '10 min backward walk, slow, hold rails' },
@@ -124,7 +124,7 @@ function sampleExercise(
   }
   const bodyweight = !item.equipment;
   const lowReps = parseInt(item.reps ?? '', 10) || 10;
-  const base = 40 + (n % 12) * 10 + (user === 'Kevin' ? 10 : 0);
+  const base = 40 + (n % 12) * 10 + (user === 'partner' ? 10 : 0);
   const weight = bodyweight ? 0 : base + weekIndex * 5;
   const sets = Array.from({ length: item.sets }, (_, i) => ({
     reps: Math.max(1, lowReps + 2 - i),
@@ -152,10 +152,10 @@ export function buildSampleData(today: Date = new Date()): Db {
     for (const slot of schedule) {
       const day = daysAgo(today, week * 7 + slot.offset);
       const plan = STARTER_PLANS[slot.plan];
-      const users: WorkoutUser[] = slot.both ? ['Diego', 'Kevin'] : ['Diego'];
+      const users: WorkoutUser[] = slot.both ? ['me', 'partner'] : ['me'];
       for (const user of users) {
         const loggedAt = new Date(day);
-        loggedAt.setHours(18, user === 'Diego' ? 5 : 6);
+        loggedAt.setHours(18, user === 'me' ? 5 : 6);
         workouts.push({
           id: `${SAMPLE_PREFIX}w-${week}-${slot.offset}-${user}`,
           user,
@@ -170,9 +170,9 @@ export function buildSampleData(today: Date = new Date()): Db {
   }
 
   const weighIns: WeighIn[] = [];
-  const startWeight: Record<WorkoutUser, number> = { Diego: 205, Kevin: 190 };
-  const weeklyChange: Record<WorkoutUser, number> = { Diego: -0.8, Kevin: -0.5 };
-  for (const user of ['Diego', 'Kevin'] as const) {
+  const startWeight: Record<WorkoutUser, number> = { me: 205, partner: 190 };
+  const weeklyChange: Record<WorkoutUser, number> = { me: -0.8, partner: -0.5 };
+  for (const user of ['me', 'partner'] as const) {
     for (let i = 0; i <= 5; i++) {
       const day = daysAgo(today, (5 - i) * 7);
       weighIns.push({
@@ -194,19 +194,19 @@ export function buildSampleData(today: Date = new Date()): Db {
     thighs: 24,
     hips: 40,
   };
-  for (const user of ['Diego', 'Kevin'] as const) {
+  for (const user of ['me', 'partner'] as const) {
     BODY_PARTS.forEach((part, partIndex) => {
       for (let i = 0; i <= 2; i++) {
         const day = daysAgo(today, (2 - i) * 14);
-        // Kevin's numbers move at a different pace so the two trend lines do not sit on top of each other.
-        const pace = user === 'Kevin' ? (i === 1 ? 0.25 : 0.75) : 1;
+        // The partner's numbers move at a different pace so the two trend lines do not sit on top of each other.
+        const pace = user === 'partner' ? (i === 1 ? 0.25 : 0.75) : 1;
         const change = (part === 'arms' || part === 'chest' ? 0.125 * i : -0.25 * i) * pace;
         measurements.push({
           id: `${SAMPLE_PREFIX}m-${user}-${part}-${i}`,
           user,
           date: toISODate(day),
           part,
-          valueIn: startInches[part] + (user === 'Kevin' ? -1 : 0) + change,
+          valueIn: startInches[part] + (user === 'partner' ? -1 : 0) + change,
           loggedAt: new Date(day.getTime() + partIndex * 1000).toISOString(),
         });
       }
@@ -217,7 +217,7 @@ export function buildSampleData(today: Date = new Date()): Db {
   const exerciseNotes: ExerciseNote[] = [
     {
       id: `${SAMPLE_PREFIX}n-1`,
-      user: 'Diego',
+      user: 'me',
       exerciseName: 'Chest Press Machine',
       text: 'Seat height 4. Elbows tucked, slow on the way down.',
       createdAt: noteDay,
@@ -225,7 +225,7 @@ export function buildSampleData(today: Date = new Date()): Db {
     },
     {
       id: `${SAMPLE_PREFIX}n-2`,
-      user: 'Kevin',
+      user: 'partner',
       exerciseName: 'Leg Press Machine',
       text: 'Feet a little higher on the plate.',
       createdAt: noteDay,
@@ -263,5 +263,17 @@ export function removeSampleData(db: Db): Db {
     weighIns: db.weighIns.filter((w) => !isSample(w)),
     measurements: db.measurements.filter((m) => !isSample(m)),
     exerciseNotes: db.exerciseNotes.filter((n) => !isSample(n)),
+  };
+}
+
+/** The same data with the partner's entries left out, for a phone with no partner switched on. */
+export function withoutPartner(db: Db): Db {
+  const mine = <T extends { user: WorkoutUser }>(list: T[]) => list.filter((x) => x.user !== 'partner');
+  return {
+    ...db,
+    workouts: mine(db.workouts),
+    weighIns: mine(db.weighIns),
+    measurements: mine(db.measurements),
+    exerciseNotes: mine(db.exerciseNotes),
   };
 }

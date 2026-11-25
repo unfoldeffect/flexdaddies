@@ -1,7 +1,7 @@
 import * as ops from '../data/db';
 import { EMPTY_DB, type Db, type Workout } from '../lib/types';
 
-const workout = (id: string, user: 'Diego' | 'Kevin', names: string[]): Workout => ({
+const workout = (id: string, user: 'me' | 'partner', names: string[]): Workout => ({
   id,
   user,
   date: '2026-11-01',
@@ -18,16 +18,16 @@ const workout = (id: string, user: 'Diego' | 'Kevin', names: string[]): Workout 
 const base: Db = {
   ...EMPTY_DB,
   workouts: [
-    workout('w1', 'Diego', ['Deadlift', 'Pull-Ups']),
-    workout('w2', 'Kevin', ['Deadlift']),
+    workout('w1', 'me', ['Deadlift', 'Pull-Ups']),
+    workout('w2', 'partner', ['Deadlift']),
   ],
   templates: [
-    { id: 't1', name: 'B Plan', createdBy: 'Diego', exercises: [{ name: 'Deadlift', sets: 3 }] },
+    { id: 't1', name: 'B Plan', createdBy: 'me', exercises: [{ name: 'Deadlift', sets: 3 }] },
   ],
   exerciseNotes: [
     {
       id: 'n1',
-      user: 'Diego',
+      user: 'me',
       exerciseName: 'Deadlift',
       text: 'brace',
       createdAt: 'x',
@@ -39,17 +39,17 @@ const base: Db = {
 
 describe('workouts', () => {
   it('adds the newest first', () => {
-    const next = ops.createWorkout(base, workout('w3', 'Diego', ['Pull-Ups']));
+    const next = ops.createWorkout(base, workout('w3', 'me', ['Pull-Ups']));
     expect(next.workouts.map((w) => w.id)).toEqual(['w3', 'w1', 'w2']);
     expect(base.workouts).toHaveLength(2);
   });
 
   it('only lets the person who logged a workout edit or delete it', () => {
     const edit = { id: 'w2', date: '2026-11-02', exercises: [], notes: '' };
-    expect(ops.updateWorkout(base, { ...edit, user: 'Diego' }).workouts[1].date).toBe('2026-11-01');
-    expect(ops.updateWorkout(base, { ...edit, user: 'Kevin' }).workouts[1].date).toBe('2026-11-02');
-    expect(ops.deleteWorkout(base, { id: 'w2', user: 'Diego' }).workouts).toHaveLength(2);
-    expect(ops.deleteWorkout(base, { id: 'w2', user: 'Kevin' }).workouts).toHaveLength(1);
+    expect(ops.updateWorkout(base, { ...edit, user: 'me' }).workouts[1].date).toBe('2026-11-01');
+    expect(ops.updateWorkout(base, { ...edit, user: 'partner' }).workouts[1].date).toBe('2026-11-02');
+    expect(ops.deleteWorkout(base, { id: 'w2', user: 'me' }).workouts).toHaveLength(2);
+    expect(ops.deleteWorkout(base, { id: 'w2', user: 'partner' }).workouts).toHaveLength(1);
   });
 
   it('editing keeps the plan label and the time it was logged', () => {
@@ -59,7 +59,7 @@ describe('workouts', () => {
     };
     const next = ops.updateWorkout(withPlan, {
       id: 'w1',
-      user: 'Diego',
+      user: 'me',
       date: '2026-11-03',
       exercises: [],
       notes: '',
@@ -73,23 +73,23 @@ describe('weigh-ins and measurements', () => {
   it('adds and deletes, owner only', () => {
     let db = ops.createWeighIn(base, {
       id: 'wi1',
-      user: 'Diego',
+      user: 'me',
       date: '2026-11-01',
       weight: 200,
       loggedAt: 'x',
     });
     db = ops.createBodyMeasurement(db, {
       id: 'm1',
-      user: 'Kevin',
+      user: 'partner',
       date: '2026-11-01',
       part: 'waist',
       valueIn: 36,
       loggedAt: 'x',
     });
-    expect(ops.deleteWeighIn(db, { id: 'wi1', user: 'Kevin' }).weighIns).toHaveLength(1);
-    expect(ops.deleteWeighIn(db, { id: 'wi1', user: 'Diego' }).weighIns).toHaveLength(0);
-    expect(ops.deleteBodyMeasurement(db, { id: 'm1', user: 'Diego' }).measurements).toHaveLength(1);
-    expect(ops.deleteBodyMeasurement(db, { id: 'm1', user: 'Kevin' }).measurements).toHaveLength(0);
+    expect(ops.deleteWeighIn(db, { id: 'wi1', user: 'partner' }).weighIns).toHaveLength(1);
+    expect(ops.deleteWeighIn(db, { id: 'wi1', user: 'me' }).weighIns).toHaveLength(0);
+    expect(ops.deleteBodyMeasurement(db, { id: 'm1', user: 'me' }).measurements).toHaveLength(1);
+    expect(ops.deleteBodyMeasurement(db, { id: 'm1', user: 'partner' }).measurements).toHaveLength(0);
   });
 });
 
@@ -98,7 +98,7 @@ describe('plans', () => {
     const next = ops.createTemplate(base, {
       id: 't2',
       name: 'A Plan',
-      createdBy: 'Kevin',
+      createdBy: 'partner',
       exercises: [{ name: 'Pull-Ups', sets: 2 }],
     });
     expect(next.templates.map((t) => t.name)).toEqual(['A Plan', 'B Plan']);
@@ -116,7 +116,7 @@ describe('saved notes', () => {
   it('adds, edits and deletes', () => {
     let db = ops.addExerciseNote(base, {
       id: 'n2',
-      user: 'Kevin',
+      user: 'partner',
       exerciseName: 'Pull-Ups',
       text: 'slow',
       createdAt: 'a',
@@ -148,14 +148,14 @@ describe('the exercise list', () => {
     const db = ops.updateExercise(
       {
         ...base,
-        workouts: [workout('w1', 'Diego', ['Yoke Walk'])],
+        workouts: [workout('w1', 'me', ['Yoke Walk'])],
         templates: [
-          { id: 't1', name: 'P', createdBy: 'Diego', exercises: [{ name: 'Yoke Walk', sets: 2 }] },
+          { id: 't1', name: 'P', createdBy: 'me', exercises: [{ name: 'Yoke Walk', sets: 2 }] },
         ],
         exerciseNotes: [
           {
             id: 'n1',
-            user: 'Diego',
+            user: 'me',
             exerciseName: 'Yoke Walk',
             text: 't',
             createdAt: 'x',

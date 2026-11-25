@@ -2,7 +2,7 @@
 import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-native';
 
 import { tapLight } from '../lib/haptics';
-import { USER_COLORS, type WorkoutUser } from '../lib/workout-data';
+import { USER_COLORS, type PersonNames, type WorkoutUser } from '../lib/workout-data';
 import { colors, fonts, themed } from '../theme';
 
 export function TogetherToggle({
@@ -10,11 +10,13 @@ export function TogetherToggle({
   onChange,
   user,
   otherUser,
+  names,
 }: {
   on: boolean;
   onChange: (on: boolean) => void;
   user: WorkoutUser;
   otherUser: WorkoutUser;
+  names: PersonNames;
 }) {
   const toggle = (next: boolean) => {
     tapLight();
@@ -25,7 +27,7 @@ export function TogetherToggle({
       accessibilityRole="switch"
       accessibilityState={{ checked: on }}
       accessibilityLabel="Together Mode"
-      accessibilityHint={`Log for ${user} and ${otherUser} at the same time`}
+      accessibilityHint={`Log for ${names[user]} and ${names[otherUser]} at the same time`}
       onPress={() => toggle(!on)}
       style={[styles.wrap, on && styles.wrapOn]}
     >

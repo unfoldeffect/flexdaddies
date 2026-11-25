@@ -1,6 +1,5 @@
 // The frame around every screen: loads the fonts and the data saved on the
-// phone, then shows the sign-in, the first-time setup, "Who's lifting today?"
-// or the four tabs.
+// phone, then shows the sign-in, the first-time setup or the four tabs.
 import { Sora_700Bold, Sora_800ExtraBold, useFonts } from '@expo-google-fonts/sora';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as SplashScreen from 'expo-splash-screen';
@@ -11,7 +10,6 @@ import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 
 import AppTabs from '@/components/app-tabs';
-import { ProfileSelect } from '@/components/profile-select';
 import { RestTimer } from '@/components/rest-timer';
 import { FirstTimeSetup, SignIn } from '@/components/sign-in';
 import { AuthProvider, useAuth } from '@/data/auth';
@@ -28,17 +26,23 @@ export default function RootLayout() {
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <AuthProvider>
-          <StoreProvider>
+          <Data>
             <App fontsReady={fontsLoaded || !!fontError} />
-          </StoreProvider>
+          </Data>
         </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
 }
 
+/** The phone's data, told the first name on the account so screens can show it. */
+function Data({ children }: { children: React.ReactNode }) {
+  const { account } = useAuth();
+  return <StoreProvider ownerName={account?.name}>{children}</StoreProvider>;
+}
+
 function App({ fontsReady }: { fontsReady: boolean }) {
-  const { ready, user, prefs } = useStore();
+  const { ready, prefs } = useStore();
   const auth = useAuth();
   const loaded = ready && fontsReady && auth.ready;
   // Set the look before anything below is drawn. The key makes the whole
@@ -58,17 +62,15 @@ function App({ fontsReady }: { fontsReady: boolean }) {
         <SignIn />
       ) : !auth.account.name ? (
         <FirstTimeSetup />
-      ) : user ? (
-        <SignedIn />
       ) : (
-        <ProfileSelect />
+        <SignedIn />
       )}
     </View>
   );
 }
 
 function SignedIn() {
-  // Keep the screen on while a profile is open, so the phone does not lock
+  // Keep the screen on while signed in, so the phone does not lock
   // mid-workout. If the phone refuses (low-power mode, say), carry on without.
   useEffect(() => {
     const tag = 'flex-daddies';

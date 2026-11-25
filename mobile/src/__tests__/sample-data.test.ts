@@ -3,6 +3,7 @@ import {
   buildSampleData,
   hasSampleData,
   removeSampleData,
+  withoutPartner,
 } from '../data/sample-data';
 import * as storage from '../data/storage';
 import { DEFAULT_PREFS, normalizeDb, normalizePrefs } from '../data/storage';
@@ -21,8 +22,8 @@ describe('sample data', () => {
   });
 
   it('has workouts for both people, none in the future, all labelled with their plan', () => {
-    expect(db.workouts.some((w) => w.user === 'Diego')).toBe(true);
-    expect(db.workouts.some((w) => w.user === 'Kevin')).toBe(true);
+    expect(db.workouts.some((w) => w.user === 'me')).toBe(true);
+    expect(db.workouts.some((w) => w.user === 'partner')).toBe(true);
     expect(db.workouts.every((w) => w.date <= '2026-11-09')).toBe(true);
     expect(db.workouts.every((w) => !!w.template && w.exercises.length > 0)).toBe(true);
     expect(new Set(db.workouts.map((w) => w.id)).size).toBe(db.workouts.length);
@@ -35,7 +36,7 @@ describe('sample data', () => {
   it('can be removed without touching plans or anything logged on the phone', () => {
     const mine = {
       id: 'real-1',
-      user: 'Diego' as const,
+      user: 'me' as const,
       date: '2026-11-09',
       exercises: [],
       notes: '',
@@ -78,9 +79,11 @@ describe('reading saved data', () => {
       restSound: false,
     });
     expect(
-      normalizePrefs({ user: 'Kevin', weightUnit: 'kg', lengthUnit: 'cm', restSeconds: 90 }),
+      normalizePrefs({ user: 'Kevin', partnerOn: true, partnerName: 'Kim', weightUnit: 'kg', lengthUnit: 'cm', restSeconds: 90 }),
     ).toEqual({
-      user: 'Kevin',
+      user: 'me',
+      partnerOn: true,
+      partnerName: 'Kim',
       weightUnit: 'kg',
       lengthUnit: 'cm',
       restSeconds: 90,
@@ -97,8 +100,8 @@ describe('saving to the phone', () => {
     expect(await storage.saveDb(db)).toBe(true);
     expect(await storage.loadDb()).toEqual(db);
 
-    await storage.savePrefs({ ...DEFAULT_PREFS, user: 'Kevin', restSeconds: 45 });
-    expect(await storage.loadPrefs()).toMatchObject({ user: 'Kevin', restSeconds: 45 });
+    await storage.savePrefs({ ...DEFAULT_PREFS, partnerOn: true, partnerName: 'Kim', restSeconds: 45 });
+    expect(await storage.loadPrefs()).toMatchObject({ user: 'me', partnerOn: true, partnerName: 'Kim', restSeconds: 45 });
   });
 
   it('keeps a separate unfinished workout per person', async () => {
@@ -119,10 +122,33 @@ describe('saving to the phone', () => {
       savedAt: '2026-11-09T12:00:00.000Z',
       template: null,
     };
-    await storage.saveDraft('Diego', draft);
-    expect(await storage.loadDraft('Diego')).toEqual(draft);
-    expect(await storage.loadDraft('Kevin')).toBeNull();
-    await storage.clearDraft('Diego');
-    expect(await storage.loadDraft('Diego')).toBeNull();
+    await storage.saveDraft('me', draft);
+    expect(await storage.loadDraft('me')).toEqual(draft);
+    expect(await storage.loadDraft('partner')).toBeNull();
+    await storage.clearDraft('me');
+    expect(await storage.loadDraft('me')).toBeNull();
+  });
+});
+
+describe('one lifter, with a partner as an option', () => {
+  it('a new customer has no partner switched on', () => {
+    expect(DEFAULT_PREFS).toMatchObject({ user: 'me', partnerOn: false, partnerName: '' });
+  });
+
+  it("leaves the partner's entries out when no partner is switched on", () => {
+    const db = withoutPartner(buildSampleData(today));
+    expect(db.workouts.length).toBeGreaterThan(0);
+    for (const list of [db.workouts, db.weighIns, db.measurements, db.exerciseNotes]) {
+      expect(list.every((x) => x.user === 'me')).toBe(true);
+    }
+    expect(db.templates).toHaveLength(buildSampleData(today).templates.length);
+  });
+
+  it('carries over entries saved under the two names earlier test builds used', () => {
+    const old = JSON.parse(
+      JSON.stringify(buildSampleData(today)).replace(/"user":"me"/g, '"user":"Diego"').replace(/"user":"partner"/g, '"user":"Kevin"'),
+    );
+    expect(old.workouts.some((w: { user: string }) => w.user === 'Kevin')).toBe(true);
+    expect(normalizeDb(old)).toEqual(buildSampleData(today));
   });
 });

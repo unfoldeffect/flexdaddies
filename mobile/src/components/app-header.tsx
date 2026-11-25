@@ -1,20 +1,15 @@
-// Top of every tab: the FLEX DADDIES wordmark, who is logged in, and Settings.
+// Top of every tab: the FLEX DADDIES wordmark and Settings.
 import { useState } from 'react';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { useStore } from '../data/store';
-import { tapLight } from '../lib/haptics';
-import { USER_COLORS } from '../lib/workout-data';
 import { colors, fonts, themed } from '../theme';
 import { SettingsSheet } from './settings-sheet';
-import { Icon, IconButton, Plate } from './ui';
+import { IconButton } from './ui';
 
 export function AppHeader() {
-  const { user, setPrefs } = useStore();
   const insets = useSafeAreaInsets();
   const [settingsOpen, setSettingsOpen] = useState(false);
-  if (!user) return null;
 
   return (
     <View style={[styles.bar, { paddingTop: insets.top + 8 }]}>
@@ -34,19 +29,6 @@ export function AppHeader() {
         </View>
       </View>
       <View style={styles.right}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={`Logged in as ${user}. Switch person.`}
-          onPress={() => {
-            tapLight();
-            setPrefs({ user: null });
-          }}
-          style={({ pressed }) => [styles.switch, pressed && { opacity: 0.75 }]}
-        >
-          <Plate size={28} label={user[0]} color={USER_COLORS[user]} />
-          <Icon name="account-switch-outline" size={17} color={colors.white} />
-          <Text style={styles.switchText}>Switch</Text>
-        </Pressable>
         <IconButton
           icon="cog-outline"
           label="Settings"

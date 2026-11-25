@@ -1,7 +1,7 @@
 // Settings: look, rest timer, units, the data kept on this phone, and the account.
 import Constants from 'expo-constants';
 import { useState } from 'react';
-import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
+import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '../data/auth';
 import { REST_CHOICES } from '../data/storage';
@@ -45,7 +45,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
       return;
     }
     await eraseEverything();
-    setPrefs({ user: null });
+    setPrefs({ partnerOn: false, partnerName: '' });
     buzzSuccess();
   };
 
@@ -127,20 +127,70 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             />
           </View>
           <Text style={styles.hint}>
-            Weights you lift are always logged in lbs, like the website.
+            Weights you lift are logged in lbs.
+          </Text>
+        </View>
+
+        <Text style={styles.heading}>LIFT WITH A PARTNER</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Log a partner&apos;s sets with mine</Text>
+            <Switch
+              value={prefs.partnerOn}
+              onValueChange={(partnerOn) => {
+                tapLight();
+                setPrefs({ partnerOn });
+              }}
+              trackColor={{ false: colors.line, true: colors.gold }}
+              thumbColor={colors.white}
+              ios_backgroundColor={colors.line}
+              accessibilityLabel="Lift with a partner"
+            />
+          </View>
+          {prefs.partnerOn && (
+            <TextInput
+              style={styles.input}
+              value={prefs.partnerName}
+              onChangeText={(partnerName) => setPrefs({ partnerName })}
+              placeholder="Partner's first name"
+              placeholderTextColor={colors.placeholder}
+              autoCapitalize="words"
+              maxLength={40}
+              returnKeyType="done"
+              accessibilityLabel="Partner's first name"
+            />
+          )}
+          <Text style={styles.hint}>
+            {prefs.partnerOn
+              ? 'A Together Mode switch is now on the Log screen. Turn it on to log both of you at once. Their workouts are saved on this phone.'
+              : 'Off: the app is just for you. Turn it on if you train with someone and log for both.'}
           </Text>
         </View>
 
         <Text style={styles.heading}>DATA ON THIS PHONE</Text>
         <View style={styles.card}>
-          <Text style={styles.body}>
-            This version keeps everything on this phone only. It is not connected to
-            flexdaddies.com, so nothing here changes the website, and workouts logged on the website
-            do not show up here.
-          </Text>
+          <Text style={styles.body}>Your workouts are kept on this phone.</Text>
           <Text style={styles.hint}>
             {db.workouts.length} workouts · {db.weighIns.length} weigh-ins ·{' '}
             {db.measurements.length} measurements · {db.templates.length} plans
+          </Text>
+          <OutlineButton
+            label="Erase everything on this phone"
+            onPress={() =>
+              ask(
+                'Erase everything on this phone?',
+                'All workouts, weigh-ins, measurements, notes, plans and exercise changes on this phone are deleted.',
+                'Erase',
+                eraseEverything,
+              )
+            }
+          />
+        </View>
+
+        <Text style={styles.heading}>TEST BUILD ONLY</Text>
+        <View style={styles.card}>
+          <Text style={styles.hint}>
+            Made-up workouts for trying the app out. Customers will not see this card.
           </Text>
           {hasSample && (
             <OutlineButton
@@ -156,24 +206,13 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             />
           )}
           <OutlineButton
-            label="Start over with sample data"
+            label="Load sample data"
             onPress={() =>
               ask(
-                'Start over with sample data?',
+                'Load sample data?',
                 'Everything on this phone is replaced with the sample data, including anything you logged here.',
-                'Start over',
+                'Load',
                 resetToSample,
-              )
-            }
-          />
-          <OutlineButton
-            label="Erase everything on this phone"
-            onPress={() =>
-              ask(
-                'Erase everything on this phone?',
-                'All workouts, weigh-ins, measurements, notes, plans and exercise changes on this phone are deleted. The website is not affected.',
-                'Erase',
-                eraseEverything,
               )
             }
           />
@@ -234,6 +273,16 @@ const styles = themed(() => StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 14 },
   hint: { fontSize: 14, color: colors.muted },
+  input: {
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.line,
+    backgroundColor: colors.field,
+    color: colors.text,
+    fontSize: 17,
+    paddingHorizontal: 14,
+  },
   problem: { fontSize: 15, fontWeight: '600', color: colors.danger },
   body: { fontSize: 15, color: colors.text, lineHeight: 21 },
   version: { textAlign: 'center', color: colors.muted, fontSize: 13, marginTop: 18 },

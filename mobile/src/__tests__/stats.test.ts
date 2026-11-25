@@ -21,7 +21,7 @@ import type { BodyMeasurement, WeighIn, Workout } from '../lib/types';
 
 const w = (
   id: string,
-  user: 'Diego' | 'Kevin',
+  user: 'me' | 'partner',
   date: string,
   lifts: [string, number, number][],
   loggedAt = `${date}T18:00:00.000Z`,
@@ -39,13 +39,13 @@ const w = (
 });
 
 const workouts = [
-  w('a', 'Diego', '2026-11-01', [['Deadlift', 5, 200]]),
-  w('b', 'Diego', '2026-11-08', [
+  w('a', 'me', '2026-11-01', [['Deadlift', 5, 200]]),
+  w('b', 'me', '2026-11-08', [
     ['Deadlift', 5, 225],
     ['Pull-Ups', 8, 0],
   ]),
-  w('c', 'Kevin', '2026-11-08', [['Deadlift', 3, 245]]),
-  w('d', 'Diego', '2026-11-08', [['Squat', 5, 135]], '2026-11-08T20:00:00.000Z'),
+  w('c', 'partner', '2026-11-08', [['Deadlift', 3, 245]]),
+  w('d', 'me', '2026-11-08', [['Squat', 5, 135]], '2026-11-08T20:00:00.000Z'),
 ];
 
 describe('workouts', () => {
@@ -54,10 +54,10 @@ describe('workouts', () => {
   });
 
   it('finds how each exercise went last time, per person', () => {
-    const diego = computeLastPerformance(workouts, 'Diego');
+    const diego = computeLastPerformance(workouts, 'me');
     expect(diego['Deadlift'].sets[0].weight).toBe(225);
     expect(Object.keys(diego).sort()).toEqual(['Deadlift', 'Pull-Ups', 'Squat']);
-    expect(computeLastPerformance(workouts, 'Kevin')['Deadlift'].sets[0].weight).toBe(245);
+    expect(computeLastPerformance(workouts, 'partner')['Deadlift'].sets[0].weight).toBe(245);
     expect(computeLastPerformance(workouts, null)).toEqual({});
   });
 
@@ -69,14 +69,14 @@ describe('workouts', () => {
     const stats = computeWorkoutStats(workouts, new Date(2026, 10, 9, 12));
     expect(stats.total).toBe(4);
     expect(stats.thisWeek).toBe(3);
-    expect(stats.perUser.Diego).toEqual({ count: 3, volume: 1000 + 1125 + 675 });
-    expect(stats.perUser.Kevin.count).toBe(1);
+    expect(stats.perUser.me).toEqual({ count: 3, volume: 1000 + 1125 + 675 });
+    expect(stats.perUser.partner.count).toBe(1);
     // Records are the heaviest weight per exercise; bodyweight (0 lbs) is left out.
-    expect(stats.prs.Diego.map((p) => [p.name, p.weight])).toEqual([
+    expect(stats.prs.me.map((p) => [p.name, p.weight])).toEqual([
       ['Deadlift', 225],
       ['Squat', 135],
     ]);
-    expect(stats.prs.Kevin[0]).toMatchObject({ name: 'Deadlift', weight: 245, date: '2026-11-08' });
+    expect(stats.prs.partner[0]).toMatchObject({ name: 'Deadlift', weight: 245, date: '2026-11-08' });
     expect(stats.volumeSeries).toEqual([
       { date: '2026-11-01', total: 1000 },
       { date: '2026-11-08', total: 1125 + 735 + 675 },
@@ -86,13 +86,13 @@ describe('workouts', () => {
   it('copes with no workouts', () => {
     const stats = computeWorkoutStats([]);
     expect(stats.total).toBe(0);
-    expect(stats.prs.Diego).toEqual([]);
+    expect(stats.prs.me).toEqual([]);
     expect(stats.volumeSeries).toEqual([]);
   });
 });
 
 describe('body weight', () => {
-  const wi = (id: string, user: 'Diego' | 'Kevin', date: string, weight: number): WeighIn => ({
+  const wi = (id: string, user: 'me' | 'partner', date: string, weight: number): WeighIn => ({
     id,
     user,
     date,
@@ -100,26 +100,26 @@ describe('body weight', () => {
     loggedAt: `${date}T08:00:00.000Z`,
   });
   const byUser = weighInsByUser([
-    wi('1', 'Diego', '2026-10-01', 205),
-    wi('3', 'Diego', '2026-11-01', 201.4),
-    wi('2', 'Diego', '2026-10-15', 203),
-    wi('4', 'Kevin', '2026-11-01', 190),
+    wi('1', 'me', '2026-10-01', 205),
+    wi('3', 'me', '2026-11-01', 201.4),
+    wi('2', 'me', '2026-10-15', 203),
+    wi('4', 'partner', '2026-11-01', 190),
   ]);
 
   it('summarises the latest weigh-in and the changes', () => {
-    const s = weightSummary(byUser.Diego);
+    const s = weightSummary(byUser.me);
     expect(s.latest?.weight).toBe(201.4);
     expect(s.delta).toBeCloseTo(-1.6);
     expect(s.total).toBeCloseTo(-3.6);
     expect(s.series).toEqual([205, 203, 201.4]);
-    expect(weightLoss(byUser.Diego)).toBeCloseTo(3.6);
+    expect(weightLoss(byUser.me)).toBeCloseTo(3.6);
   });
 
   it('needs two weigh-ins before showing a change', () => {
-    const s = weightSummary(byUser.Kevin);
+    const s = weightSummary(byUser.partner);
     expect(s.delta).toBeNull();
     expect(s.total).toBeNull();
-    expect(weightLoss(byUser.Kevin)).toBeNull();
+    expect(weightLoss(byUser.partner)).toBeNull();
     expect(weightSummary([]).latest).toBeUndefined();
   });
 
@@ -137,7 +137,7 @@ describe('body measurements', () => {
     valueIn: number,
   ): BodyMeasurement => ({
     id,
-    user: 'Diego',
+    user: 'me',
     part,
     date,
     valueIn,
@@ -153,9 +153,9 @@ describe('body measurements', () => {
   ]);
 
   it('adds up the change across body parts', () => {
-    expect(by.Diego.waist.map((x) => x.id)).toEqual(['3', '2', '1']);
-    expect(measurementTotals(by.Diego)).toEqual({ sinceStart: -1 + 0.25, sinceLast: -0.5 + 0.25 });
-    expect(measurementTotals(by.Kevin)).toBeNull();
+    expect(by.me.waist.map((x) => x.id)).toEqual(['3', '2', '1']);
+    expect(measurementTotals(by.me)).toEqual({ sinceStart: -1 + 0.25, sinceLast: -0.5 + 0.25 });
+    expect(measurementTotals(by.partner)).toBeNull();
   });
 
   it('words the change', () => {

@@ -6,18 +6,23 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { isValidSavedDraft, type SavedDraft } from '../lib/draft';
 import type { LengthUnit, WeightUnit } from '../lib/stats';
 import { EMPTY_DB, type Db } from '../lib/types';
-import { USERS, type WorkoutUser } from '../lib/workout-data';
+import type { WorkoutUser } from '../lib/workout-data';
 
 const DB_KEY = 'fd-db-v1';
 const PREFS_KEY = 'fd-prefs-v1';
-const draftKey = (user: WorkoutUser) => `fd-draft-${user}`;
+const draftKey = (user: string) => `fd-draft-${user}`;
+const OLD_USERS: Record<string, WorkoutUser> = { Diego: 'me', Kevin: 'partner' };
+const OLD_DRAFT_USER: Record<WorkoutUser, string> = { me: 'Diego', partner: 'Kevin' };
 
 export const REST_CHOICES = [30, 45, 60, 90, 120] as const;
 
 /** Settings that belong to this phone, not to the shared data. */
 export type Prefs = {
-  /** Who is using this phone (null shows the "Who's lifting today?" screen). */
-  user: WorkoutUser | null;
+  /** Always the person signed in. Kept so older saved settings still load. */
+  user: WorkoutUser;
+  /** "Lift with a partner" in Settings: off for a new customer. */
+  partnerOn: boolean;
+  partnerName: string;
   weightUnit: WeightUnit;
   lengthUnit: LengthUnit;
   restSeconds: number;
@@ -27,7 +32,9 @@ export type Prefs = {
 };
 
 export const DEFAULT_PREFS: Prefs = {
-  user: null,
+  user: 'me',
+  partnerOn: false,
+  partnerName: '',
   weightUnit: 'lbs',
   lengthUnit: 'in',
   restSeconds: 60,
@@ -59,13 +66,19 @@ export function normalizeDb(raw: unknown): Db | null {
   const r = raw as Partial<Record<keyof Db, unknown>>;
   const list = <K extends keyof Db>(key: K): Db[K] =>
     (Array.isArray(r[key]) ? r[key] : EMPTY_DB[key]) as Db[K];
+  // Earlier test builds labeled entries with two fixed names. Carry them over.
+  const people = <T extends { user: WorkoutUser }>(items: T[]): T[] =>
+    items.map((x) => {
+      const old = OLD_USERS[x.user as string];
+      return old ? { ...x, user: old } : x;
+    });
   return {
-    workouts: list('workouts'),
-    weighIns: list('weighIns'),
-    measurements: list('measurements'),
+    workouts: people(list('workouts')),
+    weighIns: people(list('weighIns')),
+    measurements: people(list('measurements')),
     customExercises: list('customExercises'),
     templates: list('templates'),
-    exerciseNotes: list('exerciseNotes'),
+    exerciseNotes: people(list('exerciseNotes')),
     exerciseOverrides: list('exerciseOverrides'),
   };
 }
@@ -73,7 +86,9 @@ export function normalizeDb(raw: unknown): Db | null {
 export function normalizePrefs(raw: unknown): Prefs {
   const r = (raw && typeof raw === 'object' ? raw : {}) as Partial<Prefs>;
   return {
-    user: (USERS as readonly unknown[]).includes(r.user) ? (r.user as WorkoutUser) : null,
+    user: 'me',
+    partnerOn: r.partnerOn === true,
+    partnerName: typeof r.partnerName === 'string' ? r.partnerName.slice(0, 40) : '',
     weightUnit: r.weightUnit === 'kg' ? 'kg' : 'lbs',
     lengthUnit: r.lengthUnit === 'cm' ? 'cm' : 'in',
     restSeconds: (REST_CHOICES as readonly unknown[]).includes(r.restSeconds)
@@ -91,7 +106,7 @@ export const loadPrefs = async (): Promise<Prefs> => normalizePrefs(await readJs
 export const savePrefs = (prefs: Prefs): Promise<boolean> => writeJson(PREFS_KEY, prefs);
 
 export async function loadDraft(user: WorkoutUser): Promise<SavedDraft | null> {
-  const raw = await readJson(draftKey(user));
+  const raw = (await readJson(draftKey(user))) ?? (await readJson(draftKey(OLD_DRAFT_USER[user])));
   return isValidSavedDraft(raw) ? raw : null;
 }
 
@@ -100,7 +115,7 @@ export const saveDraft = (user: WorkoutUser, draft: SavedDraft): Promise<boolean
 
 export async function clearDraft(user: WorkoutUser): Promise<void> {
   try {
-    await AsyncStorage.removeItem(draftKey(user));
+    await AsyncStorage.multiRemove([draftKey(user), draftKey(OLD_DRAFT_USER[user])]);
   } catch {
     // Nothing else to do.
   }

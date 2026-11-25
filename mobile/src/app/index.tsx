@@ -31,8 +31,9 @@ export default function LogScreen() {
   const [editingPlan, setEditingPlan] = useState<WorkoutTemplate | null>(null);
   const [managing, setManaging] = useState(false);
 
-  const { user, otherUser, togetherMode, db } = store;
-  if (!user || !otherUser) return null;
+  const { user, otherUser, names, togetherMode, db } = store;
+  // Only shown or logged in Together Mode, which needs a partner switched on.
+  const other = otherUser ?? 'partner';
 
   const loadPlan = async (plan: WorkoutTemplate) => {
     // Starting a plan replaces the unsaved workout, so ask first.
@@ -88,12 +89,15 @@ export default function LogScreen() {
         <KeyboardScroll {...scrollProps} bottomSpace={190}>
           {store.error && <ErrorBanner message={store.error} onDismiss={store.clearError} />}
 
-          <TogetherToggle
-            on={togetherMode}
-            onChange={store.setTogetherMode}
-            user={user}
-            otherUser={otherUser}
-          />
+          {otherUser && (
+            <TogetherToggle
+              on={togetherMode}
+              onChange={store.setTogetherMode}
+              user={user}
+              otherUser={otherUser}
+              names={names}
+            />
+          )}
 
           {db.templates.length > 0 && (
             <View style={styles.plans}>
@@ -162,10 +166,10 @@ export default function LogScreen() {
             groups={store.groups}
             toCategory={store.toCategory}
             lastPerformance={computeLastPerformance(db.workouts, user)}
-            lastPerformanceOther={computeLastPerformance(db.workouts, otherUser)}
+            lastPerformanceOther={computeLastPerformance(db.workouts, other)}
             togetherMode={togetherMode}
             currentUser={user}
-            otherUser={otherUser}
+            otherUser={other}
             notesApi={store.notesApi}
             templates={db.templates}
             onSavePlanOrder={store.savePlanOrder}
@@ -187,7 +191,7 @@ export default function LogScreen() {
                 ? await store.addWorkoutForBoth(mine, {
                     ...mine,
                     id: uid(),
-                    user: otherUser,
+                    user: other,
                     exercises: built.exercisesOther,
                   })
                 : await store.addWorkout(mine);

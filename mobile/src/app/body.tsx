@@ -8,7 +8,6 @@ import { KeyboardScroll } from '@/components/keyboard-scroll';
 import { KeyboardSpace } from '@/components/keyboard-space';
 import { LineChart, describeTrend } from '@/components/line-chart';
 import { NumberField } from '@/components/number-field';
-import { TogetherToggle } from '@/components/together-toggle';
 import {
   Dot,
   DotCard,
@@ -54,7 +53,10 @@ const CARD_LINE = { me: colors.gold, other: colors.white };
 
 export default function BodyScreen() {
   const store = useStore();
-  const { user, otherUser, togetherMode, db, prefs } = store;
+  const { user, names, db, prefs } = store;
+  // Body is the owner's own: a partner is only logged in workouts. The two-person
+  // layout below stays for the day a partner can log their own weigh-ins.
+  const togetherMode = false as boolean;
   const wUnit = prefs.weightUnit;
   const lUnit = prefs.lengthUnit;
 
@@ -72,10 +74,9 @@ export default function BodyScreen() {
   const byUser = useMemo(() => weighInsByUser(db.weighIns), [db.weighIns]);
   const byPersonPart = useMemo(() => measurementsByPersonPart(db.measurements), [db.measurements]);
 
-  if (!user || !otherUser) return null;
 
   // Who is shown: just me, or both of us in Together Mode (me first).
-  const people: WorkoutUser[] = togetherMode ? [user, otherUser] : [user];
+  const people: WorkoutUser[] = [user];
   const toW = (lbs: number) => lbsTo(wUnit, lbs);
   const toL = (inches: number) => inchesTo(lUnit, inches);
 
@@ -136,12 +137,6 @@ export default function BodyScreen() {
       <KeyboardScroll bottomSpace={190}>
         {store.error && <ErrorBanner message={store.error} onDismiss={store.clearError} />}
 
-        <TogetherToggle
-          on={togetherMode}
-          onChange={store.setTogetherMode}
-          user={user}
-          otherUser={otherUser}
-        />
 
         {/* ---------- WEIGHT ---------- */}
         <DotCard style={styles.weightCard}>
@@ -155,7 +150,7 @@ export default function BodyScreen() {
                     <View style={styles.weightLabelRow}>
                       {togetherMode && <Dot color={lineColor} size={9} />}
                       <Text style={styles.weightLabel}>
-                        {togetherMode ? u.toUpperCase() : 'WEIGHT'}
+                        {togetherMode ? names[u].toUpperCase() : 'WEIGHT'}
                       </Text>
                     </View>
                     <Text style={[styles.weightNumber, togetherMode && { fontSize: 32 }]}>
@@ -183,7 +178,7 @@ export default function BodyScreen() {
                 label={`Weight trend. ${people
                   .map(
                     (u) =>
-                      `${u}: ${describeTrend(weightSummary(byUser[u]).series.map(toW), wUnit)}`,
+                      `${names[u]}: ${describeTrend(weightSummary(byUser[u]).series.map(toW), wUnit)}`,
                   )
                   .join('. ')}`}
                 series={people.map((u) => ({
@@ -238,15 +233,15 @@ export default function BodyScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${u}'s weigh-ins, ${list.length}`}
+                accessibilityLabel={`${names[u]}'s weigh-ins, ${list.length}`}
                 onPress={() => {
                   tapLight();
                   setExpandedUser(open ? null : u);
                 }}
                 style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}
               >
-                <Plate size={28} label={u[0]} color={USER_COLORS[u]} />
-                <Text style={styles.accordionTitle}>{u}&apos;s Weigh-Ins</Text>
+                <Plate size={28} label={names[u][0]} color={USER_COLORS[u]} />
+                <Text style={styles.accordionTitle}>{names[u]}&apos;s Weigh-Ins</Text>
                 <View style={styles.countBadge}>
                   <Text style={styles.countText}>{list.length}</Text>
                 </View>
@@ -266,7 +261,7 @@ export default function BodyScreen() {
                           </Text>
                           <Text style={styles.entryMeta}>{formatDate(w.date)}</Text>
                         </View>
-                        {w.user === user && (
+                        {(
                           <IconButton
                             icon="trash-can-outline"
                             label={`Delete weigh-in from ${formatDate(w.date)}`}
@@ -308,7 +303,7 @@ export default function BodyScreen() {
                       <Text
                         style={[styles.who, { color: u === user ? colors.gold : colors.white }]}
                       >
-                        {u[0]}{' '}
+                        {names[u][0]}{' '}
                       </Text>
                     )}
                     {t ? lostLabel(t[key], lUnit) : '—'}
@@ -333,7 +328,7 @@ export default function BodyScreen() {
                 accessibilityLabel={`${BODY_PART_LABELS[p]}. ${people
                   .map((u) => {
                     const last = byPersonPart[u][p][0];
-                    return `${u}: ${last ? `${fmt1(toL(last.valueIn))} ${lUnit}` : 'nothing logged'}`;
+                    return `${names[u]}: ${last ? `${fmt1(toL(last.valueIn))} ${lUnit}` : 'nothing logged'}`;
                   })
                   .join('. ')}`}
                 onPress={() => {
@@ -354,7 +349,7 @@ export default function BodyScreen() {
                     <View key={u} style={styles.tilePerson}>
                       <Text style={[styles.tileNumber, togetherMode && { fontSize: 18 }]}>
                         {togetherMode && (
-                          <Text style={[styles.who, { color: USER_COLORS[u] }]}>{u[0]} </Text>
+                          <Text style={[styles.who, { color: USER_COLORS[u] }]}>{names[u][0]} </Text>
                         )}
                         {last ? fmt1(toL(last.valueIn)) : '—'}
                         {last && <Text style={styles.tileUnit}> {lUnit}</Text>}
@@ -377,7 +372,7 @@ export default function BodyScreen() {
                 label={`${partLabel} trend. ${people
                   .map(
                     (u) =>
-                      `${u}: ${describeTrend(
+                      `${names[u]}: ${describeTrend(
                         [...byPersonPart[u][part]].reverse().map((m) => toL(m.valueIn)),
                         lUnit,
                       )}`,
@@ -460,7 +455,7 @@ export default function BodyScreen() {
                   {partHistory.map((m) => (
                     <View style={styles.entryRow} key={m.id}>
                       {togetherMode && (
-                        <Plate size={26} label={m.user[0]} color={USER_COLORS[m.user]} />
+                        <Plate size={26} label={names[m.user][0]} color={USER_COLORS[m.user]} />
                       )}
                       <View style={{ flex: 1 }}>
                         <Text style={styles.entryValue}>
@@ -468,7 +463,7 @@ export default function BodyScreen() {
                         </Text>
                         <Text style={styles.entryMeta}>{formatDate(m.date)}</Text>
                       </View>
-                      {m.user === user && (
+                      {(
                         <IconButton
                           icon="trash-can-outline"
                           label={`Delete ${partLabel} measurement from ${formatDate(m.date)}`}

@@ -6,7 +6,6 @@ import { useStore } from '../data/store';
 import { workoutExercisesToDraft, type DraftExercise } from '../lib/draft';
 import { computeLastPerformance } from '../lib/stats';
 import type { Workout } from '../lib/types';
-import { USERS } from '../lib/workout-data';
 import { KeyboardScroll } from './keyboard-scroll';
 import { ManageExercisesSheet } from './manage-exercises';
 import { Sheet } from './sheet';
@@ -53,7 +52,7 @@ function EditWorkoutBody({ workout, onClose }: { workout: Workout; onClose: () =
           toCategory={toCategory}
           lastPerformance={computeLastPerformance(db.workouts, workout.user)}
           currentUser={workout.user}
-          otherUser={USERS.find((u) => u !== workout.user) ?? workout.user}
+          otherUser={workout.user === 'me' ? 'partner' : 'me'}
           onManageExercises={() => setManaging(true)}
           scroll={bridge}
           onSubmit={async (built) => {

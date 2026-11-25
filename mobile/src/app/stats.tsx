@@ -10,7 +10,6 @@ import { tapLight } from '@/lib/haptics';
 import { computeWorkoutStats, weighInsByUser, weightLoss } from '@/lib/stats';
 import {
   OTHER_CATEGORY,
-  USERS,
   USER_COLORS,
   formatDate,
   type WorkoutUser,
@@ -18,12 +17,11 @@ import {
 import { colors, fonts, hexToRgba, themed } from '@/theme';
 
 export default function StatsScreen() {
-  const { db, toCategory, user } = useStore();
-  const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>(USERS[0]);
+  const { db, toCategory, people, names } = useStore();
+  const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>('me');
 
   const stats = useMemo(() => computeWorkoutStats(db.workouts), [db.workouts]);
   const weighIns = useMemo(() => weighInsByUser(db.weighIns), [db.weighIns]);
-  if (!user) return null;
 
   if (!db.workouts.length) {
     return (
@@ -52,7 +50,7 @@ export default function StatsScreen() {
             <Text style={styles.tileNumber}>{stats.thisWeek}</Text>
             <Text style={styles.tileLabel}>Last 7 Days</Text>
           </View>
-          {USERS.map((u) => (
+          {people.map((u) => (
             <View
               key={u}
               style={[styles.tile, { backgroundColor: hexToRgba(USER_COLORS[u], 0.12) }]}
@@ -60,7 +58,7 @@ export default function StatsScreen() {
               <Text style={[styles.tileNumber, { color: USER_COLORS[u] }]}>
                 {stats.perUser[u].count}
               </Text>
-              <Text style={[styles.tileLabel, { color: USER_COLORS[u] }]}>{u}&apos;s Sessions</Text>
+              <Text style={[styles.tileLabel, { color: USER_COLORS[u] }]}>{names[u]}&apos;s Sessions</Text>
             </View>
           ))}
         </View>
@@ -82,7 +80,7 @@ export default function StatsScreen() {
           <EmptyState compact sub="Log a couple more workouts to see your trend." />
         )}
 
-        {USERS.map((u) => {
+        {people.map((u) => {
           const list = weighIns[u];
           if (!list.length) return null;
           const loss = weightLoss(list);
@@ -92,7 +90,7 @@ export default function StatsScreen() {
               <View style={styles.chartHead}>
                 <View style={styles.chartHeadLeft}>
                   <Dot color={USER_COLORS[u]} />
-                  <Text style={styles.chartLabel}>{u.toUpperCase()}&apos;S WEIGHT LOSS</Text>
+                  <Text style={styles.chartLabel}>{names[u].toUpperCase()}&apos;S WEIGHT LOSS</Text>
                 </View>
                 {loss !== null && (
                   <View
@@ -113,7 +111,7 @@ export default function StatsScreen() {
               {series.length >= 2 ? (
                 <LineChart
                   height={70}
-                  label={`${u}'s weight, ${describeTrend(series, 'lbs')}`}
+                  label={`${names[u]}'s weight, ${describeTrend(series, 'lbs')}`}
                   series={[{ values: series, color: USER_COLORS[u] }]}
                 />
               ) : (
@@ -124,7 +122,7 @@ export default function StatsScreen() {
         })}
 
         <SectionHeading style={{ marginTop: 8 }}>Personal Records</SectionHeading>
-        {USERS.map((u) => {
+        {people.map((u) => {
           const list = stats.prs[u];
           const open = expandedUser === u;
           return (
@@ -132,16 +130,16 @@ export default function StatsScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${u}'s personal records, ${list.length}`}
+                accessibilityLabel={`${names[u]}'s personal records, ${list.length}`}
                 onPress={() => {
                   tapLight();
                   setExpandedUser(open ? null : u);
                 }}
                 style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}
               >
-                <Plate size={32} label={u[0]} color={USER_COLORS[u]} />
+                <Plate size={32} label={names[u][0]} color={USER_COLORS[u]} />
                 <Text style={styles.accordionTitle} numberOfLines={1}>
-                  {u}&apos;s Personal Records
+                  {names[u]}&apos;s Personal Records
                 </Text>
                 <View style={styles.countBadge}>
                   <Text style={styles.countText}>{list.length}</Text>

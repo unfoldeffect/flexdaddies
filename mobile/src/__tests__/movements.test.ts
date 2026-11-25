@@ -80,8 +80,8 @@ describe('equipment through a workout', () => {
       toCategory,
       togetherMode: false,
       withSavedNotes: false,
-      currentUser: 'Diego',
-      otherUser: 'Kevin',
+      currentUser: 'me',
+      otherUser: 'partner',
     });
     expect(built.exercises[0].equipment).toBe('Dumbbell');
     const back = workoutExercisesToDraft(built.exercises, toCategory);
@@ -107,7 +107,7 @@ describe('progress per movement and equipment', () => {
   const workouts = [
     {
       id: 'a',
-      user: 'Diego' as const,
+      user: 'me' as const,
       date: '2026-11-01',
       loggedAt: '2026-11-01T10:00:00Z',
       notes: '',
@@ -115,7 +115,7 @@ describe('progress per movement and equipment', () => {
     },
     {
       id: 'b',
-      user: 'Diego' as const,
+      user: 'me' as const,
       date: '2026-11-08',
       loggedAt: '2026-11-08T10:00:00Z',
       notes: '',
@@ -124,7 +124,7 @@ describe('progress per movement and equipment', () => {
   ];
 
   it('keeps a separate "last time" for each kind of equipment', () => {
-    const last = computeLastPerformance(workouts, 'Diego');
+    const last = computeLastPerformance(workouts, 'me');
     expect(last['Bench Press|Barbell'].sets[0].weight).toBe(135);
     expect(last['Bench Press|Dumbbell'].sets[0].weight).toBe(50);
     // The plain name is the most recent of any kind: the Log form starts on it.
@@ -132,7 +132,7 @@ describe('progress per movement and equipment', () => {
   });
 
   it('keeps a separate record for each kind of equipment', () => {
-    const prs = computeWorkoutStats(workouts, new Date('2026-11-09')).prs.Diego;
+    const prs = computeWorkoutStats(workouts, new Date('2026-11-09')).prs.me;
     expect(prs.map((p) => p.name)).toEqual(['Bench Press · Barbell', 'Bench Press · Dumbbell']);
     expect(prs[0].movement).toBe('Bench Press');
   });

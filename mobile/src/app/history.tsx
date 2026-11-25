@@ -17,7 +17,6 @@ import type { Workout } from '@/lib/types';
 import {
   CARDIO_LABEL,
   OTHER_CATEGORY,
-  USERS,
   USER_COLORS,
   formatDate,
   type WorkoutUser,
@@ -36,10 +35,9 @@ export default function HistoryScreen() {
   const [editing, setEditing] = useState<Workout | null>(null);
   const [namingPlanFor, setNamingPlanFor] = useState<Workout | null>(null);
 
-  const { user, db, toCategory } = store;
+  const { people, names, db, toCategory } = store;
   const sorted = useMemo(() => sortWorkoutsNewestFirst(db.workouts), [db.workouts]);
   const filtered = filter === 'all' ? sorted : sorted.filter((w) => w.user === filter);
-  if (!user) return null;
 
   const repeat = async (workout: Workout) => {
     if (
@@ -88,12 +86,12 @@ export default function HistoryScreen() {
         ListHeaderComponent={
           <>
             {store.error && <ErrorBanner message={store.error} onDismiss={store.clearError} />}
-            {sorted.length > 0 && (
+            {sorted.length > 0 && people.length > 1 && (
               <View style={styles.filters}>
-                {(['all', ...USERS] as const).map((f) => (
+                {(['all', ...people] as const).map((f) => (
                   <Chip
                     key={f}
-                    label={f === 'all' ? 'Everyone' : f}
+                    label={f === 'all' ? 'Everyone' : names[f]}
                     active={filter === f}
                     activeColor={f === 'all' ? colors.strong : USER_COLORS[f]}
                     onPress={() => setFilter(f)}
@@ -111,7 +109,7 @@ export default function HistoryScreen() {
               sub="Log your first one to see it here."
             />
           ) : (
-            <EmptyState compact sub={`No workouts from ${filter} yet.`} />
+            <EmptyState compact sub={`No workouts from ${filter === 'all' ? 'anyone' : names[filter]} yet.`} />
           )
         }
         renderItem={({ item: w }) => {
@@ -122,14 +120,14 @@ export default function HistoryScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${formatDate(w.date)}, ${w.user}, ${w.exercises.length} exercises, ${sets} sets, ${volume.toLocaleString()} pounds moved${w.template ? `, from plan ${w.template.name}` : ''}`}
+                accessibilityLabel={`${formatDate(w.date)}, ${people.length > 1 ? `${names[w.user]}, ` : ''}${w.exercises.length} exercises, ${sets} sets, ${volume.toLocaleString()} pounds moved${w.template ? `, from plan ${w.template.name}` : ''}`}
                 onPress={() => {
                   tapLight();
                   setOpenId(open ? null : w.id);
                 }}
                 style={({ pressed }) => [styles.summary, pressed && { opacity: 0.75 }]}
               >
-                <Plate size={40} label={w.user[0]} color={USER_COLORS[w.user]} />
+                <Plate size={40} label={names[w.user][0]} color={USER_COLORS[w.user]} />
                 <View style={styles.summaryMid}>
                   <Text style={styles.date}>{formatDate(w.date)}</Text>
                   {w.template && (
@@ -141,7 +139,8 @@ export default function HistoryScreen() {
                     </View>
                   )}
                   <Text style={styles.meta}>
-                    {w.user} · {w.exercises.length} exercises · {sets} sets
+                    {people.length > 1 ? `${names[w.user]} · ` : ''}
+                    {w.exercises.length} exercises · {sets} sets
                   </Text>
                 </View>
                 <View style={styles.summaryRight}>
@@ -185,7 +184,7 @@ export default function HistoryScreen() {
                       label="Save as Plan"
                       onPress={() => setNamingPlanFor(w)}
                     />
-                    {w.user === user && (
+                    {(
                       <>
                         <LinkButton
                           icon="pencil-outline"

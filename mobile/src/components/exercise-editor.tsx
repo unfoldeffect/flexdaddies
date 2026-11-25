@@ -87,7 +87,7 @@ export function ExerciseEditor({
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
-  const { registerExercise } = useStore();
+  const { registerExercise, names } = useStore();
   const customNameRef = useRef<TextInputRef>(null);
 
   const isOther = exercise.name === OTHER_VALUE;
@@ -411,7 +411,7 @@ export function ExerciseEditor({
       {!hideSets && (
         <>
           {togetherMode && (
-            <Text style={[styles.person, { color: USER_COLORS[currentUser] }]}>{currentUser}</Text>
+            <Text style={[styles.person, { color: USER_COLORS[currentUser] }]}>{names[currentUser]}</Text>
           )}
           {lastWorkout(lastPerformance)}
           {notesApi && (
@@ -421,14 +421,14 @@ export function ExerciseEditor({
             sets={exercise.sets}
             cardio={isCardio}
             accent={accent === colors.line ? colors.muted : accent}
-            who={togetherMode ? currentUser : undefined}
+            who={togetherMode ? names[currentUser] : undefined}
             onChange={updateSet('sets')}
           />
 
           {togetherMode && (
             <>
               <View style={styles.divider} />
-              <Text style={[styles.person, { color: USER_COLORS[otherUser] }]}>{otherUser}</Text>
+              <Text style={[styles.person, { color: USER_COLORS[otherUser] }]}>{names[otherUser]}</Text>
               {lastWorkout(lastPerformanceOther)}
               {notesApi && (
                 <SavedNotesList api={notesApi} user={otherUser} exerciseName={exerciseName} />
@@ -437,7 +437,7 @@ export function ExerciseEditor({
                 sets={exercise.setsOther}
                 cardio={isCardio}
                 accent={accent === colors.line ? colors.muted : accent}
-                who={otherUser}
+                who={names[otherUser]}
                 onChange={updateSet('setsOther')}
               />
             </>
@@ -465,7 +465,7 @@ export function ExerciseEditor({
                   savingNote
                     ? 'Saving...'
                     : togetherMode
-                      ? `Save Note for ${currentUser}`
+                      ? `Save Note for ${names[currentUser]}`
                       : 'Save Note'
                 }
                 disabled={savingNote || !exercise.notes.trim() || !exerciseName}

@@ -28,16 +28,16 @@ import type {
 import { EMPTY_DB } from '../lib/types';
 import {
   OTHER_CATEGORY,
-  USERS,
   mergeExerciseGroups,
   uid,
   type CategoryInfo,
   type ExerciseGroup,
   type ManagedExercise,
+  type PersonNames,
   type WorkoutUser,
 } from '../lib/workout-data';
 import * as ops from './db';
-import { buildSampleData, hasSampleData, removeSampleData } from './sample-data';
+import { buildSampleData, hasSampleData, removeSampleData, withoutPartner } from './sample-data';
 import { DEFAULT_PREFS, loadDb, loadPrefs, saveDb, savePrefs, type Prefs } from './storage';
 
 const SAVE_FAILED =
@@ -56,8 +56,14 @@ export type Store = {
   db: Db;
   prefs: Prefs;
   setPrefs: (patch: Partial<Prefs>) => void;
-  user: WorkoutUser | null;
+  /** Always "me": the person signed in. */
+  user: WorkoutUser;
+  /** The partner, or null when "Lift with a partner" is off. */
   otherUser: WorkoutUser | null;
+  /** Everyone shown on this phone: just "me", or "me" and the partner. */
+  people: WorkoutUser[];
+  /** The names to show on screen. */
+  names: PersonNames;
 
   groups: ExerciseGroup[];
   toCategory: Record<string, CategoryInfo>;
@@ -116,8 +122,11 @@ export function StoreProvider({
   children,
   initialDb,
   initialPrefs,
+  ownerName,
 }: {
   children: React.ReactNode;
+  /** The first name from the account, shown wherever the app names its owner. */
+  ownerName?: string;
   /** For tests: skip reading the phone's storage and start from this. */
   initialDb?: Db;
   initialPrefs?: Prefs;
@@ -143,8 +152,8 @@ export function StoreProvider({
       if (cancelled) return;
       let startDb = savedDb;
       if (!startDb) {
-        // First launch on this phone: start with the sample data.
-        startDb = buildSampleData();
+        // First launch on this phone: a new customer starts with nothing logged.
+        startDb = { ...EMPTY_DB };
         await saveDb(startDb);
       }
       dbRef.current = startDb;
@@ -187,8 +196,18 @@ export function StoreProvider({
     void savePrefs(next);
   }, []);
 
-  const user = prefs.user;
-  const otherUser = user ? (USERS.find((u) => u !== user) ?? null) : null;
+  const user: WorkoutUser = 'me';
+  const partnerOn = prefs.partnerOn;
+  const otherUser: WorkoutUser | null = partnerOn ? 'partner' : null;
+  const people = useMemo<WorkoutUser[]>(() => (partnerOn ? ['me', 'partner'] : ['me']), [partnerOn]);
+  const names = useMemo<PersonNames>(
+    () => ({ me: ownerName?.trim() || 'Me', partner: prefs.partnerName.trim() || 'Partner' }),
+    [ownerName, prefs.partnerName],
+  );
+  // With no partner switched on, anything logged for one stays saved but out of sight.
+  const shownDb = useMemo(() => (partnerOn ? db : withoutPartner(db)), [db, partnerOn]);
+  // Together Mode only exists while a partner is switched on.
+  const together = togetherMode && partnerOn;
 
   const { groups, toCategory, managed } = useMemo(
     () => mergeExerciseGroups(db.customExercises, db.exerciseOverrides),
@@ -202,15 +221,17 @@ export function StoreProvider({
 
     return {
       ready,
-      db,
+      db: shownDb,
       prefs,
       setPrefs,
       user,
       otherUser,
+      people,
+      names,
       groups,
       toCategory,
       managed,
-      togetherMode,
+      togetherMode: together,
       setTogetherMode,
       error,
       clearError: () => setError(null),
@@ -218,26 +239,27 @@ export function StoreProvider({
       addWorkout: (workout) => commit((d) => ops.createWorkout(d, workout)),
       addWorkoutForBoth: (workout, workoutOther) =>
         commit((d) => ops.createWorkout(ops.createWorkout(d, workoutOther), workout)),
+      // Everything on this phone is its owner's to change, the partner's entries included.
       editWorkout: async (id, data) => {
-        const who = me();
+        const who = dbRef.current.workouts.find((w) => w.id === id)?.user;
         if (!who) return false;
         return commit((d) => ops.updateWorkout(d, { id, user: who, ...data }));
       },
       removeWorkout: async (id) => {
-        const who = me();
+        const who = dbRef.current.workouts.find((w) => w.id === id)?.user;
         if (!who) return false;
         return commit((d) => ops.deleteWorkout(d, { id, user: who }));
       },
 
       addWeighIn: (entry) => commit((d) => ops.createWeighIn(d, entry)),
       removeWeighIn: async (id) => {
-        const who = me();
+        const who = dbRef.current.weighIns.find((w) => w.id === id)?.user;
         if (!who) return false;
         return commit((d) => ops.deleteWeighIn(d, { id, user: who }));
       },
       addMeasurement: (entry) => commit((d) => ops.createBodyMeasurement(d, entry)),
       removeMeasurement: async (id) => {
-        const who = me();
+        const who = dbRef.current.measurements.find((m) => m.id === id)?.user;
         if (!who) return false;
         return commit((d) => ops.deleteBodyMeasurement(d, { id, user: who }));
       },
@@ -310,7 +332,7 @@ export function StoreProvider({
       },
 
       notesApi: {
-        notes: db.exerciseNotes,
+        notes: shownDb.exerciseNotes,
         add: (noteUser, exerciseName, text) => {
           const now = new Date().toISOString();
           return commit((d) =>
@@ -331,22 +353,25 @@ export function StoreProvider({
         remove: (id) => commit((d) => ops.deleteExerciseNote(d, { id })),
       },
 
-      hasSample: hasSampleData(db),
+      hasSample: hasSampleData(shownDb),
       removeSample: () => commit(removeSampleData),
-      resetToSample: () => commit(() => buildSampleData()),
+      resetToSample: () =>
+        commit(() => (prefsRef.current.partnerOn ? buildSampleData() : withoutPartner(buildSampleData()))),
       eraseEverything: () => commit(() => ({ ...EMPTY_DB })),
     };
   }, [
     ready,
-    db,
+    shownDb,
     prefs,
     setPrefs,
     user,
     otherUser,
+    people,
+    names,
     groups,
     toCategory,
     managed,
-    togetherMode,
+    together,
     error,
     commit,
   ]);

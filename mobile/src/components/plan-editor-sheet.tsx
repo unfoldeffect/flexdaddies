@@ -109,8 +109,8 @@ function PlanEditorBody({ template, onClose }: { template: WorkoutTemplate; onCl
               lastPerformance={{}}
               lastPerformanceOther={{}}
               togetherMode={false}
-              currentUser="Diego"
-              otherUser="Kevin"
+              currentUser="me"
+              otherUser="partner"
               hideSets
               onManageExercises={() => setManaging(true)}
             />

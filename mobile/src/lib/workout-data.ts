@@ -1,15 +1,19 @@
 import { tone } from "../theme";
 import { MOVEMENT_GROUPS } from "./movements";
 
-export const USERS = ["Diego", "Kevin"] as const;
+// Who a workout belongs to on this phone: the person signed in ("me") and,
+// only if they switch it on in Settings, one partner they lift with.
+// The names shown on screen come from the account and from Settings.
+export const USERS = ["me", "partner"] as const;
 export type WorkoutUser = (typeof USERS)[number];
+export type PersonNames = Record<WorkoutUser, string>;
 
 // Colours are read through tone(), so they follow dark or light mode.
 export const USER_COLORS: Record<WorkoutUser, string> = {
-  get Diego() {
+  get me() {
     return tone("#2555c7");
   },
-  get Kevin() {
+  get partner() {
     return tone("#b5651d");
   },
 };

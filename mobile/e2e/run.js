@@ -55,7 +55,19 @@ async function firstTimeSetup(page, name) {
   await page.getByRole('button', { name: 'START LOGGING' }).click();
 }
 
-// Each scenario gets a brand new "phone" (empty storage, so the sample data is loaded fresh).
+// What the older scenarios were written against: a partner switched on and the sample data loaded.
+async function partnerAndSampleData(page) {
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('switch', { name: 'Lift with a partner' }).click();
+  await page.getByLabel("Partner's first name").fill('Kevin');
+  await page.getByRole('button', { name: 'Load sample data' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+}
+
+// Each scenario gets a brand new "phone" (empty storage, signed out).
 async function scenario(browser, name, body) {
   console.log(`\n== ${name} ==`);
   const ctx = await browser.newContext({ ...devices['iPhone 14'] });
@@ -86,11 +98,9 @@ async function scenario(browser, name, body) {
   try {
     if (name !== 'sign-in') {
       await signIn(page, `${name}@example.com`);
-      await firstTimeSetup(page, 'Sam');
-      await page.getByRole('button', { name: 'Continue as Diego' }).waitFor();
-      await t.shot(`${name}-00-profile`);
-      await page.getByRole('button', { name: 'Continue as Diego' }).click();
-      await page.waitForTimeout(600);
+      await firstTimeSetup(page, 'Diego');
+      await page.getByRole('tab', { name: 'Log' }).waitFor();
+      await partnerAndSampleData(page);
     }
     await body(t);
   } catch (e) {
@@ -196,7 +206,7 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   check('Kevin filter shows only Kevin', await workouts().evaluateAll((els) => els.length > 0 && els.every((e) => e.getAttribute('aria-label').includes(', Kevin,'))));
   await workouts().first().click();
   await page.waitForTimeout(300);
-  check("Diego cannot edit or delete Kevin's workout", (await page.getByRole('button', { name: 'Delete', exact: true }).count()) === 0);
+  check("the phone's owner can edit or delete the partner's workout", (await page.getByRole('button', { name: 'Delete', exact: true }).count()) === 1 && (await page.getByRole('button', { name: 'Edit', exact: true }).count()) === 1);
   await page.getByRole('button', { name: 'Repeat' }).click();
   await page.waitForTimeout(700);
   check('Repeat opens Log with the exercises, blank', (await page.getByRole('button', { name: /^Exercise: / }).count()) >= 5 && (await logBtn.isDisabled()));
@@ -214,7 +224,7 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await page.reload({ waitUntil: 'networkidle' });
   await page.waitForTimeout(1200);
   await shot('log-03-restored');
-  check('stays signed in after reopening', (await page.getByRole('button', { name: 'Continue as Diego' }).count()) === 0);
+  check('stays signed in after reopening', (await count('Your lifting log.')) === 0);
   check('unfinished workout is restored with a banner', (await count('Unsaved workout restored')) === 1 && (await page.getByLabel('time in minutes').first().inputValue()) === '20');
   dialogs.length = 0;
   await page.getByRole('button', { name: 'Start from plan 1 - Upper A' }).click();
@@ -257,13 +267,12 @@ async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, work
   await shot('body-02-measurements');
   check('new measurement is counted in its history', (await count('Chest history (4)')) === 1);
   await scroll(-3000);
-  await page.getByRole('switch', { name: 'Together Mode' }).click();
-  await page.waitForTimeout(400);
-  await shot('body-03-together');
-  check('Together Mode shows both people on Body', (await count('KEVIN')) >= 1);
+  check('Body is the owner only: no Together Mode there', (await page.getByRole('switch', { name: 'Together Mode' }).filter({ visible: true }).count()) === 0 && (await page.getByText('KEVIN', { exact: true }).filter({ visible: true }).count()) === 0, `switches=${await page.getByRole('switch', { name: 'Together Mode' }).filter({ visible: true }).count()} names=${await page.getByText('KEVIN', { exact: true }).filter({ visible: true }).count()}`);
 
   await tab('Log');
-  check('Together Mode carries over to Log', (await page.getByRole('button', { name: 'LOG BOTH WORKOUTS' }).count()) === 1);
+  await page.getByRole('switch', { name: 'Together Mode' }).click();
+  await page.waitForTimeout(400);
+  check('Together Mode on Log logs both', (await page.getByRole('button', { name: 'LOG BOTH WORKOUTS' }).count()) === 1);
   await page.getByRole('button', { name: 'Choose an exercise' }).click();
   await page.waitForTimeout(500);
   await shot('picker-01');
@@ -347,11 +356,6 @@ async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, work
   await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForTimeout(400);
 
-  await page.getByRole('button', { name: /Switch person/ }).click();
-  await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Continue as Kevin' }).click();
-  await page.waitForTimeout(700);
-  check('Kevin gets his own empty Log form', (await page.getByRole('button', { name: 'Choose an exercise' }).count()) === 1);
 }
 
 async function addExercise({ page, shot, names, count }) {
@@ -409,10 +413,43 @@ async function signInFlow({ page, shot, count, dialogs }) {
   check('setup asks for a name', (await count('Type your first name.')) === 1);
   await page.getByRole('radio', { name: 'Kilos' }).click();
   await firstTimeSetup(page, 'Sam');
-  await page.getByRole('button', { name: 'Continue as Diego' }).waitFor();
-  check('after setup the app opens', true);
-  await page.getByRole('button', { name: 'Continue as Diego' }).click();
+  await page.getByRole('tab', { name: 'Log' }).waitFor();
   await page.waitForTimeout(500);
+  await shot('signin-03b-first-log');
+  check('after setup the app opens straight to Log, with no "who is lifting" screen', (await count("Who's lifting today?")) === 0 && (await count('Diego')) === 0 && (await count('Kevin')) === 0);
+  check('a new customer sees a one-person app', (await page.getByRole('switch', { name: 'Together Mode' }).count()) === 0 && (await page.getByRole('button', { name: /Switch/ }).count()) === 0 && (await page.getByRole('button', { name: 'LOG WORKOUT' }).count()) === 1);
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.waitForTimeout(500);
+  await shot('signin-03c-first-history');
+  check('a new customer starts with nothing logged', (await count('No workouts logged yet.')) === 1);
+  await page.getByRole('tab', { name: 'Log' }).click();
+  await page.waitForTimeout(400);
+
+  // The partner option: off by default, switched on in Settings.
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  await page.getByRole('switch', { name: 'Lift with a partner' }).click();
+  await page.getByLabel("Partner's first name").fill('Kim');
+  await shot('signin-03d-partner-setting');
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('switch', { name: 'Together Mode' }).click();
+  await page.waitForTimeout(400);
+  await shot('signin-03e-together');
+  check('with a partner switched on, Together Mode logs both by name', (await page.getByRole('button', { name: 'LOG BOTH WORKOUTS' }).count()) === 1 && (await page.getByLabel('Sam, set 1 reps').count()) === 1 && (await page.getByLabel('Kim, set 1 reps').count()) === 1);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  await page.getByRole('switch', { name: 'Lift with a partner' }).click();
+  await page.getByRole('button', { name: 'Load sample data' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+  check('switching the partner off makes it a one-person app again', (await page.getByRole('switch', { name: 'Together Mode' }).count()) === 0 && (await page.getByRole('button', { name: 'LOG WORKOUT' }).count()) === 1);
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.waitForTimeout(900);
+  check('sample data for one person names nobody', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) > 0 && (await count('Everyone')) === 0 && (await count('Kevin')) === 0 && (await count('Partner')) === 0);
+  await page.getByRole('tab', { name: 'Log' }).click();
+  await page.waitForTimeout(400);
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(600);
@@ -440,7 +477,9 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.waitForTimeout(400);
   await signIn(page, email);
   await page.getByRole('tab', { name: 'Log' }).waitFor();
-  check('signing in again skips setup and keeps the workouts on the phone', (await count('Welcome!')) === 0);
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.waitForTimeout(900);
+  check('signing in again skips setup and keeps the workouts on the phone', (await count('Welcome!')) === 0 && (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) > 0);
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(600);
@@ -453,8 +492,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByText('Welcome!').waitFor();
   check('after deleting, the same email starts a brand new account', true);
   await firstTimeSetup(page, 'Sam');
-  await page.getByRole('button', { name: 'Continue as Diego' }).click();
-  await page.waitForTimeout(500);
+  await page.getByRole('tab', { name: 'Log' }).waitFor();
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(500);
   check('deleting the account erased the workouts on the phone', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) === 0);

@@ -1,13 +1,20 @@
 // Data shapes. These match the website's server functions field for field
 // (app/src/lib/api/*.functions.ts), so the phone's saved data can be sent to
 // the same backend later without converting anything.
+import type { Equipment } from './movements';
 import type { WorkoutUser } from './workout-data';
 
-export type { WorkoutUser };
+export type { Equipment, WorkoutUser };
 
 export type WorkoutSet = { reps: number; weight: number; time: number; intensity: number };
 
-export type WorkoutExercise = { name: string; sets: WorkoutSet[]; notes: string };
+export type WorkoutExercise = {
+  name: string;
+  sets: WorkoutSet[];
+  notes: string;
+  /** Equipment used (store app). Missing or null: none, or logged before equipment existed. */
+  equipment?: Equipment | null;
+};
 
 export type TemplateLink = { id: string; name: string };
 
@@ -62,7 +69,7 @@ export type ExerciseOverride = {
   hidden: boolean;
 };
 
-export type TemplateExercise = { name: string; sets: number; reps?: string };
+export type TemplateExercise = { name: string; sets: number; reps?: string; equipment?: Equipment | null };
 
 export type WorkoutTemplate = {
   id: string;

@@ -58,7 +58,7 @@ describe('starting a workout', () => {
   it('builds a draft from a plan, with cardio as a single set', () => {
     const draft = templateToDraft(
       [
-        { name: 'Stationary Bike', sets: 1, reps: '30 min' },
+        { name: 'Bike', sets: 1, reps: '30 min' },
         { name: 'TRX Row', sets: 3, reps: '12' },
         { name: 'Made Up Move', sets: 2 },
       ],
@@ -75,7 +75,7 @@ describe('starting a workout', () => {
     const draft = workoutExercisesToDraft(
       [
         {
-          name: 'Leg Press Machine',
+          name: 'Leg Press',
           sets: [{ reps: 10, weight: 222.5, time: 0, intensity: 0 }],
           notes: 'deep',
         },
@@ -89,7 +89,7 @@ describe('starting a workout', () => {
     expect(draft[1].sets[0]).toMatchObject({ time: '10', intensity: '3', reps: '' });
 
     const blank = blankDraftSets(draft);
-    expect(blank[0].name).toBe('Leg Press Machine');
+    expect(blank[0].name).toBe('Leg Press');
     expect(draftHasEntries(blank)).toBe(false);
     expect(blank[0].notes).toBe('');
   });

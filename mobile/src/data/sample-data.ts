@@ -28,13 +28,13 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
     name: '1 - Upper A',
     createdBy: 'Diego',
     exercises: [
-      { name: 'Chest Press Machine', sets: 3, reps: '8-10' },
-      { name: 'Incline Dumbbell Press', sets: 3, reps: '8-10' },
-      { name: 'Lat Pulldown Machine', sets: 3, reps: '10-12' },
-      { name: 'Shoulder Press Machine', sets: 3, reps: '10-12' },
-      { name: 'Tricep Pushdown (Cable)', sets: 3, reps: '10-12' },
-      { name: 'Bicep Curl Machine', sets: 3, reps: '10-12' },
-      { name: 'Ab Crunch Machine', sets: 3, reps: '12-15' },
+      { name: 'Bench Press', equipment: 'Machine', sets: 3, reps: '8-10' },
+      { name: 'Incline Bench Press', equipment: 'Dumbbell', sets: 3, reps: '8-10' },
+      { name: 'Lat Pulldown', equipment: 'Cable', sets: 3, reps: '10-12' },
+      { name: 'Shoulder Press', equipment: 'Machine', sets: 3, reps: '10-12' },
+      { name: 'Triceps Pushdown', equipment: 'Cable', sets: 3, reps: '10-12' },
+      { name: 'Bicep Curl', equipment: 'Machine', sets: 3, reps: '10-12' },
+      { name: 'Crunch', equipment: 'Machine', sets: 3, reps: '12-15' },
     ],
   },
   {
@@ -42,14 +42,14 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
     name: '2 - Lower A',
     createdBy: 'Diego',
     exercises: [
-      { name: 'Leg Press Machine', sets: 3, reps: '8-10' },
-      { name: 'Leg Extension Machine', sets: 3, reps: '12-15' },
-      { name: 'Seated Leg Curl Machine', sets: 3, reps: '10-12' },
-      { name: 'Hip Thrust Machine', sets: 3, reps: '10-12' },
-      { name: 'Seated Cable Row', sets: 3, reps: '8-10' },
-      { name: 'Iso-Lateral Row Machine', sets: 3, reps: '10-12' },
-      { name: 'Standing Calf Raise Machine', sets: 3, reps: '12-15' },
-      { name: 'Cable Crunch', sets: 3, reps: '12-15' },
+      { name: 'Leg Press', equipment: 'Machine', sets: 3, reps: '8-10' },
+      { name: 'Leg Extension', equipment: 'Machine', sets: 3, reps: '12-15' },
+      { name: 'Leg Curl', equipment: 'Machine', sets: 3, reps: '10-12' },
+      { name: 'Hip Thrust', equipment: 'Machine', sets: 3, reps: '10-12' },
+      { name: 'Seated Row', equipment: 'Cable', sets: 3, reps: '8-10' },
+      { name: 'Chest Supported Row', equipment: 'Machine', sets: 3, reps: '10-12' },
+      { name: 'Calf Raise', equipment: 'Machine', sets: 3, reps: '12-15' },
+      { name: 'Crunch', equipment: 'Cable', sets: 3, reps: '12-15' },
     ],
   },
   {
@@ -57,13 +57,13 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
     name: '3 - Upper B',
     createdBy: 'Diego',
     exercises: [
-      { name: 'Pec Deck Machine', sets: 3, reps: '12-15' },
-      { name: 'Incline Chest Press Machine', sets: 3, reps: '8-10' },
-      { name: 'Straight-Arm Pulldown', sets: 3, reps: '10-12' },
-      { name: 'Rear Delt Fly Machine', sets: 3, reps: '12-15' },
-      { name: 'Tricep Extension Machine', sets: 3, reps: '10-12' },
-      { name: 'Hammer Curl', sets: 3, reps: '10-12' },
-      { name: 'Torso Rotation Machine', sets: 3, reps: '12-15' },
+      { name: 'Chest Fly', equipment: 'Machine', sets: 3, reps: '12-15' },
+      { name: 'Incline Bench Press', equipment: 'Machine', sets: 3, reps: '8-10' },
+      { name: 'Straight Arm Pulldown', equipment: 'Cable', sets: 3, reps: '10-12' },
+      { name: 'Rear Delt Fly', equipment: 'Machine', sets: 3, reps: '12-15' },
+      { name: 'Overhead Triceps Extension', equipment: 'Machine', sets: 3, reps: '10-12' },
+      { name: 'Hammer Curl', equipment: 'Dumbbell', sets: 3, reps: '10-12' },
+      { name: 'Cable Twist', equipment: 'Cable', sets: 3, reps: '12-15' },
     ],
   },
   {
@@ -71,13 +71,13 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
     name: '4 - Lower B',
     createdBy: 'Diego',
     exercises: [
-      { name: 'Hack Squat Machine', sets: 3, reps: '8-10' },
-      { name: 'Lying Leg Curl Machine', sets: 3, reps: '10-12' },
-      { name: 'Hip Abductor Machine', sets: 3, reps: '15-20' },
-      { name: 'Glute Kickback Machine', sets: 3, reps: '12-15' },
-      { name: 'T-Bar Row Machine', sets: 3, reps: '8-10' },
-      { name: 'Seated Calf Raise Machine', sets: 3, reps: '15-20' },
-      { name: 'Cable Woodchopper', sets: 3, reps: '12/side' },
+      { name: 'Squat', equipment: 'Machine', sets: 3, reps: '8-10' },
+      { name: 'Leg Curl', equipment: 'Machine', sets: 3, reps: '10-12' },
+      { name: 'Hip Abduction', equipment: 'Machine', sets: 3, reps: '15-20' },
+      { name: 'Glute Kickback', equipment: 'Machine', sets: 3, reps: '12-15' },
+      { name: 'Bent Over Row', equipment: 'Machine', sets: 3, reps: '8-10' },
+      { name: 'Calf Raise', equipment: 'Machine', sets: 3, reps: '15-20' },
+      { name: 'Cable Twist', equipment: 'Cable', sets: 3, reps: '12/side' },
     ],
   },
   {
@@ -85,11 +85,11 @@ export const STARTER_PLANS: WorkoutTemplate[] = [
     name: '5 - Cardio + Rehab',
     createdBy: 'Diego',
     exercises: [
-      { name: 'Stationary Bike', sets: 1, reps: '30 min, 125-140 bpm' },
+      { name: 'Bike', sets: 1, reps: '30 min, 125-140 bpm' },
       { name: 'Treadmill', sets: 1, reps: '10 min backward walk, slow, hold rails' },
-      { name: 'TRX Row', sets: 3, reps: '12' },
-      { name: 'TRX Y and T Raise', sets: 3, reps: '10 each' },
-      { name: 'TRX Face Pull', sets: 3, reps: '12' },
+      { name: 'Face Pull', equipment: 'Cable', sets: 3, reps: '12' },
+      { name: 'Rear Delt Fly', equipment: 'Dumbbell', sets: 3, reps: '10 each' },
+      { name: 'Bird Dog', sets: 3, reps: '12' },
     ],
   },
 ];
@@ -112,16 +112,17 @@ function sampleExercise(
   user: WorkoutUser,
   weekIndex: number,
 ): WorkoutExercise {
-  const n = nameNumber(item.name);
+  const n = nameNumber(item.name + (item.equipment ?? ''));
   if (EXERCISE_TO_CATEGORY[item.name]?.label === CARDIO_LABEL) {
     const minutes = parseInt(item.reps ?? '', 10) || 20;
     return {
       name: item.name,
       sets: [{ reps: 0, weight: 0, time: minutes, intensity: 4 + (n % 4) }],
       notes: '',
+      equipment: item.equipment ?? null,
     };
   }
-  const bodyweight = item.name.startsWith('TRX');
+  const bodyweight = !item.equipment;
   const lowReps = parseInt(item.reps ?? '', 10) || 10;
   const base = 40 + (n % 12) * 10 + (user === 'Kevin' ? 10 : 0);
   const weight = bodyweight ? 0 : base + weekIndex * 5;
@@ -131,7 +132,7 @@ function sampleExercise(
     time: 0,
     intensity: 0,
   }));
-  return { name: item.name, sets, notes: '' };
+  return { name: item.name, sets, notes: '', equipment: item.equipment ?? null };
 }
 
 /** Builds the sample data, dated so it ends "today". */

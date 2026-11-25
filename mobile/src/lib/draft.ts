@@ -1,6 +1,7 @@
 // The workout being typed in (a "draft") and the rules for turning plans and
 // past workouts into one, and a finished one into a saved workout. Ported
 // from the website's Log form (app/src/routes/index.tsx) so both behave alike.
+import { defaultEquipment, type Equipment } from './movements';
 import type { TemplateExercise, TemplateLink, Workout, WorkoutExercise, WorkoutSet } from './types';
 import {
   CARDIO_LABEL,
@@ -30,6 +31,8 @@ export type DraftExercise = {
   name: string;
   customName: string;
   customCategory: string;
+  /** Equipment picked for this movement; null for none (or not picked yet). */
+  equipment?: Equipment | null;
   sets: DraftSet[];
   /** The partner's sets in Together Mode. */
   setsOther: DraftSet[];
@@ -74,6 +77,7 @@ export function emptyExercise(): DraftExercise {
     name: '',
     customName: '',
     customCategory: '',
+    equipment: null,
     sets: makeSets(),
     setsOther: makeSets(),
     notes: '',
@@ -94,6 +98,7 @@ export function templateToDraft(
       name: known ? t.name : OTHER_VALUE,
       customName: known ? '' : t.name,
       customCategory: '',
+      equipment: known ? defaultEquipment(t.name, t.equipment ?? null) : null,
       sets: makeSets(count),
       setsOther: makeSets(count),
       targetReps: t.reps,
@@ -125,6 +130,7 @@ export function workoutExercisesToDraft(
       name: known ? ex.name : OTHER_VALUE,
       customName: known ? '' : ex.name,
       customCategory: known ? '' : isCardio ? CARDIO_LABEL : '',
+      equipment: known ? (ex.equipment ?? null) : null,
       sets,
       setsOther: makeSets(sets.length),
       notes: ex.notes || '',
@@ -250,8 +256,9 @@ export function buildFromDraft(
       ? [...(ex.sessionNotes ?? []), typed].filter(Boolean).join('\n')
       : typed;
     const sets = cleanSets(ex.sets, isCardio);
+    const equipment = ex.name === OTHER_VALUE ? null : (ex.equipment ?? null);
     if (sets.length) {
-      out.exercises.push({ name, sets, notes: workoutNotes });
+      out.exercises.push({ name, sets, notes: workoutNotes, equipment });
       if (opts.withSavedNotes && typed) {
         out.notesToSave.push({ user: opts.currentUser, name, text: typed });
       }
@@ -259,7 +266,7 @@ export function buildFromDraft(
     if (opts.togetherMode) {
       const setsOther = cleanSets(ex.setsOther, isCardio);
       if (setsOther.length) {
-        out.exercisesOther.push({ name, sets: setsOther, notes: workoutNotes });
+        out.exercisesOther.push({ name, sets: setsOther, notes: workoutNotes, equipment });
         if (opts.withSavedNotes && typed) {
           out.notesToSave.push({ user: opts.otherUser, name, text: typed });
         }
@@ -276,7 +283,12 @@ export function buildFromDraft(
 export function draftToTemplateExercises(exercises: DraftExercise[]): TemplateExercise[] {
   return exercises
     .filter((ex) => finalName(ex))
-    .map((ex) => ({ name: finalName(ex), sets: ex.sets.length, reps: ex.targetReps }));
+    .map((ex) => ({
+      name: finalName(ex),
+      sets: ex.sets.length,
+      reps: ex.targetReps,
+      ...(ex.name !== OTHER_VALUE && ex.equipment ? { equipment: ex.equipment } : {}),
+    }));
 }
 
 /** A one-line summary of how an exercise went last time, e.g. "10×135lbs, 8×135lbs". */

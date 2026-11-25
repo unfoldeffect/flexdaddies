@@ -80,6 +80,15 @@ export const MOVEMENT_IMAGES: Record<string, ImageSourcePropType> = {
   'Yoga': require('../../assets/exercises/yoga.jpg'),
 };
 
+/** Gold-free stand-in (Aerobics, gold taken out) for exercises people add themselves. */
+export const STAND_IN_IMAGE: ImageSourcePropType = require('../../assets/exercises/stand-in.jpg');
+
 export function movementImage(name: string): ImageSourcePropType | undefined {
   return MOVEMENT_IMAGES[name];
+}
+
+/** The movement's own picture, or the stand-in for any other named exercise. */
+export function exerciseImage(name: string): ImageSourcePropType | undefined {
+  if (!name.trim()) return undefined;
+  return MOVEMENT_IMAGES[name] ?? STAND_IN_IMAGE;
 }

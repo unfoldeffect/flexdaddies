@@ -310,12 +310,37 @@ async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, work
   check('Kevin gets his own empty Log form', (await page.getByRole('button', { name: 'Choose an exercise' }).count()) === 1);
 }
 
+async function addExercise({ page, shot, names, count }) {
+  await page.getByRole('button', { name: 'Choose an exercise' }).click();
+  await page.waitForTimeout(500);
+  check('the list offers "Add an exercise"', (await page.getByRole('button', { name: 'Add an exercise' }).count()) === 1);
+  check('"Other (type your own)" is gone', (await count('Other (type your own)')) === 0);
+  await page.getByRole('button', { name: 'Add an exercise' }).click();
+  await page.waitForTimeout(700);
+  await page.getByLabel('Exercise name').fill('Sled Push');
+  await page.getByRole('radio', { name: 'Category: Legs' }).click();
+  await shot('add-01-typed');
+  check('a typed exercise gets the stand-in picture', (await page.locator('img').count()) >= 1);
+  await page.getByRole('button', { name: 'Save to my list' }).click();
+  await page.waitForTimeout(800);
+  await shot('add-02-saved');
+  check('"Save to my list" keeps it on the card', (await names())[0] === 'Sled Push');
+  await page.getByRole('button', { name: /^Exercise: Sled Push/ }).click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Search exercises').fill('Sled');
+  await page.waitForTimeout(300);
+  await shot('add-03-on-list');
+  check('it is on the list before any workout is logged', (await page.getByRole('button', { name: 'Sled Push', exact: true }).count()) === 1);
+  check('a saved name is not offered as new again', (await page.getByRole('button', { name: /Add "Sled" as a new exercise/ }).count()) === 1 && (await page.getByRole('button', { name: /Add "Sled Push"/ }).count()) === 0);
+}
+
 (async () => {
   const server = await serve();
   const browser = await chromium.launch();
   await scenario(browser, 'reorder', reorder);
   await scenario(browser, 'log-history', logAndHistory);
   await scenario(browser, 'body-stats-settings', bodyStatsSettings);
+  await scenario(browser, 'add-exercise', addExercise);
   await browser.close();
   server.close();
   console.log(failures ? `\n${failures} CHECK(S) FAILED` : '\nALL CHECKS PASSED');

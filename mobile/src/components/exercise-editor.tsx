@@ -2,7 +2,7 @@
 import { useRef, useState, type ComponentRef } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
-import type { NotesApi } from '../data/store';
+import { useStore, type NotesApi } from '../data/store';
 import {
   clampSetsForCategory,
   lastWorkoutSummary,
@@ -15,7 +15,7 @@ import {
   type ToCategory,
 } from '../lib/draft';
 import { tapLight } from '../lib/haptics';
-import { movementImage } from '../lib/movement-images';
+import { exerciseImage } from '../lib/movement-images';
 import { defaultEquipment, exerciseKey, findMovement, type Equipment } from '../lib/movements';
 import type { WorkoutExercise } from '../lib/types';
 import {
@@ -87,6 +87,7 @@ export function ExerciseEditor({
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
+  const { registerExercise } = useStore();
   const customNameRef = useRef<TextInputRef>(null);
 
   const isOther = exercise.name === OTHER_VALUE;
@@ -98,7 +99,8 @@ export function ExerciseEditor({
   const movement = isOther ? undefined : findMovement(exercise.name);
   const choices = movement?.equipment ?? [];
   const equipment = exercise.equipment ?? null;
-  const picture = movement ? movementImage(movement.name) : undefined;
+  // Our own picture for the 75 movements; the gold-free stand-in for anything added.
+  const picture = exerciseImage(isOther ? exercise.customName : exercise.name);
   /** Buttons when there is something to choose; one fixed kind is just named. */
   const showEquipmentButtons = choices.length > 1 || (!!movement?.optionalEquipment && choices.length === 1);
   const fixedEquipment = choices.length === 1 && !movement?.optionalEquipment ? choices[0] : null;
@@ -142,6 +144,32 @@ export function ExerciseEditor({
     onChange({
       ...exercise,
       customCategory: cat,
+      sets: clampSetsForCategory(exercise.sets, cardioNext),
+      setsOther: clampSetsForCategory(exercise.setsOther, cardioNext),
+    });
+  };
+
+  /** "Save to my list": keep a typed exercise for next time without logging a workout. */
+  const typedName = exercise.customName.trim();
+  const alreadyListed = groups.find((g) =>
+    g.options.some((o) => o.toLowerCase() === typedName.toLowerCase()),
+  );
+  const saveToList = () => {
+    if (!typedName) return;
+    tapLight();
+    const listed = alreadyListed?.options.find((o) => o.toLowerCase() === typedName.toLowerCase());
+    if (!listed) registerExercise(typedName, exercise.customCategory || OTHER_CATEGORY.label);
+    // The card now holds the saved exercise, as if it had been picked from the list.
+    const name = listed ?? typedName;
+    const cardioNext = listed
+      ? toCategory[listed]?.label === CARDIO_LABEL
+      : exercise.customCategory === CARDIO_LABEL;
+    onChange({
+      ...exercise,
+      name,
+      customName: '',
+      customCategory: '',
+      equipment: listed ? defaultEquipment(listed, lastPerformance[listed]?.equipment ?? null) : null,
       sets: clampSetsForCategory(exercise.sets, cardioNext),
       setsOther: clampSetsForCategory(exercise.setsOther, cardioNext),
     });
@@ -273,7 +301,9 @@ export function ExerciseEditor({
           style={[styles.selectText, !exercise.name && { color: colors.muted }]}
           numberOfLines={2}
         >
-          {isOther ? 'Other (type your own)' : exercise.name || 'Choose an exercise'}
+          {isOther
+            ? exercise.customName.trim() || 'Add an exercise'
+            : exercise.name || 'Choose an exercise'}
         </Text>
         <Icon name="chevron-down" color={colors.muted} />
       </Pressable>
@@ -361,6 +391,14 @@ export function ExerciseEditor({
               );
             })}
           </ScrollView>
+          <SmallButton
+            gold
+            icon={alreadyListed ? 'check' : 'content-save-outline'}
+            label={alreadyListed ? 'Use the one on my list' : 'Save to my list'}
+            disabled={!typedName}
+            onPress={saveToList}
+            style={styles.saveToList}
+          />
         </>
       )}
 
@@ -648,6 +686,7 @@ const styles = themed(() => StyleSheet.create({
     backgroundColor: colors.field,
   },
   catChipText: { fontSize: 14, fontWeight: '700' },
+  saveToList: { alignSelf: 'flex-start', marginBottom: 10 },
   target: { fontSize: 14, color: colors.muted, marginBottom: 8 },
   targetValue: { fontWeight: '700', color: colors.text },
   person: { fontFamily: fonts.headingBold, fontSize: 15, letterSpacing: 0.4, marginBottom: 6 },

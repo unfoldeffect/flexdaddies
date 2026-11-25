@@ -1,10 +1,10 @@
 // The exercise list as a native sheet: search at the top, exercises grouped
-// by colour-coded category, and "type your own" for anything not listed.
+// by colour-coded category, and "Add an exercise" for anything not listed.
 import { useMemo, useState } from 'react';
 import { Image, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { tapLight } from '../lib/haptics';
-import { movementImage } from '../lib/movement-images';
+import { exerciseImage } from '../lib/movement-images';
 import { OTHER_VALUE, type ExerciseGroup } from '../lib/workout-data';
 import { colors, fonts, themed } from '../theme';
 import { Sheet } from './sheet';
@@ -16,7 +16,7 @@ type Props = {
   /** The exercise currently chosen ("" for none). */
   selected: string;
   onPick: (name: string) => void;
-  /** "Type your own", optionally starting from what was searched for. */
+  /** "Add an exercise", optionally starting from what was searched for. */
   onPickCustom: (startingName: string) => void;
   onManage?: () => void;
   onClose: () => void;
@@ -92,7 +92,7 @@ export function ExercisePicker({
             <Text style={styles.customText}>
               {q && !exactMatch
                 ? `Add "${search.trim()}" as a new exercise`
-                : 'Other (type your own)'}
+                : 'Add an exercise'}
             </Text>
           </Pressable>
         }
@@ -106,7 +106,7 @@ export function ExercisePicker({
         )}
         renderItem={({ item }) => {
           const isSelected = item === selected;
-          const picture = movementImage(item);
+          const picture = exerciseImage(item);
           return (
             <Pressable
               accessibilityRole="button"
@@ -118,10 +118,8 @@ export function ExercisePicker({
                 close();
               }}
             >
-              {picture ? (
+              {picture && (
                 <Image source={picture} style={styles.thumb} accessibilityIgnoresInvertColors />
-              ) : (
-                <View style={[styles.thumb, styles.thumbEmpty]} />
               )}
               <Text style={[styles.rowText, isSelected && styles.rowTextSelected]}>{item}</Text>
               {isSelected && <Icon name="check" color={colors.goldDeep} />}
@@ -212,7 +210,6 @@ const styles = themed(() => StyleSheet.create({
     borderWidth: 1,
     borderColor: colors.line,
   },
-  thumbEmpty: { backgroundColor: colors.surface2 },
   rowText: { flex: 1, fontSize: 18, color: colors.text, paddingVertical: 10 },
   rowTextSelected: { fontWeight: '700' },
   pressed: { opacity: 0.6 },

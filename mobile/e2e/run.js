@@ -67,11 +67,11 @@ async function reorder({ page, shot, names, scroll }) {
   await page.getByRole('button', { name: 'Start from plan 1 - Upper A' }).click();
   await page.waitForTimeout(600);
   const start = await names();
-  check('plan loads 7 exercises in plan order', start.length === 7 && start[0] === 'Chest Press Machine');
+  check('plan loads 7 exercises in plan order', start.length === 7 && start[0] === 'Bench Press');
 
   await page.getByRole('button', { name: 'Move exercise down' }).first().click();
   await page.waitForTimeout(300);
-  check('arrow moves an exercise down one place', (await names())[1] === 'Chest Press Machine');
+  check('arrow moves an exercise down one place', (await names())[1] === 'Bench Press');
   check('offers to save the new order to the plan', (await page.getByRole('button', { name: 'Save this order to plan' }).count()) === 1);
 
   // Drag the first card by its grip and hold near the bottom edge so the page scrolls itself.
@@ -88,7 +88,7 @@ async function reorder({ page, shot, names, scroll }) {
   await page.mouse.up();
   await page.waitForTimeout(400);
   const after = await names();
-  check('drag with auto-scroll moves the card several places', after.indexOf('Incline Dumbbell Press') >= 2, after.join(' | '));
+  check('drag with auto-scroll moves the card several places', after.indexOf('Incline Bench Press') >= 2, after.join(' | '));
   check('the tag goes away on drop', (await page.getByText('Moving', { exact: true }).count()) === 0);
 
   // A plain tap on a grip must not move anything.
@@ -168,7 +168,7 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await page.getByRole('button', { name: 'Start from plan 5 - Cardio + Rehab' }).click();
   await page.waitForTimeout(500);
   check('the typed note is now a saved note', (await count('Felt strong today')) >= 1);
-  check('shows how the exercise went last time', (await count('Last workout: 35min @ 6/10')) === 1);
+  check('shows how the exercise went last time', (await count('Last time: 35min @ 6/10')) === 1);
 
   // Unfinished workouts survive closing and reopening the app.
   await page.getByLabel('time in minutes').first().fill('20');
@@ -189,7 +189,7 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Delete', exact: true }).click();
   await page.waitForTimeout(500);
-  check('deleting asks first, then removes the workout', dialogs.some((d) => d.includes('Delete this workout')) && (await workouts().count()) === total - 1);
+  { const after = await workouts().count(); check('deleting asks first, then removes the workout', dialogs.some((d) => d.includes('Delete this workout')) && after === total - 1, `dialogs=${JSON.stringify(dialogs)} total=${total} after=${after}`); }
 }
 
 async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, workouts }) {
@@ -252,13 +252,13 @@ async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, work
   await page.getByRole('button', { name: 'Save', exact: true }).click();
   await page.waitForTimeout(600);
   check('renaming asks first', dialogs.some((d) => d.includes('Rename "Zercher Squat"')));
-  await page.getByLabel('Search exercises').fill('Sled Push');
-  await page.getByRole('button', { name: 'Remove Sled Push' }).click();
+  await page.getByLabel('Search exercises').fill('Wall Sit');
+  await page.getByRole('button', { name: 'Remove Wall Sit' }).click();
   await page.waitForTimeout(500);
-  check('a removed built-in exercise can be restored', (await page.getByRole('button', { name: 'Restore Sled Push' }).count()) === 1);
-  await page.getByRole('button', { name: 'Restore Sled Push' }).click();
+  check('a removed built-in exercise can be restored', (await page.getByRole('button', { name: 'Restore Wall Sit' }).count()) === 1);
+  await page.getByRole('button', { name: 'Restore Wall Sit' }).click();
   await page.waitForTimeout(400);
-  check('restore puts it back', (await page.getByRole('button', { name: 'Remove Sled Push' }).count()) === 1);
+  check('restore puts it back', (await page.getByRole('button', { name: 'Remove Wall Sit' }).count()) === 1);
   await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForTimeout(500);
   await tab('History');

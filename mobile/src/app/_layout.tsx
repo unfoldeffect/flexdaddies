@@ -1,5 +1,6 @@
 // The frame around every screen: loads the fonts and the data saved on the
-// phone, then shows either "Who's lifting today?" or the four tabs.
+// phone, then shows the sign-in, the first-time setup, "Who's lifting today?"
+// or the four tabs.
 import { Sora_700Bold, Sora_800ExtraBold, useFonts } from '@expo-google-fonts/sora';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as SplashScreen from 'expo-splash-screen';
@@ -12,6 +13,8 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import AppTabs from '@/components/app-tabs';
 import { ProfileSelect } from '@/components/profile-select';
 import { RestTimer } from '@/components/rest-timer';
+import { FirstTimeSetup, SignIn } from '@/components/sign-in';
+import { AuthProvider, useAuth } from '@/data/auth';
 import { LogDraftProvider } from '@/data/log-draft';
 import { StoreProvider, useStore } from '@/data/store';
 import { colors, setThemeMode, themed } from '@/theme';
@@ -24,9 +27,11 @@ export default function RootLayout() {
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
-        <StoreProvider>
-          <App fontsReady={fontsLoaded || !!fontError} />
-        </StoreProvider>
+        <AuthProvider>
+          <StoreProvider>
+            <App fontsReady={fontsLoaded || !!fontError} />
+          </StoreProvider>
+        </AuthProvider>
       </SafeAreaProvider>
     </GestureHandlerRootView>
   );
@@ -34,7 +39,8 @@ export default function RootLayout() {
 
 function App({ fontsReady }: { fontsReady: boolean }) {
   const { ready, user, prefs } = useStore();
-  const loaded = ready && fontsReady;
+  const auth = useAuth();
+  const loaded = ready && fontsReady && auth.ready;
   // Set the look before anything below is drawn. The key makes the whole
   // screen tree redraw when the look is switched in Settings.
   const mode = prefs.theme === 'light' ? 'light' : 'dark';
@@ -48,7 +54,15 @@ function App({ fontsReady }: { fontsReady: boolean }) {
   return (
     <View key={mode} style={styles.root}>
       <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
-      {user ? <SignedIn /> : <ProfileSelect />}
+      {!auth.account ? (
+        <SignIn />
+      ) : !auth.account.name ? (
+        <FirstTimeSetup />
+      ) : user ? (
+        <SignedIn />
+      ) : (
+        <ProfileSelect />
+      )}
     </View>
   );
 }

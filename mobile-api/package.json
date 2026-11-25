@@ -1,0 +1,9 @@
+{
+  "name": "flex-daddies-store-api",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test test/*.test.ts",
+    "dev": "node dev-server.ts 8787 dev.sqlite"
+  }
+}

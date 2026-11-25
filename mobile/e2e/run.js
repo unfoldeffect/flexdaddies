@@ -1,5 +1,8 @@
 // Taps through the whole app in a headless browser and checks the results.
 // Usage: node e2e/run.js <folder made by "expo export --platform web"> [port]
+// The export must be built with EXPO_PUBLIC_API_URL=http://localhost:8791:
+// this script starts the test accounts server (../mobile-api) on that port.
+const { spawn } = require('child_process');
 const fs = require('fs');
 const http = require('http');
 const path = require('path');
@@ -8,6 +11,7 @@ const { chromium, devices } = require('playwright');
 const root = path.resolve(process.argv[2] || 'dist-web');
 const port = Number(process.argv[3] || 4173);
 const URL = `http://localhost:${port}/`;
+const API_PORT = 8791;
 const shots = path.join(__dirname, 'screenshots');
 fs.mkdirSync(shots, { recursive: true });
 
@@ -29,14 +33,43 @@ function serve() {
   return new Promise((resolve) => server.listen(port, () => resolve(server)));
 }
 
+// The store app's accounts server, on this computer, with an empty database each run.
+function serveAccounts() {
+  const child = spawn('node', [path.join(__dirname, '..', '..', 'mobile-api', 'dev-server.ts'), String(API_PORT)], { stdio: ['ignore', 'pipe', 'inherit'] });
+  return new Promise((resolve, reject) => {
+    child.stdout.once('data', () => resolve(child));
+    child.once('exit', (code) => reject(new Error(`accounts server stopped (${code})`)));
+  });
+}
+
+// Signs in with the emailed code (a test server shows it on screen).
+async function signIn(page, email) {
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByRole('button', { name: 'EMAIL ME A CODE' }).click();
+  const line = await page.getByText(/Test build: your code is \d{6}/).innerText();
+  await page.getByLabel('6-digit code').fill(line.match(/\d{6}/)[0]);
+}
+
+async function firstTimeSetup(page, name) {
+  await page.getByLabel('Your first name').fill(name);
+  await page.getByRole('button', { name: 'START LOGGING' }).click();
+}
+
 // Each scenario gets a brand new "phone" (empty storage, so the sample data is loaded fresh).
 async function scenario(browser, name, body) {
   console.log(`\n== ${name} ==`);
   const ctx = await browser.newContext({ ...devices['iPhone 14'] });
+  // The sample data stamps "today" at noon, so before noon a workout or weigh-in logged
+  // by a check would sort ahead of it. Run every check as if it were 3 p.m. today.
+  const afternoon = new Date();
+  afternoon.setHours(15, 0, 0, 0);
+  await ctx.clock.install({ time: afternoon });
   const page = await ctx.newPage();
   const errors = [];
   const dialogs = [];
-  page.on('console', (m) => m.type() === 'error' && errors.push(m.text().slice(0, 300)));
+  // The sign-in scenario types a wrong code on purpose; the browser logs the server's "no".
+  const expected = (text) => name === 'sign-in' && text.includes('status of 400');
+  page.on('console', (m) => m.type() === 'error' && !expected(m.text()) && errors.push(m.text().slice(0, 300)));
   page.on('pageerror', (e) => errors.push(e.message.slice(0, 300)));
   page.on('dialog', (d) => { dialogs.push(d.message()); d.accept(); });
   const t = {
@@ -50,10 +83,15 @@ async function scenario(browser, name, body) {
     workouts: () => page.getByRole('button', { name: /exercises, .* sets/ }),
   };
   await page.goto(URL, { waitUntil: 'networkidle' });
-  await t.shot(`${name}-00-profile`);
-  await page.getByRole('button', { name: 'Continue as Diego' }).click();
-  await page.waitForTimeout(600);
   try {
+    if (name !== 'sign-in') {
+      await signIn(page, `${name}@example.com`);
+      await firstTimeSetup(page, 'Sam');
+      await page.getByRole('button', { name: 'Continue as Diego' }).waitFor();
+      await t.shot(`${name}-00-profile`);
+      await page.getByRole('button', { name: 'Continue as Diego' }).click();
+      await page.waitForTimeout(600);
+    }
     await body(t);
   } catch (e) {
     check(`${name}: ran to the end`, false, e.message.split('\n')[0]);
@@ -184,6 +222,12 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   check('asks before replacing an unfinished workout', dialogs.some((d) => d.includes('unsaved workout')));
 
   await tab('History');
+  // The list draws in batches: wait until it has stopped growing before counting.
+  for (let seen = -1, now = await workouts().count(); now !== seen; ) {
+    seen = now;
+    await page.waitForTimeout(700);
+    now = await workouts().count();
+  }
   const total = await workouts().count();
   await workouts().first().click();
   await page.waitForTimeout(300);
@@ -334,15 +378,100 @@ async function addExercise({ page, shot, names, count }) {
   check('a saved name is not offered as new again', (await page.getByRole('button', { name: /Add "Sled" as a new exercise/ }).count()) === 1 && (await page.getByRole('button', { name: /Add "Sled Push"/ }).count()) === 0);
 }
 
+async function signInFlow({ page, shot, count, dialogs }) {
+  const email = 'sign-in@example.com';
+  await shot('signin-01-start');
+  check('the first screen is the sign-in, with no names on it', (await count('Your lifting log.')) === 1 && (await count('Diego')) === 0 && (await count('Kevin')) === 0);
+  await page.getByRole('button', { name: 'Continue with Apple' }).click();
+  check('Apple says it is coming soon', (await count('Apple sign-in is coming soon')) === 1);
+  await page.getByRole('button', { name: 'Continue with Google' }).click();
+  check('Google says it is coming soon', (await count('Google sign-in is coming soon')) === 1);
+  await page.getByLabel('Email', { exact: true }).fill('not-an-email');
+  await page.getByRole('button', { name: 'EMAIL ME A CODE' }).click();
+  check('a bad email is caught', (await count('Enter your email address')) === 1);
+
+  await page.getByLabel('Email', { exact: true }).fill(email);
+  await page.getByRole('button', { name: 'EMAIL ME A CODE' }).click();
+  const line = await page.getByText(/Test build: your code is \d{6}/).innerText();
+  const code = line.match(/\d{6}/)[0];
+  await shot('signin-02-code');
+  check('the code screen names the email', (await count(email)) >= 1);
+  await page.getByLabel('6-digit code').fill(code === '000000' ? '111111' : '000000');
+  await page.getByText("That code isn't right").waitFor();
+  check('a wrong code is refused', true);
+  await page.getByLabel('6-digit code').fill('');
+  await page.getByLabel('6-digit code').fill(code);
+  await page.getByText('Welcome!').waitFor();
+  await shot('signin-03-setup');
+  check('the right code leads to the first-time setup', true);
+
+  await page.getByRole('button', { name: 'START LOGGING' }).click();
+  check('setup asks for a name', (await count('Type your first name.')) === 1);
+  await page.getByRole('radio', { name: 'Kilos' }).click();
+  await firstTimeSetup(page, 'Sam');
+  await page.getByRole('button', { name: 'Continue as Diego' }).waitFor();
+  check('after setup the app opens', true);
+  await page.getByRole('button', { name: 'Continue as Diego' }).click();
+  await page.waitForTimeout(500);
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  check('Settings shows who is signed in', (await count(`Signed in as Sam, ${email}`)) === 1);
+  await page.mouse.move(195, 420);
+  await page.mouse.wheel(0, 3000);
+  await page.waitForTimeout(400);
+  await shot('signin-04-settings-account');
+
+  await page.reload({ waitUntil: 'networkidle' });
+  await page.waitForTimeout(800);
+  check('closing and reopening the app stays signed in', (await count('Your lifting log.')) === 0 && (await page.getByRole('tab', { name: 'Log' }).count()) === 1);
+  await page.getByRole('tab', { name: 'Body' }).click();
+  await page.waitForTimeout(500);
+  check('the kilos choice from setup is kept', (await page.getByLabel('Weight in kg', { exact: true }).count()) === 1);
+  await page.getByRole('tab', { name: 'Log' }).click();
+  await page.waitForTimeout(400);
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  await page.getByRole('button', { name: 'Sign out' }).click();
+  await page.getByText('Your lifting log.').waitFor();
+  check('Sign out asks first, then returns to the sign-in', dialogs.some((d) => d.includes('Sign out?')));
+
+  await page.waitForTimeout(400);
+  await signIn(page, email);
+  await page.getByRole('tab', { name: 'Log' }).waitFor();
+  check('signing in again skips setup and keeps the workouts on the phone', (await count('Welcome!')) === 0);
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  await page.getByRole('button', { name: 'Delete my account' }).click();
+  await page.getByText('Your lifting log.').waitFor();
+  check('Delete my account asks first, then returns to the sign-in', dialogs.some((d) => d.includes('Delete your account?')));
+
+  await page.waitForTimeout(400);
+  await signIn(page, email);
+  await page.getByText('Welcome!').waitFor();
+  check('after deleting, the same email starts a brand new account', true);
+  await firstTimeSetup(page, 'Sam');
+  await page.getByRole('button', { name: 'Continue as Diego' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.waitForTimeout(500);
+  check('deleting the account erased the workouts on the phone', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) === 0);
+}
+
 (async () => {
+  const accounts = await serveAccounts();
   const server = await serve();
   const browser = await chromium.launch();
+  await scenario(browser, 'sign-in', signInFlow);
   await scenario(browser, 'reorder', reorder);
   await scenario(browser, 'log-history', logAndHistory);
   await scenario(browser, 'body-stats-settings', bodyStatsSettings);
   await scenario(browser, 'add-exercise', addExercise);
   await browser.close();
   server.close();
+  accounts.kill();
   console.log(failures ? `\n${failures} CHECK(S) FAILED` : '\nALL CHECKS PASSED');
   process.exit(failures ? 1 : 0);
 })();

@@ -1,0 +1,16 @@
+// For putting the accounts server on Cloudflare. Not deployed yet:
+// the database below has to be created on Diego's Cloudflare account first
+// (wrangler d1 create flex-daddies-store), and its id pasted in here.
+{
+  "name": "flex-daddies-store-api",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-11-01",
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "flex-daddies-store",
+      "database_id": "TO-BE-CREATED",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

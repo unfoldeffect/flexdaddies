@@ -1,7 +1,9 @@
-// Settings: rest timer, units, and the data kept on this phone.
+// Settings: look, rest timer, units, the data kept on this phone, and the account.
 import Constants from 'expo-constants';
+import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, View } from 'react-native';
 
+import { useAuth } from '../data/auth';
 import { REST_CHOICES } from '../data/storage';
 import { useStore } from '../data/store';
 import { confirm } from '../lib/dialogs';
@@ -13,6 +15,39 @@ import { Chip, OutlineButton, UnitToggle } from './ui';
 export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { prefs, setPrefs, db, hasSample, removeSample, resetToSample, eraseEverything } =
     useStore();
+  const { account, signOut, deleteAccount } = useAuth();
+  const [accountProblem, setAccountProblem] = useState<string | null>(null);
+
+  const askSignOut = async () => {
+    buzzWarning();
+    const yes = await confirm({
+      title: 'Sign out?',
+      message: 'Your workouts stay on this phone. Sign in again with the same email to carry on.',
+      confirmLabel: 'Sign out',
+    });
+    if (yes) await signOut();
+  };
+
+  const askDeleteAccount = async () => {
+    buzzWarning();
+    const yes = await confirm({
+      title: 'Delete your account?',
+      message:
+        'Your account is deleted for good, and every workout, weigh-in, measurement, note and plan on this phone is erased. This cannot be undone.',
+      confirmLabel: 'Delete my account',
+      destructive: true,
+    });
+    if (!yes) return;
+    setAccountProblem(null);
+    const r = await deleteAccount();
+    if (!r.ok) {
+      setAccountProblem(`${r.message} Your account was not deleted.`);
+      return;
+    }
+    await eraseEverything();
+    setPrefs({ user: null });
+    buzzSuccess();
+  };
 
   const ask = async (
     title: string,
@@ -144,6 +179,25 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           />
         </View>
 
+        {account && (
+          <>
+            <Text style={styles.heading}>ACCOUNT</Text>
+            <View style={styles.card}>
+              <Text style={styles.body}>
+                Signed in as {account.name ? `${account.name}, ` : ''}
+                {account.email}
+              </Text>
+              <OutlineButton label="Sign out" onPress={askSignOut} />
+              <OutlineButton label="Delete my account" onPress={askDeleteAccount} />
+              {accountProblem && (
+                <Text style={styles.problem} accessibilityRole="alert">
+                  {accountProblem}
+                </Text>
+              )}
+            </View>
+          </>
+        )}
+
         <Text style={styles.version}>
           Flex Daddies {Constants.expoConfig?.version ?? ''} · preview build
         </Text>
@@ -180,6 +234,7 @@ const styles = themed(() => StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 14 },
   hint: { fontSize: 14, color: colors.muted },
+  problem: { fontSize: 15, fontWeight: '600', color: colors.danger },
   body: { fontSize: 15, color: colors.text, lineHeight: 21 },
   version: { textAlign: 'center', color: colors.muted, fontSize: 13, marginTop: 18 },
 }));

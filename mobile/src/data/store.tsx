@@ -108,6 +108,11 @@ export type Store = {
   removeSample: () => Promise<boolean>;
   resetToSample: () => Promise<boolean>;
   eraseEverything: () => Promise<boolean>;
+
+  /** For the account backup: everything on the phone, hidden partner entries included. */
+  fullDb: Db;
+  /** For the account backup: replace everything on the phone with this copy. */
+  replaceDb: (db: Db) => Promise<boolean>;
 };
 
 const StoreContext = createContext<Store | null>(null);
@@ -358,10 +363,13 @@ export function StoreProvider({
       resetToSample: () =>
         commit(() => (prefsRef.current.partnerOn ? buildSampleData() : withoutPartner(buildSampleData()))),
       eraseEverything: () => commit(() => ({ ...EMPTY_DB })),
+      fullDb: db,
+      replaceDb: (next) => commit(() => next),
     };
   }, [
     ready,
     shownDb,
+    db,
     prefs,
     setPrefs,
     user,

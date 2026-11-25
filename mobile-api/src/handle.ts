@@ -1,5 +1,6 @@
 // The store app's accounts: sign in with a 6-digit code sent by email,
-// stay signed in, set a name and units, sign out, delete the account.
+// stay signed in, set a name and units, keep a saved copy of the phone's data,
+// sign out, delete the account.
 // Runs on Cloudflare Workers with a D1 database, and on a Mac for testing
 // (dev-server.ts). No passwords are ever stored.
 
@@ -36,7 +37,7 @@ type UserRow = { id: string; email: string; name: string; weight_unit: string };
 
 const CORS: Record<string, string> = {
   'access-control-allow-origin': '*',
-  'access-control-allow-methods': 'GET, POST, PATCH, DELETE, OPTIONS',
+  'access-control-allow-methods': 'GET, POST, PUT, PATCH, DELETE, OPTIONS',
   'access-control-allow-headers': 'authorization, content-type',
   'access-control-max-age': '86400',
 };
@@ -93,6 +94,78 @@ const publicUser = (u: UserRow) => ({
   name: u.name,
   weightUnit: u.weight_unit === 'kg' ? 'kg' : 'lbs',
 });
+
+/** The most one account's saved copy may hold, before squeezing (years of daily workouts). */
+export const MAX_DATA_BYTES = 8_000_000;
+
+async function gzip(text: string): Promise<string> {
+  const squeezed = new Blob([text]).stream().pipeThrough(new CompressionStream('gzip'));
+  const bytes = new Uint8Array(await new Response(squeezed).arrayBuffer());
+  let binary = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(binary);
+}
+
+async function gunzip(base64: string): Promise<string> {
+  const binary = atob(base64);
+  const bytes = new Uint8Array(binary.length);
+  for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+  const opened = new Blob([bytes]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return new Response(opened).text();
+}
+
+type DataRow = { rev: number; data_gz: string };
+
+async function savedCopy(env: Env, userId: string) {
+  const row = await env.DB.prepare('SELECT rev, data_gz FROM user_data WHERE user_id = ?')
+    .bind(userId)
+    .first<DataRow>();
+  if (!row) return { rev: 0, data: null as unknown };
+  return { rev: row.rev, data: JSON.parse(await gunzip(row.data_gz)) as unknown };
+}
+
+/** Saves the phone's data, but only on top of the copy that phone last saw. */
+async function saveCopy(request: Request, env: Env, user: UserRow, now: number): Promise<Response> {
+  const text = await request.text();
+  if (text.length > MAX_DATA_BYTES) return fail(413, 'too_big', 'That is more than one account can hold.');
+  let body: { baseRev?: unknown; data?: unknown };
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return fail(400, 'bad_data', 'That could not be read.');
+  }
+  const { baseRev, data } = body ?? {};
+  if (!Number.isInteger(baseRev) || !data || typeof data !== 'object' || Array.isArray(data)) {
+    return fail(400, 'bad_data', 'That could not be read.');
+  }
+  const current = await env.DB.prepare('SELECT rev FROM user_data WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ rev: number }>();
+  const rev = current?.rev ?? 0;
+  if (baseRev !== rev) {
+    // Another phone saved in between: hand back the newer copy to merge.
+    return json(409, { error: 'newer_copy', message: 'Another phone saved first.', ...(await savedCopy(env, user.id)) });
+  }
+  const dataText = JSON.stringify(data);
+  const squeezed = await gzip(dataText);
+  // The "WHERE rev" guards against two saves landing at the same moment.
+  await env.DB.prepare(
+    `INSERT INTO user_data (user_id, rev, data_gz, bytes, updated_at) VALUES (?, 1, ?, ?, ?)
+     ON CONFLICT(user_id) DO UPDATE SET rev = user_data.rev + 1, data_gz = excluded.data_gz,
+       bytes = excluded.bytes, updated_at = excluded.updated_at WHERE user_data.rev = ?`,
+  )
+    .bind(user.id, squeezed, dataText.length, now, rev)
+    .run();
+  const after = await env.DB.prepare('SELECT rev FROM user_data WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ rev: number }>();
+  if (after?.rev !== rev + 1) {
+    return json(409, { error: 'newer_copy', message: 'Another phone saved first.', ...(await savedCopy(env, user.id)) });
+  }
+  return json(200, { ok: true, rev: rev + 1 });
+}
 
 async function readBody(request: Request): Promise<Record<string, unknown>> {
   try {
@@ -250,17 +323,21 @@ export async function handle(request: Request, env: Env, now: number = Date.now(
     if (route === 'POST /auth/email/start') return await startEmail(request, env, now);
     if (route === 'POST /auth/email/verify') return await verifyEmail(request, env, now);
 
-    if (route === 'GET /me' || route === 'PATCH /me' || route === 'DELETE /me' || route === 'POST /auth/signout') {
+    const signedInRoutes = ['GET /me', 'PATCH /me', 'DELETE /me', 'POST /auth/signout', 'GET /data', 'PUT /data'];
+    if (signedInRoutes.includes(route)) {
       const who = await signedInUser(request, env, now);
       if (!who) return fail(401, 'signed_out', 'Sign in again.');
       if (route === 'GET /me') return json(200, { user: publicUser(who.user) });
       if (route === 'PATCH /me') return await updateMe(request, env, who.user);
+      if (route === 'GET /data') return json(200, await savedCopy(env, who.user.id));
+      if (route === 'PUT /data') return await saveCopy(request, env, who.user, now);
       if (route === 'POST /auth/signout') {
         await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(who.tokenHash).run();
         return json(200, { ok: true });
       }
-      // Delete my account: the account, every signed-in phone and any pending code.
+      // Delete my account: the account, its saved data, every signed-in phone and any pending code.
       await env.DB.batch([
+        env.DB.prepare('DELETE FROM user_data WHERE user_id = ?').bind(who.user.id),
         env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(who.user.id),
         env.DB.prepare('DELETE FROM login_codes WHERE email = ?').bind(who.user.email),
         env.DB.prepare('DELETE FROM users WHERE id = ?').bind(who.user.id),

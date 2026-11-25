@@ -171,3 +171,59 @@ test('only hashes of codes and tokens are stored', async () => {
   const s = await env.DB.prepare('SELECT token_hash FROM sessions').first<{ token_hash: string }>();
   assert.notEqual(s?.token_hash, done.data.token);
 });
+
+test('a phone saves its data to the account and a new phone gets it back', async () => {
+  const env = freshEnv();
+  const phone = await signIn(env);
+  assert.deepEqual((await call(env, 'GET', '/data', undefined, phone.token)).data, { rev: 0, data: null });
+  const data = { workouts: [{ id: 'w1', user: 'me', note: 'café ☕' }], templates: [] };
+  const saved = await call(env, 'PUT', '/data', { baseRev: 0, data }, phone.token);
+  assert.deepEqual([saved.status, saved.data.rev], [200, 1]);
+  const newPhone = await signIn(env, 'sam@example.com', 1_000_000 + MIN);
+  assert.deepEqual((await call(env, 'GET', '/data', undefined, newPhone.token)).data, { rev: 1, data });
+});
+
+test('a save on top of an old copy is refused and handed the newer copy', async () => {
+  const env = freshEnv();
+  const a = await signIn(env);
+  const b = await signIn(env, 'sam@example.com', 1_000_000 + MIN);
+  await call(env, 'PUT', '/data', { baseRev: 0, data: { workouts: [1] } }, a.token);
+  const late = await call(env, 'PUT', '/data', { baseRev: 0, data: { workouts: [2] } }, b.token);
+  assert.equal(late.status, 409);
+  assert.deepEqual([late.data.rev, late.data.data], [1, { workouts: [1] }]);
+  const merged = await call(env, 'PUT', '/data', { baseRev: 1, data: { workouts: [1, 2] } }, b.token);
+  assert.deepEqual([merged.status, merged.data.rev], [200, 2]);
+});
+
+test('saved data is private to its account, needs signing in, and must be an object', async () => {
+  const env = freshEnv();
+  const sam = await signIn(env);
+  const kim = await signIn(env, 'kim@example.com');
+  await call(env, 'PUT', '/data', { baseRev: 0, data: { workouts: ['sam'] } }, sam.token);
+  assert.deepEqual((await call(env, 'GET', '/data', undefined, kim.token)).data, { rev: 0, data: null });
+  assert.equal((await call(env, 'GET', '/data')).status, 401);
+  assert.equal((await call(env, 'PUT', '/data', { baseRev: 0, data: [1] }, sam.token)).status, 400);
+  assert.equal((await call(env, 'PUT', '/data', { data: {} }, sam.token)).status, 400);
+});
+
+test('the saved copy is squeezed, and a big one still comes back whole', async () => {
+  const env = freshEnv();
+  const { token } = await signIn(env);
+  const workouts = Array.from({ length: 3000 }, (_, i) => ({ id: `w${i}`, user: 'me', exercises: [{ name: 'Bench Press', sets: [{ reps: 8, weight: 135 }] }] }));
+  assert.equal((await call(env, 'PUT', '/data', { baseRev: 0, data: { workouts } }, token)).status, 200);
+  const row = await env.DB.prepare('SELECT length(data_gz) AS stored, bytes FROM user_data').first<{ stored: number; bytes: number }>();
+  assert.ok(row!.stored < row!.bytes / 5, `stored ${row!.stored} of ${row!.bytes}`);
+  const back = await call(env, 'GET', '/data', undefined, token);
+  assert.equal(back.data.data.workouts.length, 3000);
+});
+
+test('delete my account removes the saved data too', async () => {
+  const env = freshEnv();
+  const { token } = await signIn(env);
+  await call(env, 'PUT', '/data', { baseRev: 0, data: { workouts: [1] } }, token);
+  await call(env, 'DELETE', '/me', undefined, token);
+  const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM user_data').first<{ n: number }>();
+  assert.equal(left?.n, 0);
+  const again = await signIn(env, 'sam@example.com', 1_000_000 + 5 * MIN);
+  assert.deepEqual((await call(env, 'GET', '/data', undefined, again.token)).data, { rev: 0, data: null });
+});

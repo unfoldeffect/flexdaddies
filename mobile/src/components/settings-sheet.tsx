@@ -4,8 +4,10 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-native';
 
 import { useAuth } from '../data/auth';
+import { forgetBackup, useBackupStatus } from '../data/backup';
 import { REST_CHOICES } from '../data/storage';
 import { useStore } from '../data/store';
+import { describeBackup } from '../lib/backup';
 import { confirm } from '../lib/dialogs';
 import { buzzSuccess, buzzWarning, tapLight } from '../lib/haptics';
 import { colors, fonts, themed } from '../theme';
@@ -16,6 +18,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const { prefs, setPrefs, db, hasSample, removeSample, resetToSample, eraseEverything } =
     useStore();
   const { account, signOut, deleteAccount } = useAuth();
+  const backup = useBackupStatus();
   const [accountProblem, setAccountProblem] = useState<string | null>(null);
 
   const askSignOut = async () => {
@@ -33,7 +36,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     const yes = await confirm({
       title: 'Delete your account?',
       message:
-        'Your account is deleted for good, and every workout, weigh-in, measurement, note and plan on this phone is erased. This cannot be undone.',
+        'Your account and its backup are deleted for good, and every workout, weigh-in, measurement, note and plan on this phone is erased. This cannot be undone.',
       confirmLabel: 'Delete my account',
       destructive: true,
     });
@@ -44,6 +47,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
       setAccountProblem(`${r.message} Your account was not deleted.`);
       return;
     }
+    await forgetBackup();
     await eraseEverything();
     setPrefs({ partnerOn: false, partnerName: '' });
     buzzSuccess();
@@ -169,7 +173,11 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
 
         <Text style={styles.heading}>DATA ON THIS PHONE</Text>
         <View style={styles.card}>
-          <Text style={styles.body}>Your workouts are kept on this phone.</Text>
+          <Text style={styles.body}>
+            {backup.state === 'off'
+              ? 'Your workouts are kept on this phone.'
+              : `Your workouts are kept on this phone and backed up to your account. ${describeBackup(backup)}`}
+          </Text>
           <Text style={styles.hint}>
             {db.workouts.length} workouts · {db.weighIns.length} weigh-ins ·{' '}
             {db.measurements.length} measurements · {db.templates.length} plans

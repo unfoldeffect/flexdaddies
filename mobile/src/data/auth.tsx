@@ -3,7 +3,14 @@
 // say); the server is only asked in the background whether it still stands.
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 
-import { apiBase, makeAuthApi, type Account, type ApiResult, type Session } from '../lib/auth-api';
+import {
+  apiBase,
+  makeAuthApi,
+  type Account,
+  type ApiResult,
+  type AuthApi,
+  type Session,
+} from '../lib/auth-api';
 import { clearSession, loadSession, saveSession } from './auth-storage';
 
 export type Auth = {
@@ -18,6 +25,8 @@ export type Auth = {
   saveProfile: (patch: { name?: string; weightUnit?: 'lbs' | 'kg' }) => Promise<ApiResult<Account>>;
   signOut: () => Promise<void>;
   deleteAccount: () => Promise<ApiResult<true>>;
+  /** The server client, for the data backup. */
+  api: AuthApi;
 };
 
 const AuthContext = createContext<Auth | null>(null);
@@ -65,6 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const value = useMemo<Auth>(
     () => ({
       ready,
+      api,
       session,
       account: session?.account ?? null,
       startEmail: async (email) => {

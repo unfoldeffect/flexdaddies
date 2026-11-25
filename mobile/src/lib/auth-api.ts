@@ -6,7 +6,7 @@ export type Session = { token: string; account: Account };
 
 export type ApiResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; message: string; retryAfterSeconds?: number };
+  | { ok: false; error: string; message: string; retryAfterSeconds?: number; details?: Record<string, unknown> };
 
 type Fetcher = (url: string, init: RequestInit) => Promise<Response>;
 
@@ -57,6 +57,7 @@ export function makeAuthApi(base: string | null, fetcher: Fetcher = (url, init) 
         error: typeof data?.error === 'string' ? data.error : 'server_error',
         message: typeof data?.message === 'string' ? data.message : 'Something went wrong. Try again.',
         ...(typeof data?.retryAfterSeconds === 'number' ? { retryAfterSeconds: data.retryAfterSeconds } : {}),
+        ...(data && res.status === 409 ? { details: data } : {}),
       };
     } catch {
       return { ok: false, error: 'offline', message: OFFLINE_MESSAGE };
@@ -75,6 +76,11 @@ export function makeAuthApi(base: string | null, fetcher: Fetcher = (url, init) 
       call<{ user: Account }>('PATCH', '/me', patch, token),
     signOut: (token: string) => call<{ ok: true }>('POST', '/auth/signout', undefined, token),
     deleteAccount: (token: string) => call<{ ok: true }>('DELETE', '/me', undefined, token),
+    /** The account's saved copy of the phone's data (rev 0 and null when there is none). */
+    getData: (token: string) => call<{ rev: number; data: unknown }>('GET', '/data', undefined, token),
+    /** Saves on top of copy `baseRev`. Error "newer_copy" carries the newer one in `details`. */
+    putData: (token: string, baseRev: number, data: unknown) =>
+      call<{ ok: true; rev: number }>('PUT', '/data', { baseRev, data }, token),
   };
 }
 

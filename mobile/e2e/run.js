@@ -498,6 +498,75 @@ async function signInFlow({ page, shot, count, dialogs }) {
   check('deleting the account erased the workouts on the phone', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) === 0);
 }
 
+// Two "phones" on one account: what is logged on the first shows up on the second.
+async function backup(browser) {
+  console.log('\n== backup ==');
+  const email = 'backup@example.com';
+  const phone = async () => {
+    const ctx = await browser.newContext({ ...devices['iPhone 14'] });
+    const page = await ctx.newPage();
+    await page.goto(URL, { waitUntil: 'networkidle' });
+    return { ctx, page };
+  };
+  const workouts = (page) => page.getByRole('button', { name: /exercises, .* sets/ });
+  // "20 workouts · 6 weigh-ins · 18 measurements · 5 plans", read from Settings once saved.
+  const tally = async (page) => {
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.getByText('Saved to your account').first().waitFor({ timeout: 15000 });
+    const text = (await page.getByText(/\d+ workouts ·/).first().innerText()).replace(/\s+/g, ' ');
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.waitForTimeout(400);
+    return text;
+  };
+  try {
+    const a = await phone();
+    await signIn(a.page, email);
+    await firstTimeSetup(a.page, 'Sam');
+    await a.page.getByRole('tab', { name: 'Log' }).waitFor();
+    await a.page.getByRole('button', { name: 'Settings' }).click();
+    await a.page.waitForTimeout(500);
+    a.page.on('dialog', (d) => d.accept());
+    await a.page.getByRole('button', { name: 'Load sample data' }).click();
+    await a.page.getByRole('button', { name: 'Done' }).click();
+    // The save goes out a few seconds after a change.
+    await a.page.waitForTimeout(4500);
+    await a.page.getByRole('button', { name: 'Settings' }).click();
+    await a.page.getByText('Saved to your account just now.').waitFor({ timeout: 15000 });
+    await a.page.mouse.move(195, 420);
+    await a.page.mouse.wheel(0, 900);
+    await a.page.waitForTimeout(400);
+    await a.page.screenshot({ path: path.join(shots, 'backup-01-saved.png') });
+    check('Settings says the workouts are saved to the account', true);
+    await a.page.getByRole('button', { name: 'Done' }).click();
+    const onFirst = await tally(a.page);
+
+    const b = await phone();
+    b.page.on('dialog', (d) => d.accept());
+    await signIn(b.page, email);
+    await b.page.getByRole('tab', { name: 'Log' }).waitFor();
+    await b.page.getByRole('tab', { name: 'History' }).click();
+    await workouts(b.page).first().waitFor({ timeout: 15000 });
+    await b.page.screenshot({ path: path.join(shots, 'backup-02-second-phone.png') });
+    const onSecond = await tally(b.page);
+    check('signing in on a second phone brings everything back', /^[1-9]\d* workouts/.test(onFirst) && onSecond === onFirst, `first="${onFirst}" second="${onSecond}"`);
+
+    // Delete one on the second phone; the first phone catches up when it reopens.
+    await workouts(b.page).first().click();
+    await b.page.waitForTimeout(300);
+    await b.page.getByRole('button', { name: 'Delete', exact: true }).click();
+    await b.page.waitForTimeout(4500);
+    const afterDelete = await tally(b.page);
+    await a.page.reload({ waitUntil: 'networkidle' });
+    await a.page.waitForTimeout(2500);
+    const firstAgain = await tally(a.page);
+    check('a change on one phone reaches the other', afterDelete !== onFirst && firstAgain === afterDelete, `second="${afterDelete}" first="${firstAgain}"`);
+    await a.ctx.close();
+    await b.ctx.close();
+  } catch (e) {
+    check('backup: ran to the end', false, e.message.split('\n')[0]);
+  }
+}
+
 (async () => {
   const accounts = await serveAccounts();
   const server = await serve();
@@ -507,6 +576,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await scenario(browser, 'log-history', logAndHistory);
   await scenario(browser, 'body-stats-settings', bodyStatsSettings);
   await scenario(browser, 'add-exercise', addExercise);
+  await backup(browser);
   await browser.close();
   server.close();
   accounts.kill();

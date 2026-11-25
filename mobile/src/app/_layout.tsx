@@ -13,6 +13,7 @@ import AppTabs from '@/components/app-tabs';
 import { RestTimer } from '@/components/rest-timer';
 import { FirstTimeSetup, SignIn } from '@/components/sign-in';
 import { AuthProvider, useAuth } from '@/data/auth';
+import { BackupProvider } from '@/data/backup';
 import { LogDraftProvider } from '@/data/log-draft';
 import { StoreProvider, useStore } from '@/data/store';
 import { colors, setThemeMode, themed } from '@/theme';
@@ -38,7 +39,11 @@ export default function RootLayout() {
 /** The phone's data, told the first name on the account so screens can show it. */
 function Data({ children }: { children: React.ReactNode }) {
   const { account } = useAuth();
-  return <StoreProvider ownerName={account?.name}>{children}</StoreProvider>;
+  return (
+    <StoreProvider ownerName={account?.name}>
+      <BackupProvider>{children}</BackupProvider>
+    </StoreProvider>
+  );
 }
 
 function App({ fontsReady }: { fontsReady: boolean }) {

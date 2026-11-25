@@ -7,6 +7,7 @@ import {
 } from '../data/sample-data';
 import * as storage from '../data/storage';
 import { DEFAULT_PREFS, normalizeDb, normalizePrefs } from '../data/storage';
+import { FREE_PLAN_LIMIT, canSavePlan } from '../lib/pro';
 import { EMPTY_DB } from '../lib/types';
 import { EXERCISE_TO_CATEGORY } from '../lib/workout-data';
 
@@ -84,6 +85,7 @@ describe('reading saved data', () => {
       user: 'me',
       partnerOn: true,
       partnerName: 'Kim',
+      pro: false,
       weightUnit: 'kg',
       lengthUnit: 'cm',
       restSeconds: 90,
@@ -150,5 +152,20 @@ describe('one lifter, with a partner as an option', () => {
     );
     expect(old.workouts.some((w: { user: string }) => w.user === 'Kevin')).toBe(true);
     expect(normalizeDb(old)).toEqual(buildSampleData(today));
+  });
+});
+
+describe('free and Pro', () => {
+  it('the free version keeps 3 saved plans; Pro has no limit', () => {
+    expect(FREE_PLAN_LIMIT).toBe(3);
+    expect(canSavePlan(2, false)).toBe(true);
+    expect(canSavePlan(3, false)).toBe(false);
+    expect(canSavePlan(5, false)).toBe(false);
+    expect(canSavePlan(50, true)).toBe(true);
+  });
+  it('a new customer starts on the free version', () => {
+    expect(DEFAULT_PREFS.pro).toBe(false);
+    expect(normalizePrefs({ pro: 'yes' }).pro).toBe(false);
+    expect(normalizePrefs({ pro: true }).pro).toBe(true);
   });
 });

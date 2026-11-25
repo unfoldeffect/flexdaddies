@@ -162,6 +162,9 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
     return () => {
       cancelled = true;
       sub.remove();
+      // Signed out: a save that was waiting has nowhere to go.
+      if (timer.current) clearTimeout(timer.current);
+      timer.current = null;
     };
   }, [ready, token, sync]);
 

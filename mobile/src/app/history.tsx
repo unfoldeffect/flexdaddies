@@ -9,7 +9,8 @@ import { PromptSheet } from '@/components/prompt-sheet';
 import { Chip, Dot, EmptyState, ErrorBanner, Icon, LinkButton, Plate } from '@/components/ui';
 import { useLogDraftActions } from '@/data/log-draft';
 import { useStore } from '@/data/store';
-import { confirm } from '@/lib/dialogs';
+import { confirm, notify } from '@/lib/dialogs';
+import { PLAN_LIMIT_MESSAGE, PLAN_LIMIT_TITLE, canSavePlan } from '@/lib/pro';
 import { blankDraftSets, workoutExercisesToDraft } from '@/lib/draft';
 import { buzzSuccess, buzzWarning, tapLight } from '@/lib/haptics';
 import { sortWorkoutsNewestFirst, workoutTotals } from '@/lib/stats';
@@ -182,7 +183,11 @@ export default function HistoryScreen() {
                     <LinkButton
                       icon="plus"
                       label="Save as Plan"
-                      onPress={() => setNamingPlanFor(w)}
+                      onPress={() => {
+                        // Counted across everyone on the phone, hidden partner plans included.
+                        if (canSavePlan(store.fullDb.templates.length, store.prefs.pro)) setNamingPlanFor(w);
+                        else void notify(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
+                      }}
                     />
                     {(
                       <>
@@ -212,7 +217,9 @@ export default function HistoryScreen() {
         visible={!!namingPlanFor}
         title="Name this plan"
         initialValue={
-          namingPlanFor ? `${namingPlanFor.user}'s ${formatDate(namingPlanFor.date)} workout` : ''
+          namingPlanFor
+            ? `${people.length > 1 ? `${names[namingPlanFor.user]}'s ` : ''}${formatDate(namingPlanFor.date)} workout`
+            : ''
         }
         confirmLabel="Save plan"
         onCancel={() => setNamingPlanFor(null)}

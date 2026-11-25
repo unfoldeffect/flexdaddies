@@ -11,6 +11,21 @@ type ConfirmOptions = {
   destructive?: boolean;
 };
 
+/** A message with one OK button. */
+export function notify(title: string, message?: string): Promise<void> {
+  if (Platform.OS === 'web') {
+    const show = (globalThis as { alert?: (text: string) => void }).alert;
+    show?.([title, message].filter(Boolean).join('\n\n'));
+    return Promise.resolve();
+  }
+  return new Promise((resolve) => {
+    Alert.alert(title, message, [{ text: 'OK', onPress: () => resolve() }], {
+      cancelable: true,
+      onDismiss: () => resolve(),
+    });
+  });
+}
+
 export function confirm({
   title,
   message,

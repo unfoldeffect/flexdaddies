@@ -61,6 +61,9 @@ async function partnerAndSampleData(page) {
   await page.waitForTimeout(500);
   await page.getByRole('switch', { name: 'Lift with a partner' }).click();
   await page.getByLabel("Partner's first name").fill('Kevin');
+  await page.mouse.move(195, 420);
+  await page.mouse.wheel(0, 3000);
+  await page.getByRole('switch', { name: 'Pro unlocked' }).click();
   await page.getByRole('button', { name: 'Load sample data' }).click();
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Done' }).click();
@@ -477,6 +480,52 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.waitForTimeout(400);
   await signIn(page, email);
   await page.getByRole('tab', { name: 'Log' }).waitFor();
+  // Free keeps 3 saved plans (the sample data arrives with 5).
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.waitForTimeout(900);
+  const firstWorkout = page.getByRole('button', { name: /exercises, .* sets/ }).first();
+  const plansNow = () => page.getByRole('button', { name: /^Start from plan / }).count();
+  await firstWorkout.click();
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Save as Plan' }).click();
+  await page.waitForTimeout(400);
+  check('free: a 4th plan is refused, with the reason', dialogs.some((d) => d.includes('The free version keeps 3 saved plans')) && (await page.getByLabel('Name this plan').count()) === 0);
+  await page.getByRole('tab', { name: 'Log' }).click();
+  await page.waitForTimeout(400);
+  for (const plan of ['1 - Upper A', '2 - Lower A', '3 - Upper B']) {
+    await page.getByRole('button', { name: `Delete ${plan} plan` }).click();
+    await page.waitForTimeout(400);
+  }
+  check('plans can be deleted to make room', (await plansNow()) === 2);
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Save as Plan' }).click();
+  await page.getByLabel('Name this plan').fill('My third plan');
+  await page.getByRole('button', { name: 'SAVE PLAN' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Save as Plan' }).click();
+  await page.waitForTimeout(400);
+  const refusedAgain = (await page.getByLabel('Name this plan').count()) === 0;
+  await page.getByRole('tab', { name: 'Log' }).click();
+  await page.waitForTimeout(400);
+  check('free: the 3rd plan saves and the next is refused', (await plansNow()) === 3 && refusedAgain, `plans=${await plansNow()} refused=${refusedAgain}`);
+  await page.getByRole('tab', { name: 'History' }).click();
+  await page.waitForTimeout(400);
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  await page.mouse.move(195, 420);
+  await page.mouse.wheel(0, 3000);
+  await page.getByRole('switch', { name: 'Pro unlocked' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Save as Plan' }).click();
+  await page.getByLabel('Name this plan').fill('A fourth plan');
+  await page.getByRole('button', { name: 'SAVE PLAN' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('tab', { name: 'Log' }).click();
+  await page.waitForTimeout(400);
+  check('Pro: no limit on plans', (await plansNow()) === 4, `plans=${await plansNow()}`);
+
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(900);
   check('signing in again skips setup and keeps the workouts on the phone', (await count('Welcome!')) === 0 && (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) > 0);

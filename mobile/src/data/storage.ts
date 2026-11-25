@@ -23,6 +23,8 @@ export type Prefs = {
   /** "Lift with a partner" in Settings: off for a new customer. */
   partnerOn: boolean;
   partnerName: string;
+  /** Pro is unlocked. Until in-app purchase exists, only the test switch in Settings sets it. */
+  pro: boolean;
   weightUnit: WeightUnit;
   lengthUnit: LengthUnit;
   restSeconds: number;
@@ -35,6 +37,7 @@ export const DEFAULT_PREFS: Prefs = {
   user: 'me',
   partnerOn: false,
   partnerName: '',
+  pro: false,
   weightUnit: 'lbs',
   lengthUnit: 'in',
   restSeconds: 60,
@@ -89,6 +92,7 @@ export function normalizePrefs(raw: unknown): Prefs {
     user: 'me',
     partnerOn: r.partnerOn === true,
     partnerName: typeof r.partnerName === 'string' ? r.partnerName.slice(0, 40) : '',
+    pro: r.pro === true,
     weightUnit: r.weightUnit === 'kg' ? 'kg' : 'lbs',
     lengthUnit: r.lengthUnit === 'cm' ? 'cm' : 'in',
     restSeconds: (REST_CHOICES as readonly unknown[]).includes(r.restSeconds)

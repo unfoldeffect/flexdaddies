@@ -36,6 +36,7 @@ import {
   type PersonNames,
   type WorkoutUser,
 } from '../lib/workout-data';
+import { canSavePlan } from '../lib/pro';
 import * as ops from './db';
 import { buildSampleData, hasSampleData, removeSampleData, withoutPartner } from './sample-data';
 import { DEFAULT_PREFS, loadDb, loadPrefs, saveDb, savePrefs, type Prefs } from './storage';
@@ -273,6 +274,7 @@ export function StoreProvider({
         const who = me();
         const trimmed = name.trim();
         if (!who || !trimmed) return false;
+        if (!canSavePlan(dbRef.current.templates.length, prefsRef.current.pro)) return false;
         const exercises: TemplateExercise[] = workout.exercises.map((ex) => ({
           name: ex.name,
           sets: ex.sets.length,

@@ -198,8 +198,22 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
         <Text style={styles.heading}>TEST BUILD ONLY</Text>
         <View style={styles.card}>
           <Text style={styles.hint}>
-            Made-up workouts for trying the app out. Customers will not see this card.
+            For trying the app out. Customers will not see this card.
           </Text>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Pro unlocked (test switch)</Text>
+            <Switch
+              value={prefs.pro}
+              onValueChange={(pro) => {
+                tapLight();
+                setPrefs({ pro });
+              }}
+              trackColor={{ false: colors.line, true: colors.gold }}
+              thumbColor={colors.white}
+              ios_backgroundColor={colors.line}
+              accessibilityLabel="Pro unlocked"
+            />
+          </View>
           {hasSample && (
             <OutlineButton
               label="Remove sample data"

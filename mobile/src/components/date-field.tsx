@@ -6,7 +6,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import { fromISODate, isValidISODate, toISODate } from '../lib/stats';
 import { formatDate } from '../lib/workout-data';
-import { colors } from '../theme';
+import { colors, themed } from '../theme';
 import { Icon } from './ui';
 
 type Props = {
@@ -20,7 +20,7 @@ type Props = {
 
 export function DateField({ value, onChange, label, onWhite }: Props) {
   const date = fromISODate(value);
-  const box = [styles.box, onWhite && { backgroundColor: colors.white }];
+  const box = [styles.box, onWhite && { backgroundColor: colors.field }];
 
   if (Platform.OS === 'ios') {
     return (
@@ -30,7 +30,7 @@ export function DateField({ value, onChange, label, onWhite }: Props) {
           mode="date"
           display="compact"
           themeVariant="light"
-          accentColor={colors.ink}
+          accentColor={colors.strong}
           accessibilityLabel={label}
           onValueChange={(_event, picked) => onChange(toISODate(picked))}
         />
@@ -86,7 +86,7 @@ function TypedDateField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   box: {
     minHeight: 52,
     borderRadius: 14,
@@ -104,4 +104,4 @@ const styles = StyleSheet.create({
   },
   text: { fontSize: 17, color: colors.text },
   typed: { paddingHorizontal: 14 },
-});
+}));

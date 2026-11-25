@@ -3,6 +3,7 @@
 // and the box being typed in is kept clear of the keyboard.
 import type { ComponentProps, ReactNode } from 'react';
 import { Platform, ScrollView, StyleSheet } from 'react-native';
+import { themed } from '../theme';
 
 export function KeyboardScroll({
   children,
@@ -28,7 +29,7 @@ export function KeyboardScroll({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   content: {
     paddingHorizontal: 16,
     paddingTop: 12,
@@ -36,4 +37,4 @@ const styles = StyleSheet.create({
     maxWidth: 620,
     alignSelf: 'center',
   },
-});
+}));

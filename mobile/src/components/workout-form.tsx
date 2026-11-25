@@ -24,7 +24,7 @@ import type {
 } from '../lib/types';
 import type { ExerciseGroup, WorkoutUser } from '../lib/workout-data';
 import { applyOrderToPlan, moveItem, sameExerciseOrder } from '../lib/workout-helpers';
-import { colors } from '../theme';
+import { colors, themed } from '../theme';
 import { DateField } from './date-field';
 import { ExerciseEditor } from './exercise-editor';
 import { SortableList, type ScrollBridge } from './sortable-list';
@@ -219,7 +219,7 @@ export function WorkoutForm({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   planNote: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -232,7 +232,7 @@ const styles = StyleSheet.create({
   orderBtn: {
     marginLeft: 'auto',
     borderColor: colors.gold,
-    backgroundColor: 'rgba(201,162,39,0.16)',
+    backgroundColor: colors.goldTint,
   },
   orderSaved: { marginLeft: 'auto', fontWeight: '700', color: colors.goldDeep },
   dateRow: { gap: 8, marginBottom: 18 },
@@ -243,4 +243,4 @@ const styles = StyleSheet.create({
     marginBottom: 18,
   },
   cancel: { marginTop: 10 },
-});
+}));

@@ -47,7 +47,7 @@ import {
   type WorkoutUser,
 } from '@/lib/workout-data';
 import { sanitizeWeightInput } from '@/lib/workout-helpers';
-import { colors, fonts } from '@/theme';
+import { colors, fonts, themed } from '@/theme';
 
 // On the navy weight card: the logged-in person in gold, their partner in white.
 const CARD_LINE = { me: colors.gold, other: colors.white };
@@ -521,7 +521,7 @@ function DeltaPill({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   weightCard: { padding: 18, marginBottom: 14 },
   pair: { flexDirection: 'row', gap: 14 },
   weightTop: {
@@ -598,7 +598,7 @@ const styles = StyleSheet.create({
   summaryRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
   summaryItem: {
     flex: 1,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.panel,
     borderRadius: 16,
     padding: 12,
     alignItems: 'center',
@@ -631,10 +631,10 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  tileOn: { borderColor: colors.gold, borderWidth: 3, backgroundColor: '#fbf6e3' },
+  tileOn: { borderColor: colors.gold, borderWidth: 3, backgroundColor: colors.goldTint },
   tileLabel: { fontFamily: fonts.heading, fontSize: 15, letterSpacing: 0.4, color: colors.muted },
   tilePerson: { alignItems: 'center' },
-  tileNumber: { fontFamily: fonts.headingBold, fontSize: 23, color: colors.ink },
+  tileNumber: { fontFamily: fonts.headingBold, fontSize: 23, color: colors.text },
   tileUnit: { fontSize: 13, color: colors.muted, fontFamily: fonts.heading },
   panel: {
     backgroundColor: colors.surface,
@@ -654,4 +654,4 @@ const styles = StyleSheet.create({
   },
   historyToggleText: { fontSize: 15, fontWeight: '600', color: colors.muted },
   historyList: { gap: 8 },
-});
+}));

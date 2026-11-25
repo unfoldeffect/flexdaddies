@@ -8,7 +8,7 @@ import { confirm } from '../lib/dialogs';
 import { buzzWarning } from '../lib/haptics';
 import { formatNoteDate } from '../lib/stats';
 import type { WorkoutUser } from '../lib/workout-data';
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { IconButton, OutlineButton, SmallButton } from './ui';
 
 export function SavedNotesList({
@@ -74,7 +74,7 @@ export function SavedNotesList({
                   label="Edit note"
                   size={36}
                   iconSize={17}
-                  color={colors.ink}
+                  color={colors.text}
                   onPress={() => {
                     setEditingId(n.id);
                     setEditText(n.text);
@@ -108,7 +108,7 @@ export function SavedNotesList({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   wrap: { marginBottom: 12, gap: 6 },
   label: {
     fontFamily: fonts.headingBold,
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 8,
-    backgroundColor: 'rgba(201,162,39,0.1)',
+    backgroundColor: colors.goldTint,
     borderLeftWidth: 3,
     borderLeftColor: colors.gold,
     borderRadius: 10,
@@ -139,11 +139,11 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     color: colors.text,
     fontSize: 15,
     paddingHorizontal: 12,
     paddingVertical: 10,
     textAlignVertical: 'top',
   },
-});
+}));

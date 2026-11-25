@@ -15,7 +15,7 @@ import {
   formatDate,
   type WorkoutUser,
 } from '@/lib/workout-data';
-import { colors, fonts, hexToRgba } from '@/theme';
+import { colors, fonts, hexToRgba, themed } from '@/theme';
 
 export default function StatsScreen() {
   const { db, toCategory, user } = useStore();
@@ -182,7 +182,7 @@ export default function StatsScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: {
     paddingHorizontal: 16,
@@ -209,11 +209,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     alignItems: 'center',
   },
-  tileNumber: { fontFamily: fonts.headingBold, fontSize: 26, color: colors.ink },
+  tileNumber: { fontFamily: fonts.headingBold, fontSize: 26, color: colors.text },
   tileLabel: {
     fontSize: 13,
     fontWeight: '600',
-    color: colors.ink,
+    color: colors.text,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -277,4 +277,4 @@ const styles = StyleSheet.create({
   prDate: { fontSize: 14, color: colors.muted },
   prWeight: { fontSize: 19, fontWeight: '700', color: colors.text },
   prUnit: { fontSize: 13, fontWeight: '400', color: colors.muted },
-});
+}));

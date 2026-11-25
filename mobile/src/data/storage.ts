@@ -22,6 +22,8 @@ export type Prefs = {
   lengthUnit: LengthUnit;
   restSeconds: number;
   restSound: boolean;
+  /** Dark is the default look; light is the same layout on a light ground. */
+  theme: 'dark' | 'light';
 };
 
 export const DEFAULT_PREFS: Prefs = {
@@ -30,6 +32,7 @@ export const DEFAULT_PREFS: Prefs = {
   lengthUnit: 'in',
   restSeconds: 60,
   restSound: true,
+  theme: 'dark',
 };
 
 async function readJson(key: string): Promise<unknown> {
@@ -77,6 +80,7 @@ export function normalizePrefs(raw: unknown): Prefs {
       ? (r.restSeconds as number)
       : DEFAULT_PREFS.restSeconds,
     restSound: r.restSound !== false,
+    theme: r.theme === 'light' ? 'light' : 'dark',
   };
 }
 

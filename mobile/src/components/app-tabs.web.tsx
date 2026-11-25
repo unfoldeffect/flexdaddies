@@ -10,7 +10,7 @@ import {
 } from 'expo-router/ui';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colors } from '../theme';
+import { colors, themed } from '../theme';
 import { Icon, type IconName } from './ui';
 
 const TABS: {
@@ -63,13 +63,13 @@ function TabButton({
       accessibilityState={{ selected: !!isFocused }}
       style={[styles.btn, isFocused && styles.btnOn]}
     >
-      <Icon name={icon} size={20} color={isFocused ? colors.ink : 'rgba(255,255,255,0.6)'} />
-      <Text style={[styles.label, isFocused && { color: colors.ink }]}>{label}</Text>
+      <Icon name={icon} size={20} color={isFocused ? colors.onGold : 'rgba(255,255,255,0.7)'} />
+      <Text style={[styles.label, isFocused && { color: colors.onGold }]}>{label}</Text>
     </Pressable>
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   wrap: {
     position: 'absolute',
     left: 0,
@@ -85,9 +85,9 @@ const styles = StyleSheet.create({
     width: '100%',
     maxWidth: 420,
     borderRadius: 999,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.panel,
   },
   btn: { flex: 1, alignItems: 'center', gap: 3, paddingVertical: 8, borderRadius: 999 },
   btnOn: { backgroundColor: colors.gold },
   label: { fontSize: 12, fontWeight: '600', color: 'rgba(255,255,255,0.6)' },
-});
+}));

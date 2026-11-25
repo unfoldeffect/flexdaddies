@@ -85,6 +85,7 @@ describe('reading saved data', () => {
       lengthUnit: 'cm',
       restSeconds: 90,
       restSound: true,
+      theme: 'dark',
     });
   });
 });

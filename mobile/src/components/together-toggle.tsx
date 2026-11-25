@@ -3,7 +3,7 @@ import { Platform, Pressable, StyleSheet, Switch, Text, View } from 'react-nativ
 
 import { tapLight } from '../lib/haptics';
 import { USER_COLORS, type WorkoutUser } from '../lib/workout-data';
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 
 export function TogetherToggle({
   on,
@@ -37,7 +37,7 @@ export function TogetherToggle({
       <Switch
         value={on}
         onValueChange={toggle}
-        trackColor={{ false: colors.line, true: colors.ink }}
+        trackColor={{ false: colors.line, true: colors.strong }}
         thumbColor={Platform.OS === 'android' ? (on ? colors.gold : colors.white) : undefined}
         ios_backgroundColor={colors.line}
         importantForAccessibility="no-hide-descendants"
@@ -47,7 +47,7 @@ export function TogetherToggle({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   wrap: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -61,9 +61,9 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  wrapOn: { borderColor: colors.ink, backgroundColor: 'rgba(11,37,69,0.04)' },
+  wrapOn: { borderColor: colors.strong, backgroundColor: colors.tint },
   dots: { flexDirection: 'row', alignItems: 'center' },
   dot: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: colors.white },
   dotSecond: { marginLeft: -8 },
   label: { flex: 1, fontFamily: fonts.heading, fontSize: 16, color: colors.text },
-});
+}));

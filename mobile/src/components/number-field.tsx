@@ -4,7 +4,7 @@
 import type { ComponentProps } from 'react';
 import { StyleSheet, TextInput } from 'react-native';
 
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 
 export type NumberFieldProps = Omit<
   ComponentProps<typeof TextInput>,
@@ -30,7 +30,7 @@ export function NumberField({
       inputMode={decimal ? 'decimal' : 'numeric'}
       returnKeyType={returnKeyType}
       placeholder={placeholder}
-      placeholderTextColor="#a3a59a"
+      placeholderTextColor={colors.placeholder}
       selectTextOnFocus
       autoCorrect={false}
       autoComplete="off"
@@ -41,13 +41,13 @@ export function NumberField({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   input: {
     minHeight: 52,
     borderRadius: 12,
     borderWidth: 2,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     color: colors.text,
     fontSize: 19,
     textAlign: 'center',
@@ -55,4 +55,4 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   big: { fontFamily: fonts.heading, fontSize: 22, textAlign: 'left', paddingHorizontal: 12 },
-});
+}));

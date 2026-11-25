@@ -29,7 +29,7 @@ import {
   type WorkoutUser,
 } from '../lib/workout-data';
 import { sanitizeWeightInput } from '../lib/workout-helpers';
-import { colors, fonts, hexToRgba } from '../theme';
+import { colors, fonts, hexToRgba, themed } from '../theme';
 import { ExercisePicker } from './exercise-picker';
 import { NumberField } from './number-field';
 import { SavedNotesList } from './saved-notes';
@@ -327,7 +327,7 @@ export function ExerciseEditor({
             ref={customNameRef}
             style={styles.textInput}
             placeholder="Type exercise name"
-            placeholderTextColor="#a3a59a"
+            placeholderTextColor={colors.placeholder}
             value={exercise.customName}
             onChangeText={(customName) => onChange({ ...exercise, customName })}
             autoCapitalize="words"
@@ -382,7 +382,7 @@ export function ExerciseEditor({
           <SetRows
             sets={exercise.sets}
             cardio={isCardio}
-            accent={accent === colors.line ? '#9ca3af' : accent}
+            accent={accent === colors.line ? colors.muted : accent}
             who={togetherMode ? currentUser : undefined}
             onChange={updateSet('sets')}
           />
@@ -398,7 +398,7 @@ export function ExerciseEditor({
               <SetRows
                 sets={exercise.setsOther}
                 cardio={isCardio}
-                accent={accent === colors.line ? '#9ca3af' : accent}
+                accent={accent === colors.line ? colors.muted : accent}
                 who={otherUser}
                 onChange={updateSet('setsOther')}
               />
@@ -413,7 +413,7 @@ export function ExerciseEditor({
             <TextInput
               style={[styles.textInput, styles.notesInput]}
               placeholder="Form cues, how it felt, anything to remember..."
-              placeholderTextColor="#a3a59a"
+              placeholderTextColor={colors.placeholder}
               value={exercise.notes}
               onChangeText={(notes) => onChange({ ...exercise, notes })}
               multiline
@@ -542,7 +542,7 @@ function SetRows({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   card: {
     backgroundColor: colors.surface,
     borderWidth: 2,
@@ -565,7 +565,7 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: 'rgba(11,37,69,0.06)',
+    backgroundColor: colors.tint,
   },
   moveBtn: { borderRadius: 12 },
   categoryTile: {
@@ -590,7 +590,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     paddingHorizontal: 14,
     paddingVertical: 10,
     flexDirection: 'row',
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -616,21 +616,21 @@ const styles = StyleSheet.create({
     minHeight: 52,
     borderRadius: 14,
     borderWidth: 2,
-    borderColor: colors.ink,
-    backgroundColor: colors.white,
+    borderColor: colors.strong,
+    backgroundColor: colors.field,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 10,
   },
-  equipmentChipOn: { backgroundColor: colors.ink },
-  equipmentText: { fontSize: 18, fontWeight: '700', color: colors.ink },
-  equipmentTextOn: { color: colors.white },
+  equipmentChipOn: { backgroundColor: colors.strong },
+  equipmentText: { fontSize: 18, fontWeight: '700', color: colors.text },
+  equipmentTextOn: { color: colors.onStrong },
   textInput: {
     minHeight: 52,
     borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     color: colors.text,
     fontSize: 17,
     paddingHorizontal: 14,
@@ -645,7 +645,7 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
   },
   catChipText: { fontSize: 14, fontWeight: '700' },
   target: { fontSize: 14, color: colors.muted, marginBottom: 8 },
@@ -672,8 +672,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  setIndexText: { color: colors.white, fontFamily: fonts.headingBold, fontSize: 16 },
+  setIndexText: { color: colors.onGold, fontFamily: fonts.headingBold, fontSize: 16 },
   notes: { marginTop: 14, gap: 6 },
   optional: { fontFamily: undefined, fontWeight: '400', letterSpacing: 0, fontSize: 13 },
   notesInput: { minHeight: 64, fontSize: 15, marginBottom: 2, textAlignVertical: 'top' },
-});
+}));

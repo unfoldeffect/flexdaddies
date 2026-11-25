@@ -19,7 +19,7 @@ import { buzzWarning, tapLight } from '@/lib/haptics';
 import { computeLastPerformance, formatDraftTime } from '@/lib/stats';
 import type { Workout, WorkoutTemplate } from '@/lib/types';
 import { uid } from '@/lib/workout-data';
-import { colors, fonts } from '@/theme';
+import { colors, fonts, themed } from '@/theme';
 
 export default function LogScreen() {
   const store = useStore();
@@ -213,7 +213,7 @@ export default function LogScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   pressed: { opacity: 0.6 },
   plans: { marginBottom: 16 },
   plansLabel: {
@@ -253,8 +253,8 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.gold,
-    backgroundColor: 'rgba(201,162,39,0.14)',
+    backgroundColor: colors.goldTint,
   },
-  bannerText: { flex: 1, fontSize: 14, color: colors.ink },
+  bannerText: { flex: 1, fontSize: 14, color: colors.text },
   bannerStrong: { fontWeight: '700' },
-});
+}));

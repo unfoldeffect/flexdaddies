@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../data/store';
 import { tapMedium } from '../lib/haptics';
 import { USERS, USER_COLORS } from '../lib/workout-data';
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { DotCard } from './ui';
 
 export function ProfileSelect() {
@@ -57,10 +57,10 @@ export function ProfileSelect() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: { alignItems: 'center', paddingHorizontal: 22, flexGrow: 1, justifyContent: 'center' },
-  logo: { width: 240, height: 240, marginBottom: 24 },
+  logo: { width: 240, height: 240, marginBottom: 24, borderRadius: 120 },
   card: {
     width: '100%',
     maxWidth: 520,
@@ -93,5 +93,5 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pillDotText: { color: colors.white, fontFamily: fonts.headingBold, fontSize: 17 },
-  pillText: { fontFamily: fonts.headingBold, fontSize: 20, letterSpacing: 0.8, color: colors.ink },
-});
+  pillText: { fontFamily: fonts.headingBold, fontSize: 20, letterSpacing: 0.8, color: colors.onGold },
+}));

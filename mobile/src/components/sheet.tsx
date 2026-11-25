@@ -5,7 +5,7 @@ import { Modal, Platform, Pressable, StyleSheet, Text, View } from 'react-native
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, SafeAreaView } from 'react-native-safe-area-context';
 
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { KeyboardSpace } from './keyboard-space';
 
 export function Sheet({
@@ -62,7 +62,7 @@ export function Sheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   header: {
     flexDirection: 'row',
@@ -73,7 +73,7 @@ const styles = StyleSheet.create({
     paddingBottom: 10,
     gap: 12,
   },
-  title: { flex: 1, fontFamily: fonts.headingBold, fontSize: 22, color: colors.ink },
+  title: { flex: 1, fontFamily: fonts.headingBold, fontSize: 22, color: colors.text },
   close: { minHeight: 44, minWidth: 44, alignItems: 'flex-end', justifyContent: 'center' },
   closeText: { fontSize: 17, fontWeight: '600', color: colors.goldDeep },
-});
+}));

@@ -16,7 +16,7 @@ import { moveToIndex } from '../lib/reorder';
 import type { WorkoutTemplate } from '../lib/types';
 import { OTHER_CATEGORY, OTHER_VALUE } from '../lib/workout-data';
 import { moveItem } from '../lib/workout-helpers';
-import { colors } from '../theme';
+import { colors, themed } from '../theme';
 import { ExerciseEditor } from './exercise-editor';
 import { KeyboardScroll } from './keyboard-scroll';
 import { ManageExercisesSheet } from './manage-exercises';
@@ -138,7 +138,7 @@ function PlanEditorBody({ template, onClose }: { template: WorkoutTemplate; onCl
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   nameRow: { gap: 8, marginBottom: 18 },
   input: {
     minHeight: 52,
@@ -156,4 +156,4 @@ const styles = StyleSheet.create({
     minHeight: 56,
     marginBottom: 18,
   },
-});
+}));

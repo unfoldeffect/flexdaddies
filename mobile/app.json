@@ -7,8 +7,8 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "flexdaddies",
-    "userInterfaceStyle": "light",
-    "backgroundColor": "#ffffff",
+    "userInterfaceStyle": "automatic",
+    "backgroundColor": "#0a1f3d",
     "primaryColor": "#0b2545",
     "ios": {
       "bundleIdentifier": "com.flexdaddies.app",

@@ -23,7 +23,7 @@ import {
   type WorkoutUser,
 } from '@/lib/workout-data';
 import { exerciseLabel } from '@/lib/movements';
-import { colors, fonts } from '@/theme';
+import { colors, fonts, themed } from '@/theme';
 
 type Filter = 'all' | WorkoutUser;
 
@@ -95,7 +95,7 @@ export default function HistoryScreen() {
                     key={f}
                     label={f === 'all' ? 'Everyone' : f}
                     active={filter === f}
-                    activeColor={f === 'all' ? colors.ink : USER_COLORS[f]}
+                    activeColor={f === 'all' ? colors.strong : USER_COLORS[f]}
                     onPress={() => setFilter(f)}
                   />
                 ))}
@@ -227,7 +227,7 @@ export default function HistoryScreen() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
   content: {
     paddingHorizontal: 16,
@@ -259,7 +259,7 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1,
     borderColor: colors.gold,
-    backgroundColor: 'rgba(201,162,39,0.16)',
+    backgroundColor: colors.goldTint,
     maxWidth: '100%',
   },
   planBadgeText: {
@@ -292,4 +292,4 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
   actions: { flexDirection: 'row', flexWrap: 'wrap', columnGap: 18, rowGap: 4, marginTop: 2 },
-});
+}));

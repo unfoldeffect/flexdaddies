@@ -8,13 +8,13 @@ import { colors } from '../theme';
 export default function AppTabs() {
   return (
     <NativeTabs
-      tintColor={colors.ink}
+      tintColor={colors.strong}
       backgroundColor={colors.bg}
-      indicatorColor="rgba(201,162,39,0.35)"
-      iconColor={{ default: colors.muted, selected: colors.ink }}
+      indicatorColor={colors.goldTint}
+      iconColor={{ default: colors.muted, selected: colors.strong }}
       labelStyle={{
         default: { color: colors.muted },
-        selected: { color: colors.ink },
+        selected: { color: colors.strong },
       }}
     >
       <NativeTabs.Trigger name="index">

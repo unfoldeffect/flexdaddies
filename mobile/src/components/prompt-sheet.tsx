@@ -11,7 +11,7 @@ import {
   View,
 } from 'react-native';
 
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { OutlineButton, PrimaryButton } from './ui';
 
 type Props = {
@@ -77,7 +77,7 @@ function PromptBody({ title, initialValue, confirmLabel = 'Save', onSubmit, onCa
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   backdrop: {
     flex: 1,
     backgroundColor: 'rgba(11,37,69,0.55)',
@@ -93,7 +93,7 @@ const styles = StyleSheet.create({
     padding: 20,
     gap: 14,
   },
-  title: { fontFamily: fonts.headingBold, fontSize: 20, color: colors.ink },
+  title: { fontFamily: fonts.headingBold, fontSize: 20, color: colors.text },
   input: {
     minHeight: 52,
     borderRadius: 14,
@@ -106,4 +106,4 @@ const styles = StyleSheet.create({
   },
   actions: { flexDirection: 'row', gap: 10 },
   action: { flex: 1 },
-});
+}));

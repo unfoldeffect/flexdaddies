@@ -10,7 +10,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { useStore } from '../data/store';
 import { tapMedium } from '../lib/haptics';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, themed } from '../theme';
 
 const SIZE = 84;
 const RING = 5;
@@ -119,7 +119,7 @@ export function RestTimer() {
           r={R}
           stroke={colors.gold}
           strokeWidth={RING}
-          fill={colors.ink}
+          fill={colors.panel}
         />
         {running && (
           <Circle
@@ -154,14 +154,14 @@ export function RestTimer() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   button: {
     position: 'absolute',
     right: 16,
     width: SIZE,
     height: SIZE,
     borderRadius: SIZE / 2,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.panel,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -170,4 +170,4 @@ const styles = StyleSheet.create({
   number: { fontFamily: fonts.headingBold, fontSize: 26, lineHeight: 30, color: colors.white },
   caption: { fontFamily: fonts.heading, fontSize: 12, letterSpacing: 0.8, color: colors.gold },
   go: { fontFamily: fonts.headingBold, fontSize: 22, color: colors.white },
-});
+}));

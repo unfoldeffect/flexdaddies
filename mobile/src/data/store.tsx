@@ -192,7 +192,9 @@ export function StoreProvider({
 
   const { groups, toCategory, managed } = useMemo(
     () => mergeExerciseGroups(db.customExercises, db.exerciseOverrides),
-    [db.customExercises, db.exerciseOverrides],
+    // prefs.theme: category colours are lighter in dark mode, so rebuild on a switch.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [db.customExercises, db.exerciseOverrides, prefs.theme],
   );
 
   const store = useMemo<Store>(() => {

@@ -14,7 +14,7 @@ import {
 import Svg, { Circle, Defs, Pattern, Rect } from 'react-native-svg';
 
 import { tapLight } from '../lib/haptics';
-import { TAP, colors, fonts, radius, type } from '../theme';
+import { TAP, colors, fonts, radius, type, themed } from '../theme';
 
 export type IconName = ComponentProps<typeof MaterialCommunityIcons>['name'];
 
@@ -113,7 +113,7 @@ export function PrimaryButton({ label, icon, compact, disabled, style, ...rest }
       ]}
       {...rest}
     >
-      {icon && <Icon name={icon} size={20} color={disabled ? colors.muted : colors.ink} />}
+      {icon && <Icon name={icon} size={20} color={disabled ? colors.muted : colors.text} />}
       <Text
         style={[
           styles.primaryText,
@@ -160,7 +160,7 @@ export function SmallButton({
   style,
   ...rest
 }: ButtonProps & { gold?: boolean }) {
-  const fg = gold ? colors.ink : colors.white;
+  const fg = gold ? colors.onGold : colors.onStrong;
   return (
     <Pressable
       accessibilityRole="button"
@@ -170,7 +170,7 @@ export function SmallButton({
       hitSlop={6}
       style={({ pressed }) => [
         styles.small,
-        { backgroundColor: gold ? colors.gold : colors.ink },
+        { backgroundColor: gold ? colors.gold : colors.strong },
         disabled && styles.dim,
         pressed && styles.pressed,
         style,
@@ -187,7 +187,7 @@ export function SmallButton({
 export function LinkButton({
   label,
   icon,
-  color = colors.ink,
+  color = colors.text,
   style,
   ...rest
 }: ButtonProps & { color?: string }) {
@@ -248,7 +248,7 @@ export function IconButton({
 export function Chip({
   label,
   active,
-  activeColor = colors.ink,
+  activeColor = colors.strong,
   onPress,
   style,
 }: {
@@ -273,7 +273,7 @@ export function Chip({
         style,
       ]}
     >
-      <Text style={[styles.chipText, active && { color: colors.white }]}>{label}</Text>
+      <Text style={[styles.chipText, active && { color: activeColor === colors.strong ? colors.onStrong : colors.white }]}>{label}</Text>
     </Pressable>
   );
 }
@@ -309,7 +309,7 @@ export function UnitToggle<T extends string>({
             }}
             style={[styles.unitBtn, vertical && styles.unitBtnVertical, on && styles.unitBtnOn]}
           >
-            <Text style={[styles.unitText, on && { color: colors.gold }]}>{o}</Text>
+            <Text style={[styles.unitText, on && { color: colors.onStrong }]}>{o}</Text>
           </Pressable>
         );
       })}
@@ -385,7 +385,7 @@ export function Dot({ color, size = 8 }: { color: string; size?: number }) {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   plate: { alignItems: 'center', justifyContent: 'center' },
   plateText: { color: colors.white, fontFamily: fonts.headingBold },
   sectionHeading: { marginBottom: 14 },
@@ -407,7 +407,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.headingBold,
     fontSize: 19,
     letterSpacing: 0.6,
-    color: colors.ink,
+    color: colors.text,
   },
   primaryTextCompact: { fontSize: 17 },
   outline: {
@@ -420,7 +420,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     paddingHorizontal: 20,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
   },
   outlineCompact: { minHeight: 34, paddingHorizontal: 14 },
   outlineText: { fontWeight: '600', fontSize: 16, color: colors.muted },
@@ -442,7 +442,7 @@ const styles = StyleSheet.create({
     borderRadius: radius.pill,
     borderWidth: 2,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -473,14 +473,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   unitBtnVertical: { minHeight: 24, flex: 1 },
-  unitBtnOn: { backgroundColor: colors.ink },
+  unitBtnOn: { backgroundColor: colors.strong },
   unitText: { fontFamily: fonts.heading, fontSize: 14, color: colors.muted },
-  dotCard: { backgroundColor: colors.ink, borderRadius: radius.xl, overflow: 'hidden' },
+  dotCard: { backgroundColor: colors.panel, borderRadius: radius.xl, overflow: 'hidden' },
   error: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 10,
-    backgroundColor: '#fdecea',
+    backgroundColor: colors.dangerBg,
     borderWidth: 2,
     borderColor: colors.danger,
     borderRadius: 16,
@@ -491,4 +491,4 @@ const styles = StyleSheet.create({
   empty: { alignItems: 'center', gap: 10, paddingVertical: 56 },
   emptyTitle: { fontSize: 17, color: colors.muted },
   emptySub: { fontSize: 15, color: colors.muted, textAlign: 'center' },
-});
+}));

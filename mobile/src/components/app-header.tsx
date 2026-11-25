@@ -6,7 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStore } from '../data/store';
 import { tapLight } from '../lib/haptics';
 import { USER_COLORS } from '../lib/workout-data';
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { SettingsSheet } from './settings-sheet';
 import { Icon, IconButton, Plate } from './ui';
 
@@ -28,7 +28,7 @@ export function AppHeader() {
           FLEX
         </Text>
         <View style={styles.wordGold}>
-          <Text style={styles.wordText} allowFontScaling={false}>
+          <Text style={[styles.wordText, styles.wordOnGold]} allowFontScaling={false}>
             DADDIES
           </Text>
         </View>
@@ -50,7 +50,7 @@ export function AppHeader() {
         <IconButton
           icon="cog-outline"
           label="Settings"
-          color={colors.ink}
+          color={colors.text}
           onPress={() => setSettingsOpen(true)}
         />
       </View>
@@ -59,7 +59,7 @@ export function AppHeader() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   bar: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -72,7 +72,8 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
   },
   wordmark: { flexDirection: 'row', alignItems: 'center' },
-  wordText: { fontFamily: fonts.headingBold, fontSize: 25, color: colors.ink },
+  wordText: { fontFamily: fonts.headingBold, fontSize: 21, color: colors.text },
+  wordOnGold: { color: colors.onGold },
   wordGold: { backgroundColor: colors.gold, paddingHorizontal: 6 },
   right: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   switch: {
@@ -83,7 +84,7 @@ const styles = StyleSheet.create({
     paddingLeft: 8,
     paddingRight: 14,
     borderRadius: 999,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.panel,
   },
   switchText: { color: colors.white, fontWeight: '600', fontSize: 15 },
-});
+}));

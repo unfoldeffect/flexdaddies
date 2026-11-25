@@ -6,7 +6,7 @@ import { REST_CHOICES } from '../data/storage';
 import { useStore } from '../data/store';
 import { confirm } from '../lib/dialogs';
 import { buzzSuccess, buzzWarning, tapLight } from '../lib/haptics';
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { Sheet } from './sheet';
 import { Chip, OutlineButton, UnitToggle } from './ui';
 
@@ -29,6 +29,19 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   return (
     <Sheet visible={visible} title="Settings" onClose={onClose} closeLabel="Done">
       <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.heading}>LOOK</Text>
+        <View style={styles.card}>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Dark or light</Text>
+            <UnitToggle
+              options={['Dark', 'Light'] as const}
+              value={prefs.theme === 'light' ? 'Light' : 'Dark'}
+              onChange={(look) => setPrefs({ theme: look === 'Light' ? 'light' : 'dark' })}
+            />
+          </View>
+          <Text style={styles.hint}>Same layout either way. Switching closes Settings.</Text>
+        </View>
+
         <Text style={styles.heading}>REST TIMER</Text>
         <View style={styles.card}>
           <Text style={styles.rowLabel}>Rest between sets</Text>
@@ -51,7 +64,8 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
                 tapLight();
                 setPrefs({ restSound });
               }}
-              trackColor={{ false: colors.line, true: colors.ink }}
+              trackColor={{ false: colors.line, true: colors.gold }}
+              thumbColor={colors.white}
               ios_backgroundColor={colors.line}
               accessibilityLabel="Chime when rest is over"
             />
@@ -138,7 +152,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   content: { paddingHorizontal: 18, paddingBottom: 40, gap: 8 },
   heading: {
     fontFamily: fonts.headingBold,
@@ -168,4 +182,4 @@ const styles = StyleSheet.create({
   hint: { fontSize: 14, color: colors.muted },
   body: { fontSize: 15, color: colors.text, lineHeight: 21 },
   version: { textAlign: 'center', color: colors.muted, fontSize: 13, marginTop: 18 },
-});
+}));

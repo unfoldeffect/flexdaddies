@@ -19,7 +19,7 @@ import {
   OTHER_CATEGORY,
   type ManagedExercise,
 } from '../lib/workout-data';
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { Sheet } from './sheet';
 import { Dot, Icon, IconButton, OutlineButton, SmallButton } from './ui';
 
@@ -123,7 +123,7 @@ export function ManageExercisesSheet({
         <TextInput
           style={styles.search}
           placeholder="Search exercises..."
-          placeholderTextColor="#a3a59a"
+          placeholderTextColor={colors.placeholder}
           value={search}
           onChangeText={setSearch}
           autoCorrect={false}
@@ -235,7 +235,7 @@ export function ManageExercisesSheet({
                 label={`Edit ${ex.name}`}
                 size={38}
                 iconSize={17}
-                color={colors.ink}
+                color={colors.text}
                 onPress={() => startEdit(ex)}
               />
               <IconButton
@@ -254,7 +254,7 @@ export function ManageExercisesSheet({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   sub: { fontSize: 15, color: colors.muted, paddingHorizontal: 18, marginBottom: 10 },
   searchRow: {
     flexDirection: 'row',
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     borderRadius: 14,
     borderWidth: 2,
     borderColor: colors.line,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     color: colors.text,
     fontSize: 17,
     paddingHorizontal: 14,
@@ -316,9 +316,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
   },
   catChipText: { fontSize: 14, fontWeight: '700' },
   error: { color: colors.danger, fontWeight: '600', fontSize: 14 },
   editActions: { flexDirection: 'row', gap: 8, alignItems: 'center' },
-});
+}));

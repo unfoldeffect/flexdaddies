@@ -1,11 +1,17 @@
+import { tone } from "../theme";
 import { MOVEMENT_GROUPS } from "./movements";
 
 export const USERS = ["Diego", "Kevin"] as const;
 export type WorkoutUser = (typeof USERS)[number];
 
+// Colours are read through tone(), so they follow dark or light mode.
 export const USER_COLORS: Record<WorkoutUser, string> = {
-  Diego: "#2555c7",
-  Kevin: "#b5651d",
+  get Diego() {
+    return tone("#2555c7");
+  },
+  get Kevin() {
+    return tone("#b5651d");
+  },
 };
 
 export const OTHER_VALUE = "__other__";
@@ -17,19 +23,28 @@ export type ExerciseGroup = { label: string; color: string; options: string[] };
 // used to be a copy of the website's; it now differs on purpose.
 export const EXERCISE_GROUPS: ExerciseGroup[] = MOVEMENT_GROUPS.map((g) => ({
   label: g.label,
-  color: g.color,
+  get color() {
+    return tone(g.color);
+  },
   options: g.movements.map((m) => m.name),
 }));
 
 export const EXERCISE_TO_CATEGORY: Record<string, { label: string; color: string }> = {};
 EXERCISE_GROUPS.forEach((g) => g.options.forEach((o) => (EXERCISE_TO_CATEGORY[o] = g)));
-export const OTHER_CATEGORY = { label: "Other", color: "#6b7280" };
+export const OTHER_CATEGORY = {
+  label: "Other",
+  get color() {
+    return tone("#6b7280");
+  },
+};
 export const CARDIO_LABEL = "Cardio";
 export const CATEGORY_LABELS = EXERCISE_GROUPS.map((g) => g.label);
-export const CATEGORY_COLORS: Record<string, string> = {
-  ...Object.fromEntries(EXERCISE_GROUPS.map((g) => [g.label, g.color])),
-  [OTHER_CATEGORY.label]: OTHER_CATEGORY.color,
-};
+export const CATEGORY_COLORS: Record<string, string> = new Proxy({} as Record<string, string>, {
+  get: (_t, label: string) =>
+    label === OTHER_CATEGORY.label
+      ? OTHER_CATEGORY.color
+      : EXERCISE_GROUPS.find((g) => g.label === label)?.color,
+});
 
 export type CategoryInfo = { label: string; color: string };
 export type MergedExerciseData = {
@@ -59,7 +74,9 @@ export type ManagedExercise = {
 
 function categoryInfo(label: string): CategoryInfo {
   const g = EXERCISE_GROUPS.find((x) => x.label.toLowerCase() === label.toLowerCase());
-  return g ? { label: g.label, color: g.color } : OTHER_CATEGORY;
+  return g
+    ? { label: g.label, color: g.color }
+    : { label: OTHER_CATEGORY.label, color: OTHER_CATEGORY.color };
 }
 
 export function mergeExerciseGroups(

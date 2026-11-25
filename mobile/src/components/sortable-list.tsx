@@ -30,7 +30,7 @@ import { GestureDetector, usePanGesture } from 'react-native-gesture-handler';
 
 import { tapMedium, tapStep } from '../lib/haptics';
 import { dropIndex, edgeScrollSpeed, insertionLineY, type Rect } from '../lib/reorder';
-import { colors, fonts, shadow } from '../theme';
+import { colors, fonts, shadow, themed } from '../theme';
 
 const GHOST_HEIGHT = 56;
 
@@ -407,7 +407,7 @@ function SortableRow({
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   host: { flex: 1 },
   dimmed: { opacity: 0.4 },
   ghost: {
@@ -417,7 +417,7 @@ const styles = StyleSheet.create({
     right: 28,
     height: GHOST_HEIGHT,
     borderRadius: GHOST_HEIGHT / 2,
-    backgroundColor: colors.ink,
+    backgroundColor: colors.panel,
     borderWidth: 2,
     borderColor: colors.gold,
     flexDirection: 'row',
@@ -438,4 +438,4 @@ const styles = StyleSheet.create({
   },
   lineBar: { flex: 1, height: 4, backgroundColor: colors.gold, borderRadius: 2 },
   lineKnob: { width: 10, height: 10, borderRadius: 5, backgroundColor: colors.gold },
-});
+}));

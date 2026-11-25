@@ -9,7 +9,7 @@
 import type { ReactNode } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, View } from 'react-native';
 
-import { colors } from '../theme';
+import { colors, themed } from '../theme';
 
 export function KeyboardSpace({ children }: { children: ReactNode }) {
   if (Platform.OS === 'android') {
@@ -22,6 +22,6 @@ export function KeyboardSpace({ children }: { children: ReactNode }) {
   return <View style={styles.root}>{children}</View>;
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-});
+}));

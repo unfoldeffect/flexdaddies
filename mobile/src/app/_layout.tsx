@@ -1,6 +1,6 @@
 // The frame around every screen: loads the fonts and the data saved on the
 // phone, then shows either "Who's lifting today?" or the four tabs.
-import { Oswald_600SemiBold, Oswald_700Bold, useFonts } from '@expo-google-fonts/oswald';
+import { Sora_700Bold, Sora_800ExtraBold, useFonts } from '@expo-google-fonts/sora';
 import { activateKeepAwakeAsync, deactivateKeepAwake } from 'expo-keep-awake';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
@@ -14,18 +14,17 @@ import { ProfileSelect } from '@/components/profile-select';
 import { RestTimer } from '@/components/rest-timer';
 import { LogDraftProvider } from '@/data/log-draft';
 import { StoreProvider, useStore } from '@/data/store';
-import { colors } from '@/theme';
+import { colors, setThemeMode, themed } from '@/theme';
 
 SplashScreen.preventAutoHideAsync().catch(() => {});
 
 export default function RootLayout() {
   // A missing font should never block the app: fall back to the system font.
-  const [fontsLoaded, fontError] = useFonts({ Oswald_600SemiBold, Oswald_700Bold });
+  const [fontsLoaded, fontError] = useFonts({ Sora_700Bold, Sora_800ExtraBold });
   return (
     <GestureHandlerRootView style={styles.root}>
       <SafeAreaProvider>
         <StoreProvider>
-          <StatusBar style="dark" />
           <App fontsReady={fontsLoaded || !!fontError} />
         </StoreProvider>
       </SafeAreaProvider>
@@ -34,16 +33,24 @@ export default function RootLayout() {
 }
 
 function App({ fontsReady }: { fontsReady: boolean }) {
-  const { ready, user } = useStore();
+  const { ready, user, prefs } = useStore();
   const loaded = ready && fontsReady;
+  // Set the look before anything below is drawn. The key makes the whole
+  // screen tree redraw when the look is switched in Settings.
+  const mode = prefs.theme === 'light' ? 'light' : 'dark';
+  setThemeMode(mode);
 
   useEffect(() => {
     if (loaded) SplashScreen.hideAsync().catch(() => {});
   }, [loaded]);
 
   if (!loaded) return <View style={styles.root} />;
-  if (!user) return <ProfileSelect />;
-  return <SignedIn />;
+  return (
+    <View key={mode} style={styles.root}>
+      <StatusBar style={mode === 'dark' ? 'light' : 'dark'} />
+      {user ? <SignedIn /> : <ProfileSelect />}
+    </View>
+  );
 }
 
 function SignedIn() {
@@ -66,6 +73,6 @@ function SignedIn() {
   );
 }
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   root: { flex: 1, backgroundColor: colors.bg },
-});
+}));

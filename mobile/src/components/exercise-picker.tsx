@@ -6,7 +6,7 @@ import { Image, Pressable, SectionList, StyleSheet, Text, TextInput, View } from
 import { tapLight } from '../lib/haptics';
 import { movementImage } from '../lib/movement-images';
 import { OTHER_VALUE, type ExerciseGroup } from '../lib/workout-data';
-import { colors, fonts } from '../theme';
+import { colors, fonts, themed } from '../theme';
 import { Sheet } from './sheet';
 import { Dot, Icon } from './ui';
 
@@ -59,7 +59,7 @@ export function ExercisePicker({
         <TextInput
           style={styles.search}
           placeholder="Search exercises"
-          placeholderTextColor="#a3a59a"
+          placeholderTextColor={colors.placeholder}
           value={search}
           onChangeText={setSearch}
           autoCorrect={false}
@@ -153,7 +153,7 @@ export function ExercisePicker({
 
 export { OTHER_VALUE };
 
-const styles = StyleSheet.create({
+const styles = themed(() => StyleSheet.create({
   searchRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -180,9 +180,9 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: colors.gold,
-    backgroundColor: 'rgba(201,162,39,0.1)',
+    backgroundColor: colors.goldTint,
   },
-  customText: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.ink },
+  customText: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
   sectionHeader: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -208,7 +208,7 @@ const styles = StyleSheet.create({
     width: 64,
     height: 64,
     borderRadius: 12,
-    backgroundColor: colors.white,
+    backgroundColor: colors.field,
     borderWidth: 1,
     borderColor: colors.line,
   },
@@ -226,4 +226,4 @@ const styles = StyleSheet.create({
     marginTop: 12,
   },
   manageText: { fontSize: 15, fontWeight: '700', color: colors.goldDeep },
-});
+}));

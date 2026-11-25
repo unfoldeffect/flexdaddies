@@ -6,7 +6,7 @@ import { Platform, Pressable, StyleSheet, Text, TextInput, View } from 'react-na
 
 import { fromISODate, isValidISODate, toISODate } from '../lib/stats';
 import { formatDate } from '../lib/workout-data';
-import { colors, themed } from '../theme';
+import { colors, themeMode, themed } from '../theme';
 import { Icon } from './ui';
 
 type Props = {
@@ -29,7 +29,7 @@ export function DateField({ value, onChange, label, onWhite }: Props) {
           value={date}
           mode="date"
           display="compact"
-          themeVariant="light"
+          themeVariant={themeMode()}
           accentColor={colors.strong}
           accessibilityLabel={label}
           onValueChange={(_event, picked) => onChange(toISODate(picked))}

@@ -8,6 +8,7 @@ import {
   type Workout,
   type WorkoutExercise,
 } from './types';
+import { exerciseKey, exerciseLabel } from './movements';
 import { USERS, type WorkoutUser } from './workout-data';
 
 export type WeightUnit = 'lbs' | 'kg';
@@ -51,7 +52,12 @@ export function sortWorkoutsNewestFirst(workouts: Workout[]): Workout[] {
   );
 }
 
-/** For each exercise, how that person did it the most recent time. */
+/**
+ * For each exercise, how that person did it the most recent time. Kept two
+ * ways: under "movement|equipment" (so dumbbell and barbell bench have their
+ * own "last time"), and under the plain name (the most recent of any kind,
+ * which also tells the Log form which equipment to start with).
+ */
 export function computeLastPerformance(
   workouts: Workout[],
   forUser: WorkoutUser | null,
@@ -61,6 +67,8 @@ export function computeLastPerformance(
   const theirs = sortWorkoutsNewestFirst(workouts.filter((w) => w.user === forUser));
   for (const w of theirs) {
     for (const ex of w.exercises) {
+      const key = exerciseKey(ex.name, ex.equipment);
+      if (!(key in map)) map[key] = ex;
       if (!(ex.name in map)) map[ex.name] = ex;
     }
   }
@@ -77,7 +85,15 @@ export function workoutTotals(w: Workout): { sets: number; volume: number } {
   return { sets, volume };
 }
 
-export type PersonalRecord = { name: string; weight: number; reps: number; date: string };
+export type PersonalRecord = {
+  /** What is shown: "Bench Press · Dumbbell". */
+  name: string;
+  /** The movement alone, for its colour. */
+  movement: string;
+  weight: number;
+  reps: number;
+  date: string;
+};
 
 export type WorkoutStats = {
   total: number;
@@ -107,14 +123,20 @@ export function computeWorkoutStats(workouts: Workout[], now: Date = new Date())
     if (new Date(w.date) >= weekAgo) thisWeek += 1;
     let dayTotal = 0;
     for (const ex of w.exercises) {
-      const key = ex.name.trim().toLowerCase();
+      const key = exerciseKey(ex.name.trim(), ex.equipment).toLowerCase();
       for (const s of ex.sets) {
         const vol = s.reps * s.weight;
         if (perUser[w.user]) perUser[w.user].volume += vol;
         dayTotal += vol;
         const userPrs = prsByUser[w.user];
         if (userPrs && (!userPrs[key] || s.weight > userPrs[key].weight)) {
-          userPrs[key] = { name: ex.name, weight: s.weight, reps: s.reps, date: w.date };
+          userPrs[key] = {
+            name: exerciseLabel(ex.name, ex.equipment),
+            movement: ex.name,
+            weight: s.weight,
+            reps: s.reps,
+            date: w.date,
+          };
         }
       }
     }

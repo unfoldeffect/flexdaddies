@@ -1,9 +1,10 @@
 // The exercise list as a native sheet: search at the top, exercises grouped
 // by colour-coded category, and "type your own" for anything not listed.
 import { useMemo, useState } from 'react';
-import { Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, SectionList, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { tapLight } from '../lib/haptics';
+import { movementImage } from '../lib/movement-images';
 import { OTHER_VALUE, type ExerciseGroup } from '../lib/workout-data';
 import { colors, fonts } from '../theme';
 import { Sheet } from './sheet';
@@ -75,7 +76,7 @@ export function ExercisePicker({
         automaticallyAdjustKeyboardInsets
         keyboardDismissMode="on-drag"
         stickySectionHeadersEnabled
-        initialNumToRender={24}
+        initialNumToRender={12}
         contentContainerStyle={styles.listContent}
         ListHeaderComponent={
           <Pressable
@@ -105,6 +106,7 @@ export function ExercisePicker({
         )}
         renderItem={({ item }) => {
           const isSelected = item === selected;
+          const picture = movementImage(item);
           return (
             <Pressable
               accessibilityRole="button"
@@ -116,6 +118,11 @@ export function ExercisePicker({
                 close();
               }}
             >
+              {picture ? (
+                <Image source={picture} style={styles.thumb} accessibilityIgnoresInvertColors />
+              ) : (
+                <View style={[styles.thumb, styles.thumbEmpty]} />
+              )}
               <Text style={[styles.rowText, isSelected && styles.rowTextSelected]}>{item}</Text>
               {isSelected && <Icon name="check" color={colors.goldDeep} />}
             </Pressable>
@@ -187,15 +194,26 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { fontFamily: fonts.headingBold, fontSize: 14, letterSpacing: 0.8 },
   row: {
-    minHeight: 50,
+    minHeight: 76,
     paddingHorizontal: 18,
+    paddingVertical: 6,
+    gap: 14,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: colors.line,
   },
-  rowText: { flex: 1, fontSize: 17, color: colors.text, paddingVertical: 10 },
+  thumb: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  thumbEmpty: { backgroundColor: colors.surface2 },
+  rowText: { flex: 1, fontSize: 18, color: colors.text, paddingVertical: 10 },
   rowTextSelected: { fontWeight: '700' },
   pressed: { opacity: 0.6 },
   empty: { textAlign: 'center', color: colors.muted, fontSize: 15, padding: 24 },

@@ -154,7 +154,7 @@ export default function StatsScreen() {
                     <Text style={styles.emptySub}>No records yet.</Text>
                   ) : (
                     list.map((pr) => {
-                      const cat = toCategory[pr.name] || OTHER_CATEGORY;
+                      const cat = toCategory[pr.movement] || OTHER_CATEGORY;
                       return (
                         <View style={styles.prRow} key={pr.name}>
                           <View style={{ flex: 1 }}>

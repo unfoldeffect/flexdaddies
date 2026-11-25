@@ -22,6 +22,7 @@ import {
   formatDate,
   type WorkoutUser,
 } from '@/lib/workout-data';
+import { exerciseLabel } from '@/lib/movements';
 import { colors, fonts } from '@/theme';
 
 type Filter = 'all' | WorkoutUser;
@@ -160,7 +161,9 @@ export default function HistoryScreen() {
                       <View key={i} style={styles.exercise}>
                         <View style={styles.exerciseName}>
                           <Dot color={cat.color} size={10} />
-                          <Text style={styles.exerciseNameText}>{ex.name}</Text>
+                          <Text style={styles.exerciseNameText}>
+                            {exerciseLabel(ex.name, ex.equipment)}
+                          </Text>
                         </View>
                         {ex.sets.map((s, j) => (
                           <Text key={j} style={styles.setLine}>

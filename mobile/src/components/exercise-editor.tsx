@@ -1,6 +1,6 @@
 // One exercise card on the Log form: which exercise, its sets, and notes.
 import { useRef, useState, type ComponentRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import type { NotesApi } from '../data/store';
 import {
@@ -15,6 +15,8 @@ import {
   type ToCategory,
 } from '../lib/draft';
 import { tapLight } from '../lib/haptics';
+import { movementImage } from '../lib/movement-images';
+import { defaultEquipment, exerciseKey, findMovement, type Equipment } from '../lib/movements';
 import type { WorkoutExercise } from '../lib/types';
 import {
   CARDIO_LABEL,
@@ -93,6 +95,20 @@ export function ExerciseEditor({
   const isCardio = category?.label === CARDIO_LABEL;
   const exerciseName = isOther ? exercise.customName.trim() : exercise.name;
   const notesEnabled = !!notesApi;
+  const movement = isOther ? undefined : findMovement(exercise.name);
+  const choices = movement?.equipment ?? [];
+  const equipment = exercise.equipment ?? null;
+  const picture = movement ? movementImage(movement.name) : undefined;
+  /** Buttons when there is something to choose; one fixed kind is just named. */
+  const showEquipmentButtons = choices.length > 1 || (!!movement?.optionalEquipment && choices.length === 1);
+  const fixedEquipment = choices.length === 1 && !movement?.optionalEquipment ? choices[0] : null;
+
+  const pickEquipment = (e: Equipment) => {
+    tapLight();
+    // The assisted machine can be switched off again; the others just switch.
+    const next = movement?.optionalEquipment && equipment === e ? null : e;
+    onChange({ ...exercise, equipment: next });
+  };
   const hasToolbar = !!category || !!drag || canMoveUp || canMoveDown || showRemove;
 
   const pickExercise = (name: string) => {
@@ -100,6 +116,8 @@ export function ExerciseEditor({
     onChange({
       ...exercise,
       name,
+      // Start on what this person used last time for this movement.
+      equipment: defaultEquipment(name, lastPerformance[name]?.equipment ?? null),
       sets: clampSetsForCategory(exercise.sets, cardioNext),
       setsOther: clampSetsForCategory(exercise.setsOther, cardioNext),
     });
@@ -110,6 +128,7 @@ export function ExerciseEditor({
     onChange({
       ...exercise,
       name: OTHER_VALUE,
+      equipment: null,
       customName: startingName || exercise.customName,
       sets: clampSetsForCategory(exercise.sets, cardioNext),
       setsOther: clampSetsForCategory(exercise.setsOther, cardioNext),
@@ -148,12 +167,17 @@ export function ExerciseEditor({
 
   const lastWorkout = (history: History) => {
     if (isOther || !exercise.name) return null;
-    const entry = history[exercise.name];
+    const found = history[exerciseKey(exercise.name, equipment)];
+    // With no equipment picked, the plain name holds the latest of any kind: only use a matching one.
+    const entry = found && (found.equipment ?? null) === equipment ? found : undefined;
     const summary = lastWorkoutSummary(entry, isCardio);
-    if (!entry?.sets.length) return null;
+    if (!entry?.sets.length) {
+      if (!equipment || !history[exercise.name]) return null;
+      return <Text style={styles.lastWorkout}>First time on {equipment}.</Text>;
+    }
     return (
       <Text style={styles.lastWorkout}>
-        Last workout: {summary}
+        Last time{equipment ? ` on ${equipment}` : ''}: {summary}
         {!notesEnabled && !!entry.notes && (
           <Text style={styles.lastWorkoutQuote}>
             {'\n'}&quot;{entry.notes}&quot;
@@ -242,6 +266,9 @@ export function ExerciseEditor({
         onPress={() => setPickerOpen(true)}
         style={({ pressed }) => [styles.select, pressed && { opacity: 0.7 }]}
       >
+        {picture && (
+          <Image source={picture} style={styles.picture} accessibilityIgnoresInvertColors />
+        )}
         <Text
           style={[styles.selectText, !exercise.name && { color: colors.muted }]}
           numberOfLines={2}
@@ -250,6 +277,49 @@ export function ExerciseEditor({
         </Text>
         <Icon name="chevron-down" color={colors.muted} />
       </Pressable>
+
+      {showEquipmentButtons && (
+        <View
+          style={styles.equipment}
+          accessibilityRole="radiogroup"
+          accessibilityLabel="Equipment"
+        >
+          <FieldLabel>
+            EQUIPMENT
+            {movement?.optionalEquipment ? (
+              <Text style={styles.optional}> (only if assisted)</Text>
+            ) : !equipment ? (
+              <Text style={styles.optional}> (pick one)</Text>
+            ) : null}
+          </FieldLabel>
+          <View style={styles.equipmentRow}>
+            {choices.map((e) => {
+              const on = equipment === e;
+              return (
+                <Pressable
+                  key={e}
+                  accessibilityRole="radio"
+                  accessibilityState={{ checked: on }}
+                  accessibilityLabel={`Equipment: ${e}`}
+                  onPress={() => pickEquipment(e)}
+                  style={({ pressed }) => [
+                    styles.equipmentChip,
+                    on && styles.equipmentChipOn,
+                    pressed && { opacity: 0.7 },
+                  ]}
+                >
+                  <Text style={[styles.equipmentText, on && styles.equipmentTextOn]}>{e}</Text>
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
+      )}
+      {!!fixedEquipment && (
+        <Text style={styles.target}>
+          Equipment: <Text style={styles.targetValue}>{fixedEquipment}</Text>
+        </Text>
+      )}
 
       {isOther && (
         <>
@@ -529,7 +599,32 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 10,
   },
-  selectText: { flex: 1, fontSize: 17, color: colors.text },
+  selectText: { flex: 1, fontSize: 18, fontWeight: '600', color: colors.text },
+  picture: {
+    width: 64,
+    height: 64,
+    borderRadius: 12,
+    backgroundColor: colors.white,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  equipment: { marginBottom: 10 },
+  equipmentRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+  equipmentChip: {
+    flexGrow: 1,
+    flexBasis: '45%',
+    minHeight: 52,
+    borderRadius: 14,
+    borderWidth: 2,
+    borderColor: colors.ink,
+    backgroundColor: colors.white,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 10,
+  },
+  equipmentChipOn: { backgroundColor: colors.ink },
+  equipmentText: { fontSize: 18, fontWeight: '700', color: colors.ink },
+  equipmentTextOn: { color: colors.white },
   textInput: {
     minHeight: 52,
     borderRadius: 14,

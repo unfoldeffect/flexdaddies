@@ -8,6 +8,7 @@ import {
   findMovement,
 } from '../lib/movements';
 import { buildFromDraft, emptyExercise, templateToDraft, workoutExercisesToDraft } from '../lib/draft';
+import { computeLastPerformance, computeWorkoutStats } from '../lib/stats';
 import { mergeExerciseGroups } from '../lib/workout-data';
 
 describe('the 75 movements', () => {
@@ -98,5 +99,41 @@ describe('equipment through a workout', () => {
       toCategory,
     );
     expect(back[0].equipment).toBeNull();
+  });
+});
+
+describe('progress per movement and equipment', () => {
+  const set = (weight: number) => ({ reps: 8, weight, time: 0, intensity: 0 });
+  const workouts = [
+    {
+      id: 'a',
+      user: 'Diego' as const,
+      date: '2026-11-01',
+      loggedAt: '2026-11-01T10:00:00Z',
+      notes: '',
+      exercises: [{ name: 'Bench Press', equipment: 'Barbell' as const, sets: [set(135)], notes: '' }],
+    },
+    {
+      id: 'b',
+      user: 'Diego' as const,
+      date: '2026-11-08',
+      loggedAt: '2026-11-08T10:00:00Z',
+      notes: '',
+      exercises: [{ name: 'Bench Press', equipment: 'Dumbbell' as const, sets: [set(50)], notes: '' }],
+    },
+  ];
+
+  it('keeps a separate "last time" for each kind of equipment', () => {
+    const last = computeLastPerformance(workouts, 'Diego');
+    expect(last['Bench Press|Barbell'].sets[0].weight).toBe(135);
+    expect(last['Bench Press|Dumbbell'].sets[0].weight).toBe(50);
+    // The plain name is the most recent of any kind: the Log form starts on it.
+    expect(last['Bench Press'].equipment).toBe('Dumbbell');
+  });
+
+  it('keeps a separate record for each kind of equipment', () => {
+    const prs = computeWorkoutStats(workouts, new Date('2026-11-09')).prs.Diego;
+    expect(prs.map((p) => p.name)).toEqual(['Bench Press · Barbell', 'Bench Press · Dumbbell']);
+    expect(prs[0].movement).toBe('Bench Press');
   });
 });

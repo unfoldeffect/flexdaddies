@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { LineChart, describeTrend } from '@/components/line-chart';
+import { ExerciseProgress, ProCharts } from '@/components/progress-charts';
 import { Dot, DotCard, EmptyState, Icon, Plate, SectionHeading } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { tapLight } from '@/lib/haptics';
@@ -120,6 +121,10 @@ export default function StatsScreen() {
             </View>
           );
         })}
+
+        <SectionHeading style={{ marginTop: 8 }}>Exercise Progress</SectionHeading>
+        <ExerciseProgress />
+        <ProCharts />
 
         <SectionHeading style={{ marginTop: 8 }}>Personal Records</SectionHeading>
         {people.map((u) => {

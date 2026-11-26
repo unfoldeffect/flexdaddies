@@ -10,3 +10,9 @@ export function canSavePlan(savedPlans: number, pro: boolean): boolean {
 export const PLAN_LIMIT_TITLE = `The free version keeps ${FREE_PLAN_LIMIT} saved routines`;
 export const PLAN_LIMIT_MESSAGE =
   'Delete a routine to save a new one, or go Pro for as many routines as you want.';
+
+export const PRO_CHARTS_TITLE = 'Part of Pro';
+export const PRO_RANGE_MESSAGE =
+  'The free version shows the last 3 months. Pro shows 1 month, 1 year and your whole history.';
+export const PRO_MAX_MESSAGE =
+  'Pro works out your estimated one-rep max from your sets and charts it over time.';

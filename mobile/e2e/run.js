@@ -103,7 +103,7 @@ async function scenario(browser, name, body) {
       await signIn(page, `${name}@example.com`);
       await firstTimeSetup(page, 'Diego');
       await page.getByRole('tab', { name: 'Log' }).waitFor();
-      await partnerAndSampleData(page);
+      if (name !== 'progress') await partnerAndSampleData(page);
     }
     await body(t);
   } catch (e) {
@@ -547,6 +547,49 @@ async function signInFlow({ page, shot, count, dialogs }) {
   check('deleting the account erased the workouts on the phone', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) === 0);
 }
 
+// Stats: one exercise over time (free for 3 months) and the Pro charts.
+async function progress({ page, shot, tab, count, dialogs, scroll }) {
+  const openSettings = async () => { await page.getByRole('button', { name: 'Settings' }).click(); await page.waitForTimeout(500); await page.mouse.move(195, 420); await page.mouse.wheel(0, 3000); await page.waitForTimeout(300); };
+  const done = async () => { await page.getByRole('button', { name: 'Done' }).click(); await page.waitForTimeout(500); };
+  await tab('Stats');
+  check('with nothing logged, Stats has no progress section yet', (await count('Exercise Progress')) === 0);
+  await openSettings();
+  await page.getByRole('button', { name: 'Load sample data' }).click();
+  await done();
+  await tab('Stats');
+  await scroll(700);
+  await shot('progress-01-free');
+  const chart = (what) => page.getByRole('img', { name: new RegExp(`^${what} on .* over `) });
+  check('free: one exercise charted over the last 3 months', (await chart('Top weight').count()) === 1 && /over the last 3 months/.test(await chart('Top weight').getAttribute('aria-label')));
+  check('free: says what Pro adds', (await count('MORE WITH PRO')) === 1 && (await page.getByText('SETS BY BODY PART', { exact: true }).count()) === 0);
+  dialogs.length = 0;
+  await page.getByRole('button', { name: '1Y', exact: true }).click();
+  await page.getByRole('button', { name: 'Est. 1-rep max (Pro)' }).click();
+  await page.waitForTimeout(300);
+  check('free: other ranges and one-rep max explain they are Pro', dialogs.length === 2 && dialogs.every((d) => d.includes('Part of Pro')) && (await chart('Top weight').count()) === 1, JSON.stringify(dialogs));
+  const firstLabel = await page.getByRole('button', { name: /^Progress for / }).getAttribute('aria-label');
+  await page.getByRole('button', { name: /^Progress for / }).click();
+  await page.waitForTimeout(500);
+  await shot('progress-02-choose');
+  await page.getByRole('button', { name: /, logged \d+ times?$/ }).nth(3).click();
+  await page.waitForTimeout(500);
+  check('another exercise can be picked', (await page.getByRole('button', { name: /^Progress for / }).getAttribute('aria-label')) !== firstLabel);
+
+  await scroll(-3000);
+  await openSettings();
+  await page.getByRole('switch', { name: 'Pro unlocked' }).click();
+  await done();
+  await scroll(700);
+  dialogs.length = 0;
+  await page.getByRole('button', { name: 'All', exact: true }).click();
+  await page.getByRole('button', { name: 'Est. 1-rep max', exact: true }).click();
+  await page.waitForTimeout(400);
+  check('Pro: all-time range and estimated one-rep max', dialogs.length === 0 && (await chart('Estimated one-rep max').count()) === 1 && /over all time/.test(await chart('Estimated one-rep max').getAttribute('aria-label')));
+  await scroll(500);
+  await shot('progress-03-pro');
+  check('Pro: sets by body part and consistency', (await page.getByText('SETS BY BODY PART', { exact: true }).count()) === 1 && (await count('CONSISTENCY')) === 1 && (await count('MORE WITH PRO')) === 0 && (await page.getByLabel(/sets this week, usually/).count()) >= 3 && (await count('weeks in a row')) === 1);
+}
+
 // Two "phones" on one account: what is logged on the first shows up on the second.
 async function backup(browser) {
   console.log('\n== backup ==');
@@ -625,6 +668,7 @@ async function backup(browser) {
   await scenario(browser, 'log-history', logAndHistory);
   await scenario(browser, 'body-stats-settings', bodyStatsSettings);
   await scenario(browser, 'add-exercise', addExercise);
+  await scenario(browser, 'progress', progress);
   await backup(browser);
   await browser.close();
   server.close();

@@ -1,0 +1,5 @@
+title,start_time,end_time,description,exercise_title,superset_id,exercise_notes,set_index,set_type,weight_lbs,reps,distance_miles,duration_seconds,rpe
+"Push Day","20 Nov 2026, 18:05","20 Nov 2026, 19:01","","Bench Press (Barbell)",,"elbows in",0,"normal",135,8,,,
+"Push Day","20 Nov 2026, 18:05","20 Nov 2026, 19:01","","Bench Press (Barbell)",,"",1,"normal",155,5,,,8
+"Push Day","20 Nov 2026, 18:05","20 Nov 2026, 19:01","","Zercher Squat (Barbell)",,"",0,"normal",95,5,,,
+"Legs","22 Nov 2026, 07:30","22 Nov 2026, 08:10","","Squat (Barbell)",,"",0,"normal",185,5,,,

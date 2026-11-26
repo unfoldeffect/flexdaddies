@@ -114,6 +114,9 @@ export type Store = {
   resetToSample: () => Promise<boolean>;
   eraseEverything: () => Promise<boolean>;
 
+  /** Adds workouts brought in from another app. Ones already here (same id) are skipped. */
+  importHistory: (workouts: Workout[], newExerciseNames: string[]) => Promise<{ added: number; already: number } | null>;
+
   /** For the account backup: everything on the phone, hidden partner entries included. */
   fullDb: Db;
   /** For the account backup: replace everything on the phone with this copy. */
@@ -376,6 +379,22 @@ export function StoreProvider({
       resetToSample: () =>
         commit(() => (prefsRef.current.partnerOn ? buildSampleData() : withoutPartner(buildSampleData()))),
       eraseEverything: () => commit(() => ({ ...EMPTY_DB })),
+      importHistory: async (workouts, newExerciseNames) => {
+        const have = new Set(dbRef.current.workouts.map((w) => w.id));
+        const fresh = workouts.filter((w) => !have.has(w.id));
+        const known = new Set(
+          Object.keys(
+            mergeExerciseGroups(dbRef.current.customExercises, dbRef.current.exerciseOverrides).toCategory,
+          ).map((k) => k.toLowerCase()),
+        );
+        const names = newExerciseNames.filter((n) => !known.has(n.toLowerCase()));
+        const ok = await commit((d) => {
+          let next: Db = { ...d, workouts: [...d.workouts, ...fresh] };
+          for (const name of names) next = ops.addCustomExercise(next, { name, category: OTHER_CATEGORY.label });
+          return next;
+        });
+        return ok ? { added: fresh.length, already: workouts.length - fresh.length } : null;
+      },
       fullDb: db,
       replaceDb: (next) => commit(() => next),
     };

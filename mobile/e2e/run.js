@@ -103,7 +103,7 @@ async function scenario(browser, name, body) {
       await signIn(page, `${name}@example.com`);
       await firstTimeSetup(page, 'Diego');
       await page.getByRole('tab', { name: 'Log' }).waitFor();
-      if (name !== 'progress') await partnerAndSampleData(page);
+      if (name !== 'progress' && name !== 'transfer') await partnerAndSampleData(page);
     }
     await body(t);
   } catch (e) {
@@ -622,6 +622,60 @@ async function progress({ page, shot, tab, count, dialogs, scroll }) {
   check('Pro: sets by body part and consistency', (await page.getByText('SETS BY BODY PART', { exact: true }).count()) === 1 && (await count('CONSISTENCY')) === 1 && (await count('MORE WITH PRO')) === 0 && (await page.getByLabel(/sets this week, usually/).count()) >= 3 && (await count('weeks in a row')) === 1);
 }
 
+// Bring a history in from Hevy or Strong, and export it again.
+async function transfer({ page, shot, tab, count, workouts }) {
+  const fixture = (name) => path.join(__dirname, 'fixtures', name);
+  const choose = async (label, file) => {
+    const chooser = page.waitForEvent('filechooser');
+    await page.getByRole('button', { name: label }).click();
+    await (await chooser).setFiles(fixture(file));
+    await page.waitForTimeout(700);
+  };
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Bring in workouts from Hevy or Strong' }).click();
+  await page.waitForTimeout(500);
+  await shot('transfer-01-start');
+  await choose('Choose the file', 'not-workouts.csv');
+  check('a file that is not a workout export is refused, with what to do', (await count('is not a workout export from Hevy or Strong')) === 1);
+  await choose('Choose the file', 'hevy.csv');
+  await shot('transfer-02-found');
+  check('a Hevy file is read and summed up before anything is added', (await count('2 workouts from Hevy')) === 1 && (await count('2 exercises match ours')) === 1 && (await count('Zercher Squat (Barbell)')) === 1);
+  await page.getByRole('button', { name: 'ADD 2 WORKOUTS' }).click();
+  await page.waitForTimeout(700);
+  check('the workouts are added', (await count('2 workouts added.')) === 1);
+  await choose('Choose another file', 'hevy.csv');
+  await page.getByRole('button', { name: 'ADD 2 WORKOUTS' }).click();
+  await page.waitForTimeout(700);
+  check('the same file a second time adds nothing', (await count('0 workouts added.')) === 1 && (await count('2 were already here')) === 1);
+  await choose('Choose another file', 'strong.csv');
+  check('a Strong file asks whether its weights are lbs or kg', (await count('1 workout from Strong')) === 1 && (await count('Weights in this file are in')) === 1);
+  await page.getByRole('radio', { name: 'Show in kg' }).last().click();
+  await page.getByRole('button', { name: 'ADD 1 WORKOUT' }).click();
+  await page.waitForTimeout(700);
+  await page.getByRole('button', { name: 'Done' }).last().click();
+  await page.waitForTimeout(500);
+
+  const download = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export my workouts' }).click();
+  const saved = await (await download).path();
+  const csv = fs.readFileSync(saved, 'utf8');
+  check('Export writes every set to a file', csv.startsWith('title,start_time') && csv.includes('Bench Press (Barbell)') && csv.split('\n').length === 8 && (await count('3 workouts written to flex-daddies-workouts.csv')) === 1, `lines=${csv.split('\n').length}`);
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+
+  await tab('History');
+  await page.waitForTimeout(800);
+  await shot('transfer-03-history');
+  check('the imported workouts are in History', (await workouts().count()) === 3);
+  await workouts().nth(2).click();
+  await page.waitForTimeout(400);
+  check('kilos from Strong were turned into pounds', (await count('132.3')) >= 1);
+  await tab('Stats');
+  await page.waitForTimeout(600);
+  check('imported lifts count in the records', (await count('Bench Press · Barbell')) >= 1);
+}
+
 // Two "phones" on one account: what is logged on the first shows up on the second.
 async function backup(browser) {
   console.log('\n== backup ==');
@@ -701,6 +755,7 @@ async function backup(browser) {
   await scenario(browser, 'body-stats-settings', bodyStatsSettings);
   await scenario(browser, 'add-exercise', addExercise);
   await scenario(browser, 'progress', progress);
+  await scenario(browser, 'transfer', transfer);
   await backup(browser);
   await browser.close();
   server.close();

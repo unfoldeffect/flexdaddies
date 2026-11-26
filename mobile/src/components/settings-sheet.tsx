@@ -5,12 +5,15 @@ import { ScrollView, StyleSheet, Switch, Text, TextInput, View } from 'react-nat
 
 import { useAuth } from '../data/auth';
 import { forgetBackup, useBackupStatus } from '../data/backup';
+import { shareTextFile } from '../data/files';
 import { REST_CHOICES } from '../data/storage';
 import { useStore } from '../data/store';
 import { describeBackup } from '../lib/backup';
 import { confirm } from '../lib/dialogs';
 import { buzzSuccess, buzzWarning, tapLight } from '../lib/haptics';
+import { exportCsv } from '../lib/transfer';
 import { colors, fonts, themed } from '../theme';
+import { ImportSheet } from './import-sheet';
 import { Sheet } from './sheet';
 import { Chip, OutlineButton, UnitToggle } from './ui';
 
@@ -20,6 +23,26 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   const { account, signOut, deleteAccount } = useAuth();
   const backup = useBackupStatus();
   const [accountProblem, setAccountProblem] = useState<string | null>(null);
+  const [importing, setImporting] = useState(false);
+  const [exportNote, setExportNote] = useState<string | null>(null);
+
+  const exportMine = async () => {
+    const mine = db.workouts.filter((w) => w.user === 'me');
+    if (!mine.length) {
+      setExportNote('Nothing to export yet: log a workout first.');
+      return;
+    }
+    try {
+      const ok = await shareTextFile('flex-daddies-workouts.csv', exportCsv(mine));
+      setExportNote(
+        ok
+          ? `${mine.length} ${mine.length === 1 ? 'workout' : 'workouts'} written to flex-daddies-workouts.csv, one row per set.`
+          : "This phone can't share files.",
+      );
+    } catch {
+      setExportNote("The file couldn't be made. Try again.");
+    }
+  };
 
   const askSignOut = async () => {
     buzzWarning();
@@ -182,6 +205,9 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             {db.workouts.length} workouts · {db.weighIns.length} weigh-ins ·{' '}
             {db.measurements.length} measurements · {db.templates.length} routines
           </Text>
+          <OutlineButton label="Bring in workouts from Hevy or Strong" onPress={() => setImporting(true)} />
+          <OutlineButton label="Export my workouts" onPress={exportMine} />
+          {exportNote && <Text style={styles.hint}>{exportNote}</Text>}
           <OutlineButton
             label="Erase everything on this phone"
             onPress={() =>
@@ -263,6 +289,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           Flex Daddies {Constants.expoConfig?.version ?? ''} · preview build
         </Text>
       </ScrollView>
+      <ImportSheet visible={importing} onClose={() => setImporting(false)} />
     </Sheet>
   );
 }

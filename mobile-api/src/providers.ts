@@ -33,10 +33,10 @@ async function defaultFetchKeys(url: string): Promise<Jwk[]> {
   return ((await res.json()) as { keys: Jwk[] }).keys;
 }
 
-function fromBase64Url(text: string): Uint8Array {
+function fromBase64Url(text: string): Uint8Array<ArrayBuffer> {
   const padded = text.replace(/-/g, '+').replace(/_/g, '/') + '==='.slice((text.length + 3) % 4);
   const binary = atob(padded);
-  const bytes = new Uint8Array(binary.length);
+  const bytes = new Uint8Array(new ArrayBuffer(binary.length));
   for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
   return bytes;
 }

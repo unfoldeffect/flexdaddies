@@ -1,7 +1,10 @@
 // Taps through the whole app in a headless browser and checks the results.
 // Usage: node e2e/run.js <folder made by "expo export --platform web"> [port]
-// The export must be built with EXPO_PUBLIC_API_URL=http://localhost:8791:
-// this script starts the test accounts server (../mobile-api) on that port.
+// The export must be built with EXPO_PUBLIC_API_URL=http://localhost:8791
+// (this script starts the test accounts server, ../mobile-api, on that port)
+// and EXPO_PUBLIC_TEST_BUILD=1, so the test-only Settings card is there.
+// Add "store" after the port to check an export built WITHOUT
+// EXPO_PUBLIC_TEST_BUILD instead: the App Store build, with no test tools.
 const { spawn } = require('child_process');
 const fs = require('fs');
 const http = require('http');
@@ -82,14 +85,22 @@ async function scenario(browser, name, body) {
   const page = await ctx.newPage();
   const errors = [];
   const dialogs = [];
+  // A "See Pro" offer gets "Not now" unless a check asks for the Go Pro screen.
+  const pro = { acceptOffers: false };
   // The sign-in scenario types a wrong code on purpose; the browser logs the server's "no".
   const expected = (text) => name === 'sign-in' && text.includes('status of 400');
   page.on('console', (m) => m.type() === 'error' && !expected(m.text()) && errors.push(m.text().slice(0, 300)));
   page.on('pageerror', (e) => errors.push(e.message.slice(0, 300)));
-  page.on('dialog', (d) => { dialogs.push(d.message()); d.accept(); });
+  const isProOffer = (text) => /Part of Pro|The free version keeps/.test(text);
+  page.on('dialog', (d) => {
+    dialogs.push(d.message());
+    if (isProOffer(d.message()) && !pro.acceptOffers) d.dismiss();
+    else d.accept();
+  });
   const t = {
     page,
     dialogs,
+    pro,
     shot: (n) => page.screenshot({ path: path.join(shots, `${n}.png`) }),
     tab: async (label) => { await page.getByRole('tab', { name: label }).click(); await page.waitForTimeout(500); },
     count: (text) => page.getByText(text, { exact: false }).count(),
@@ -103,7 +114,7 @@ async function scenario(browser, name, body) {
       await signIn(page, `${name}@example.com`);
       await firstTimeSetup(page, 'Diego');
       await page.getByRole('tab', { name: 'Log' }).waitFor();
-      if (name !== 'progress' && name !== 'transfer') await partnerAndSampleData(page);
+      if (!['progress', 'transfer', 'go-pro', 'store-build'].includes(name)) await partnerAndSampleData(page);
     }
     await body(t);
   } catch (e) {
@@ -655,6 +666,87 @@ async function progress({ page, shot, tab, count, dialogs, scroll }) {
   check('Pro: sets by body part and consistency', (await page.getByText('SETS BY BODY PART', { exact: true }).count()) === 1 && (await count('CONSISTENCY')) === 1 && (await count('MORE WITH PRO')) === 0 && (await page.getByLabel(/sets this week, usually/).count()) >= 3 && (await count('weeks in a row')) === 1);
 }
 
+// The Go Pro screen: what Pro adds, the prices, and the buy button (not wired yet).
+async function goPro({ page, shot, tab, count, pro, scroll }) {
+  const settings = async () => { await page.getByRole('button', { name: 'Settings' }).click(); await page.waitForTimeout(600); };
+  const sheetOpen = () => count('Everything free stays free. Pro adds:');
+  const closePro = async () => { await page.getByRole('button', { name: 'Close', exact: true }).last().click(); await page.waitForTimeout(500); };
+
+  await settings();
+  check('Settings opens with the Pro card and what free includes', (await count('FLEX DADDIES PRO')) === 1 && (await count('Free: unlimited logging, your full history and 3 saved routines.')) === 1);
+  check('a test build shows the test-only card', (await count('TEST BUILD ONLY')) === 1 && (await count('· test build')) === 1);
+  await page.getByRole('button', { name: 'See what Pro adds' }).click();
+  await page.waitForTimeout(600);
+  await shot('gopro-01-monthly');
+  check('Go Pro lists the six things Pro adds', (await sheetOpen()) === 1 && (await count('Unlimited routines')) === 1 && (await count('Your whole history on every chart')) === 1 && (await count('Estimated one-rep max')) === 1 && (await count('Sets by body part')) === 1 && (await count('Consistency')) === 1 && (await count('Partner sync')) === 1);
+  check('monthly: $0.99 the first month, then $2.99 a month', (await count('$0.99 your first month')) === 1 && (await count('Then $2.99 a month. Try it for a month')) === 1 && (await page.getByRole('button', { name: 'Start Pro for $0.99' }).count()) === 1);
+  check('yearly: $25.99 a year, about $2.17 a month, save 27%', (await count('$25.99 a year')) >= 1 && (await count('About $2.17 a month. Save 27% over paying monthly.')) === 1 && (await page.getByText('SAVE 27%', { exact: true }).count()) === 1);
+  check('no lifetime option', (await count('lifetime')) === 0 && (await count('Lifetime')) === 0);
+  check('monthly is picked to start', (await page.getByRole('radio', { name: /^Monthly/ }).getAttribute('aria-checked')) === 'true');
+  await page.getByRole('radio', { name: /^Yearly/ }).click();
+  await page.waitForTimeout(300);
+  check('picking yearly changes the button', (await page.getByRole('radio', { name: /^Yearly/ }).getAttribute('aria-checked')) === 'true' && (await page.getByRole('button', { name: 'Go Pro for $25.99 a year' }).count()) === 1);
+  await page.getByRole('button', { name: 'Go Pro for $25.99 a year' }).click();
+  await page.waitForTimeout(300);
+  await scroll(1500);
+  await shot('gopro-02-yearly-pressed');
+  check('the buy button is not wired: it says so and charges nothing', (await count('Buying opens when Flex Daddies is in the App Store. Nothing was charged.')) === 1);
+  check('the fine print says how it renews and how to cancel', (await count('Pro renews automatically')) === 1 && (await count('Terms of Use · Privacy Policy')) === 1 && (await page.getByRole('button', { name: 'Restore a purchase' }).count()) === 1);
+  await closePro();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+
+  // From Stats: the locked card's button, and a "Part of Pro" message.
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(500);
+  await page.mouse.move(195, 420);
+  await page.mouse.wheel(0, 3000);
+  await page.getByRole('button', { name: 'Load sample data' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+  await tab('Stats');
+  await scroll(1500);
+  await page.getByRole('button', { name: 'See Pro' }).click();
+  await page.waitForTimeout(600);
+  check('Stats: the locked Pro card opens Go Pro', (await sheetOpen()) === 1);
+  await closePro();
+  pro.acceptOffers = true;
+  await scroll(-600);
+  await page.getByRole('button', { name: '1Y', exact: true }).click();
+  await page.waitForTimeout(600);
+  check('a "Part of Pro" message offers Go Pro', (await sheetOpen()) === 1);
+  await closePro();
+  pro.acceptOffers = false;
+
+  // With Pro on, the screen says so and shows no prices.
+  await scroll(-3000);
+  await settings();
+  await page.mouse.move(195, 420);
+  await page.mouse.wheel(0, 3000);
+  await page.getByRole('switch', { name: 'Pro unlocked' }).click();
+  await page.mouse.wheel(0, -6000);
+  await page.waitForTimeout(400);
+  check('Settings with Pro on', (await count('Pro is on. Thank you.')) === 1);
+  await page.getByRole('button', { name: 'What Pro includes' }).click();
+  await page.waitForTimeout(600);
+  await shot('gopro-03-pro-on');
+  check('Go Pro with Pro on: no prices, how to cancel', (await count('Pro is on. Here is everything it adds.')) === 1 && (await count('$2.99')) === 0 && (await count('Subscriptions')) === 1);
+}
+
+// The App Store build (exported without EXPO_PUBLIC_TEST_BUILD): no test tools.
+async function storeBuild({ page, count, shot }) {
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  await page.mouse.move(195, 420);
+  await page.mouse.wheel(0, 3000);
+  await page.waitForTimeout(400);
+  await shot('store-01-settings');
+  check('store build: no test-only card, no Pro switch, no sample data', (await count('TEST BUILD ONLY')) === 0 && (await page.getByRole('switch', { name: 'Pro unlocked' }).count()) === 0 && (await page.getByRole('button', { name: 'Load sample data' }).count()) === 0);
+  check('store build: the version line does not say test build', (await count('test build')) === 0 && (await count('Flex Daddies 1.0.0')) === 1);
+  check('store build: Pro and the account are still there', (await count('FLEX DADDIES PRO')) === 1 && (await page.getByRole('button', { name: 'Delete my account' }).count()) === 1);
+}
+
 // Bring a history in from Hevy or Strong, and export it again.
 async function transfer({ page, shot, tab, count, workouts }) {
   const fixture = (name) => path.join(__dirname, 'fixtures', name);
@@ -920,6 +1012,9 @@ async function backup(browser) {
   const accounts = await serveAccounts();
   const server = await serve();
   const browser = await chromium.launch();
+  if (process.argv[4] === 'store') {
+    await scenario(browser, 'store-build', storeBuild);
+  } else {
   await scenario(browser, 'sign-in', signInFlow);
   await scenario(browser, 'reorder', reorder);
   await scenario(browser, 'log-history', logAndHistory);
@@ -929,6 +1024,8 @@ async function backup(browser) {
   await scenario(browser, 'transfer', transfer);
   await backup(browser);
   await partnerSync(browser);
+  await scenario(browser, 'go-pro', goPro);
+  }
   await browser.close();
   server.close();
   accounts.kill();

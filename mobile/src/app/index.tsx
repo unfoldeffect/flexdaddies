@@ -9,6 +9,7 @@ import { ManageExercisesSheet } from '@/components/manage-exercises';
 import { ProgressStrip } from '@/components/progress-strip';
 import { NEW_ROUTINE, PlanEditorSheet } from '@/components/plan-editor-sheet';
 import { useScrollBridge } from '@/components/sortable-list';
+import { useGoPro } from '@/components/go-pro';
 import { StarterRoutinesSheet } from '@/components/starter-routines';
 import { TogetherToggle } from '@/components/together-toggle';
 import { ErrorBanner, Icon, OutlineButton } from '@/components/ui';
@@ -16,7 +17,7 @@ import { WorkoutForm } from '@/components/workout-form';
 import { useLogDraft, useLogDraftActions } from '@/data/log-draft';
 import { usePartner } from '@/data/partner';
 import { useStore } from '@/data/store';
-import { confirm, notify } from '@/lib/dialogs';
+import { confirm } from '@/lib/dialogs';
 import { draftProgress, templateToDraft } from '@/lib/draft';
 import { buzzWarning, tapLight } from '@/lib/haptics';
 import { PLAN_LIMIT_MESSAGE, PLAN_LIMIT_TITLE } from '@/lib/pro';
@@ -36,6 +37,7 @@ export default function LogScreen() {
   const [editingPlan, setEditingPlan] = useState<WorkoutTemplate | null>(null);
   const [managing, setManaging] = useState(false);
   const [starters, setStarters] = useState(false);
+  const goPro = useGoPro();
 
   const { user, otherUser, names, togetherMode, db } = store;
   // Only shown or logged in Together Mode, which needs a partner switched on.
@@ -81,7 +83,7 @@ export default function LogScreen() {
   const newRoutine = () => {
     tapLight();
     if (store.canAddRoutine) setEditingPlan(NEW_ROUTINE);
-    else void notify(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
+    else void goPro.offer(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
   };
 
   const startFresh = async () => {
@@ -264,6 +266,7 @@ export default function LogScreen() {
       <PlanEditorSheet template={editingPlan} onClose={() => setEditingPlan(null)} />
       <ManageExercisesSheet visible={managing} onClose={() => setManaging(false)} />
       <StarterRoutinesSheet visible={starters} onClose={() => setStarters(false)} />
+      {goPro.sheet}
     </KeyboardSpace>
   );
 }

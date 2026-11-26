@@ -4,7 +4,6 @@ import { useMemo, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { useStore } from '../data/store';
-import { notify } from '../lib/dialogs';
 import {
   FREE_RANGE,
   RANGES,
@@ -20,15 +19,17 @@ import { PRO_CHARTS_TITLE, PRO_MAX_MESSAGE, PRO_RANGE_MESSAGE } from '../lib/pro
 import { liftShown } from '../lib/stats';
 import { OTHER_CATEGORY } from '../lib/workout-data';
 import { colors, fonts, themed } from '../theme';
+import { useGoPro } from './go-pro';
 import { LineChart, describeTrend } from './line-chart';
 import { Sheet } from './sheet';
-import { Chip, EmptyState, Icon } from './ui';
+import { Chip, EmptyState, Icon, SmallButton } from './ui';
 
 type Metric = 'top' | 'max';
 
 export function ExerciseProgress() {
   const { db, prefs } = useStore();
   const pro = prefs.pro;
+  const goPro = useGoPro();
   const exercises = useMemo(() => trackedExercises(db.workouts, 'me'), [db.workouts]);
   const [picked, setPicked] = useState<string | null>(null);
   const [choosing, setChoosing] = useState(false);
@@ -74,7 +75,7 @@ export function ExerciseProgress() {
         <Chip
           label={pro ? 'Est. 1-rep max' : 'Est. 1-rep max (Pro)'}
           active={shownMetric === 'max'}
-          onPress={() => (pro ? setMetric('max') : void notify(PRO_CHARTS_TITLE, PRO_MAX_MESSAGE))}
+          onPress={() => (pro ? setMetric('max') : void goPro.offer(PRO_CHARTS_TITLE, PRO_MAX_MESSAGE))}
         />
       </View>
 
@@ -104,7 +105,7 @@ export function ExerciseProgress() {
             key={r}
             label={r}
             active={shownRange === r}
-            onPress={() => (pro ? setRange(r) : r !== FREE_RANGE && void notify(PRO_CHARTS_TITLE, PRO_RANGE_MESSAGE))}
+            onPress={() => (pro ? setRange(r) : r !== FREE_RANGE && void goPro.offer(PRO_CHARTS_TITLE, PRO_RANGE_MESSAGE))}
             style={styles.rangeChip}
           />
         ))}
@@ -133,6 +134,7 @@ export function ExerciseProgress() {
           ))}
         </ScrollView>
       </Sheet>
+      {goPro.sheet}
     </View>
   );
 }
@@ -145,6 +147,7 @@ export function ProCharts() {
     [db.workouts, toCategory],
   );
   const steady = useMemo(() => consistency(db.workouts, 'me'), [db.workouts]);
+  const goPro = useGoPro();
 
   if (!prefs.pro) {
     return (
@@ -157,6 +160,8 @@ export function ProCharts() {
           Your whole history on every exercise, estimated one-rep max, sets by body part each week,
           and your streak.
         </Text>
+        <SmallButton gold label="See Pro" onPress={goPro.open} style={styles.seePro} />
+        {goPro.sheet}
       </View>
     );
   }
@@ -277,6 +282,7 @@ const styles = themed(() => StyleSheet.create({
   locked: { borderStyle: 'dashed', borderColor: colors.gold },
   lockedHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   lockedText: { fontSize: 16, lineHeight: 23, color: colors.text },
+  seePro: { alignSelf: 'flex-start' },
   part: { gap: 4 },
   partHead: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
   partLabel: { fontSize: 16, fontWeight: '600', color: colors.text },

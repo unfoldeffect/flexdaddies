@@ -9,14 +9,17 @@ import { shareTextFile } from '../data/files';
 import { REST_CHOICES } from '../data/storage';
 import { useStore } from '../data/store';
 import { describeBackup } from '../lib/backup';
+import { TEST_BUILD } from '../lib/build';
+import { FREE_SUMMARY } from '../lib/pro';
 import { confirm } from '../lib/dialogs';
 import { buzzSuccess, buzzWarning, tapLight } from '../lib/haptics';
 import { exportCsv } from '../lib/transfer';
 import { colors, fonts, themed } from '../theme';
+import { useGoPro } from './go-pro';
 import { ImportSheet } from './import-sheet';
 import { PartnerLink } from './partner-link';
 import { Sheet } from './sheet';
-import { Chip, OutlineButton, UnitToggle } from './ui';
+import { Chip, OutlineButton, PrimaryButton, UnitToggle } from './ui';
 
 export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { prefs, setPrefs, db, hasSample, removeSample, resetToSample, eraseEverything } =
@@ -37,6 +40,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     } else setAccountProblem(r.message);
   };
   const backup = useBackupStatus();
+  const goPro = useGoPro();
   const [accountProblem, setAccountProblem] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
   const [exportNote, setExportNote] = useState<string | null>(null);
@@ -106,6 +110,16 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
   return (
     <Sheet visible={visible} title="Settings" onClose={onClose} closeLabel="Done">
       <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.heading}>FLEX DADDIES PRO</Text>
+        <View style={styles.card}>
+          <Text style={styles.body}>{prefs.pro ? 'Pro is on. Thank you.' : FREE_SUMMARY}</Text>
+          {prefs.pro ? (
+            <OutlineButton label="What Pro includes" onPress={goPro.open} />
+          ) : (
+            <PrimaryButton label="See what Pro adds" onPress={goPro.open} />
+          )}
+        </View>
+
         <Text style={styles.heading}>LOOK</Text>
         <View style={styles.card}>
           <View style={styles.row}>
@@ -182,9 +196,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
               onChange={(lengthUnit) => setPrefs({ lengthUnit })}
             />
           </View>
-          <Text style={styles.hint}>
-            Used for the weights you lift and for your body weight.
-          </Text>
+          <Text style={styles.hint}>Used for the weights you lift and for your body weight.</Text>
         </View>
 
         <Text style={styles.heading}>LIFT WITH A PARTNER</Text>
@@ -235,7 +247,10 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             {db.workouts.length} workouts · {db.weighIns.length} weigh-ins ·{' '}
             {db.measurements.length} measurements · {db.templates.length} routines
           </Text>
-          <OutlineButton label="Bring in workouts from Hevy or Strong" onPress={() => setImporting(true)} />
+          <OutlineButton
+            label="Bring in workouts from Hevy or Strong"
+            onPress={() => setImporting(true)}
+          />
           <OutlineButton label="Export my workouts" onPress={exportMine} />
           {exportNote && <Text style={styles.hint}>{exportNote}</Text>}
           <OutlineButton
@@ -251,50 +266,54 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           />
         </View>
 
-        <Text style={styles.heading}>TEST BUILD ONLY</Text>
-        <View style={styles.card}>
-          <Text style={styles.hint}>
-            For trying the app out. Customers will not see this card.
-          </Text>
-          <View style={styles.row}>
-            <Text style={styles.rowLabel}>Pro unlocked (test switch)</Text>
-            <Switch
-              value={prefs.pro}
-              onValueChange={(pro) => {
-                tapLight();
-                setPrefs({ pro });
-              }}
-              trackColor={{ false: colors.line, true: colors.gold }}
-              thumbColor={colors.white}
-              ios_backgroundColor={colors.line}
-              accessibilityLabel="Pro unlocked"
-            />
-          </View>
-          {hasSample && (
-            <OutlineButton
-              label="Remove sample data"
-              onPress={() =>
-                ask(
-                  'Remove the sample data?',
-                  'The made-up workouts, weigh-ins, measurements and notes are removed. Anything you logged yourself, your routines and your exercise list stay.',
-                  'Remove',
-                  removeSample,
-                )
-              }
-            />
-          )}
-          <OutlineButton
-            label="Load sample data"
-            onPress={() =>
-              ask(
-                'Load sample data?',
-                'Everything on this phone is replaced with the sample data, including anything you logged here.',
-                'Load',
-                resetToSample,
-              )
-            }
-          />
-        </View>
+        {TEST_BUILD && (
+          <>
+            <Text style={styles.heading}>TEST BUILD ONLY</Text>
+            <View style={styles.card}>
+              <Text style={styles.hint}>
+                For trying the app out. Customers will not see this card.
+              </Text>
+              <View style={styles.row}>
+                <Text style={styles.rowLabel}>Pro unlocked (test switch)</Text>
+                <Switch
+                  value={prefs.pro}
+                  onValueChange={(pro) => {
+                    tapLight();
+                    setPrefs({ pro });
+                  }}
+                  trackColor={{ false: colors.line, true: colors.gold }}
+                  thumbColor={colors.white}
+                  ios_backgroundColor={colors.line}
+                  accessibilityLabel="Pro unlocked"
+                />
+              </View>
+              {hasSample && (
+                <OutlineButton
+                  label="Remove sample data"
+                  onPress={() =>
+                    ask(
+                      'Remove the sample data?',
+                      'The made-up workouts, weigh-ins, measurements and notes are removed. Anything you logged yourself, your routines and your exercise list stay.',
+                      'Remove',
+                      removeSample,
+                    )
+                  }
+                />
+              )}
+              <OutlineButton
+                label="Load sample data"
+                onPress={() =>
+                  ask(
+                    'Load sample data?',
+                    'Everything on this phone is replaced with the sample data, including anything you logged here.',
+                    'Load',
+                    resetToSample,
+                  )
+                }
+              />
+            </View>
+          </>
+        )}
 
         {account && (
           <>
@@ -335,55 +354,59 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
         )}
 
         <Text style={styles.version}>
-          Flex Daddies {Constants.expoConfig?.version ?? ''} · preview build
+          Flex Daddies {Constants.expoConfig?.version ?? ''}
+          {TEST_BUILD ? ' · test build' : ''}
         </Text>
       </ScrollView>
       <ImportSheet visible={importing} onClose={() => setImporting(false)} />
+      {goPro.sheet}
     </Sheet>
   );
 }
 
-const styles = themed(() => StyleSheet.create({
-  content: { paddingHorizontal: 18, paddingBottom: 40, gap: 8 },
-  heading: {
-    fontFamily: fonts.headingBold,
-    fontSize: 13,
-    letterSpacing: 0.9,
-    color: colors.muted,
-    marginTop: 14,
-  },
-  card: {
-    backgroundColor: colors.surface,
-    borderWidth: 2,
-    borderColor: colors.line,
-    borderRadius: 20,
-    padding: 16,
-    gap: 12,
-  },
-  row: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-    minHeight: 44,
-  },
-  rowLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
-  chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
-  chip: { paddingHorizontal: 14 },
-  hint: { fontSize: 14, color: colors.muted },
-  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  nameInput: { flex: 1 },
-  input: {
-    minHeight: 52,
-    borderRadius: 14,
-    borderWidth: 2,
-    borderColor: colors.line,
-    backgroundColor: colors.field,
-    color: colors.text,
-    fontSize: 17,
-    paddingHorizontal: 14,
-  },
-  problem: { fontSize: 15, fontWeight: '600', color: colors.danger },
-  body: { fontSize: 15, color: colors.text, lineHeight: 21 },
-  version: { textAlign: 'center', color: colors.muted, fontSize: 13, marginTop: 18 },
-}));
+const styles = themed(() =>
+  StyleSheet.create({
+    content: { paddingHorizontal: 18, paddingBottom: 40, gap: 8 },
+    heading: {
+      fontFamily: fonts.headingBold,
+      fontSize: 13,
+      letterSpacing: 0.9,
+      color: colors.muted,
+      marginTop: 14,
+    },
+    card: {
+      backgroundColor: colors.surface,
+      borderWidth: 2,
+      borderColor: colors.line,
+      borderRadius: 20,
+      padding: 16,
+      gap: 12,
+    },
+    row: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+      minHeight: 44,
+    },
+    rowLabel: { flex: 1, fontSize: 16, fontWeight: '600', color: colors.text },
+    chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
+    chip: { paddingHorizontal: 14 },
+    hint: { fontSize: 14, color: colors.muted },
+    nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+    nameInput: { flex: 1 },
+    input: {
+      minHeight: 52,
+      borderRadius: 14,
+      borderWidth: 2,
+      borderColor: colors.line,
+      backgroundColor: colors.field,
+      color: colors.text,
+      fontSize: 17,
+      paddingHorizontal: 14,
+    },
+    problem: { fontSize: 15, fontWeight: '600', color: colors.danger },
+    body: { fontSize: 15, color: colors.text, lineHeight: 21 },
+    version: { textAlign: 'center', color: colors.muted, fontSize: 13, marginTop: 18 },
+  }),
+);

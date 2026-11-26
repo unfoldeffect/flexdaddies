@@ -5,11 +5,12 @@ import { FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { EditWorkoutSheet } from '@/components/edit-workout-sheet';
+import { useGoPro } from '@/components/go-pro';
 import { PromptSheet } from '@/components/prompt-sheet';
 import { Chip, Dot, EmptyState, ErrorBanner, Icon, LinkButton, Plate } from '@/components/ui';
 import { useLogDraftActions } from '@/data/log-draft';
 import { useStore } from '@/data/store';
-import { confirm, notify } from '@/lib/dialogs';
+import { confirm } from '@/lib/dialogs';
 import { PLAN_LIMIT_MESSAGE, PLAN_LIMIT_TITLE, canSavePlan } from '@/lib/pro';
 import { blankDraftSets, workoutExercisesToDraft } from '@/lib/draft';
 import { buzzSuccess, buzzWarning, tapLight } from '@/lib/haptics';
@@ -34,6 +35,7 @@ export default function HistoryScreen() {
   const [filter, setFilter] = useState<Filter>('all');
   const [openId, setOpenId] = useState<string | null>(null);
   const [editing, setEditing] = useState<Workout | null>(null);
+  const goPro = useGoPro();
   const [namingPlanFor, setNamingPlanFor] = useState<Workout | null>(null);
 
   const { people, names, db, toCategory } = store;
@@ -187,7 +189,7 @@ export default function HistoryScreen() {
                       onPress={() => {
                         // Counted across everyone on the phone, hidden partner plans included.
                         if (canSavePlan(store.fullDb.templates.length, store.prefs.pro)) setNamingPlanFor(w);
-                        else void notify(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
+                        else void goPro.offer(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
                       }}
                     />
                     {(
@@ -214,6 +216,7 @@ export default function HistoryScreen() {
       />
 
       <EditWorkoutSheet workout={editing} onClose={() => setEditing(null)} />
+      {goPro.sheet}
       <PromptSheet
         visible={!!namingPlanFor}
         title="Name this routine"

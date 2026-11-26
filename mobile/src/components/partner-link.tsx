@@ -9,11 +9,13 @@ import { tidyCode } from '../lib/auth-api';
 import { confirm } from '../lib/dialogs';
 import { buzzSuccess, buzzWarning } from '../lib/haptics';
 import { colors, fonts, themed } from '../theme';
+import { useGoPro } from './go-pro';
 import { OutlineButton, SmallButton } from './ui';
 
 export function PartnerLink() {
   const { prefs } = useStore();
   const partner = usePartner();
+  const goPro = useGoPro();
   const [code, setCode] = useState<string | null>(null);
   const [typing, setTyping] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
@@ -63,6 +65,8 @@ export function PartnerLink() {
         <Text style={styles.text}>
           With Pro, a session you log for both of you shows up on your partner&apos;s phone too.
         </Text>
+        <SmallButton gold label="See Pro" onPress={goPro.open} style={styles.seePro} />
+        {goPro.sheet}
       </View>
     );
   }
@@ -148,6 +152,7 @@ const styles = themed(() => StyleSheet.create({
   box: { borderTopWidth: 1, borderTopColor: colors.line, paddingTop: 12, gap: 10 },
   title: { fontSize: 16, fontWeight: '700', color: colors.text },
   text: { fontSize: 14, lineHeight: 20, color: colors.muted },
+  seePro: { alignSelf: 'flex-start' },
   codeBox: { borderRadius: 14, backgroundColor: colors.field, padding: 14, gap: 8, alignItems: 'center' },
   code: { fontFamily: fonts.headingBold, fontSize: 36, letterSpacing: 6, color: colors.text },
   enter: { flexDirection: 'row', alignItems: 'center', gap: 10 },

@@ -3,23 +3,24 @@ import { ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { STARTER_ROUTINES } from '../data/sample-data';
 import { useStore } from '../data/store';
-import { notify } from '../lib/dialogs';
 import { buzzSuccess } from '../lib/haptics';
 import { exerciseLabel } from '../lib/movements';
 import { PLAN_LIMIT_MESSAGE, PLAN_LIMIT_TITLE } from '../lib/pro';
 import { colors, themed } from '../theme';
+import { useGoPro } from './go-pro';
 import { Sheet } from './sheet';
 import { SmallButton } from './ui';
 
 export function StarterRoutinesSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { db, createRoutine, canAddRoutine } = useStore();
+  const goPro = useGoPro();
   const have = new Set(db.templates.map((t) => t.name.toLowerCase()));
 
   const add = async (name: string) => {
     const starter = STARTER_ROUTINES.find((s) => s.name === name);
     if (!starter) return;
     if (!canAddRoutine) {
-      void notify(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
+      void goPro.offer(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
       return;
     }
     if (await createRoutine(starter.name, starter.exercises)) buzzSuccess();
@@ -52,6 +53,7 @@ export function StarterRoutinesSheet({ visible, onClose }: { visible: boolean; o
           );
         })}
       </ScrollView>
+      {goPro.sheet}
     </Sheet>
   );
 }

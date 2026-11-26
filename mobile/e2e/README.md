@@ -11,7 +11,7 @@ native date picker, the keyboard, and how dragging feels under a finger.
 Run them from the `mobile` folder:
 
 ```
-npx expo export --platform web --output-dir dist-web
+EXPO_PUBLIC_API_URL=http://localhost:8791 EXPO_PUBLIC_TEST_BUILD=1 npx expo export --platform web --output-dir dist-web
 node e2e/run.js dist-web
 ```
 

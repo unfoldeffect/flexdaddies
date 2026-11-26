@@ -5,6 +5,7 @@ import {
   inRange,
   setsByBodyPart,
   trackedExercises,
+  weeklyVolume,
 } from '../lib/progress';
 import type { Workout } from '../lib/types';
 
@@ -100,5 +101,17 @@ describe('consistency', () => {
     const lastWeek = [workout('2026-11-16', [bench([set(100, 5)])]), workout('2026-11-09', [bench([set(100, 5)])])];
     expect(consistency(lastWeek, 'me', now).streak).toBe(2);
     expect(consistency([], 'me', now)).toEqual({ weeks: Array(12).fill(0), streak: 0, perWeek: 0 });
+  });
+});
+
+describe('weight lifted by week', () => {
+  it('adds up reps times weight for each of the last 8 weeks, oldest first', () => {
+    const weeks = weeklyVolume(log, ['me'], now);
+    expect(weeks).toHaveLength(8);
+    // Nov. 20: 135x8 + 155x5 + 155x6 on the bar, 60x10 with dumbbells.
+    expect(weeks[7]).toBe(135 * 8 + 155 * 5 + 155 * 6 + 600);
+    // Nov. 1 is 24 days back: four weeks ago.
+    expect(weeks[4]).toBe(135 * 8 + 145 * 6);
+    expect(weeklyVolume(log, ['me', 'partner'], now)[7]).toBe(weeks[7] + 225 * 5);
   });
 });

@@ -6,6 +6,7 @@ import { AppHeader } from '@/components/app-header';
 import { KeyboardScroll } from '@/components/keyboard-scroll';
 import { KeyboardSpace } from '@/components/keyboard-space';
 import { ManageExercisesSheet } from '@/components/manage-exercises';
+import { ProgressStrip } from '@/components/progress-strip';
 import { NEW_ROUTINE, PlanEditorSheet } from '@/components/plan-editor-sheet';
 import { useScrollBridge } from '@/components/sortable-list';
 import { StarterRoutinesSheet } from '@/components/starter-routines';
@@ -16,7 +17,7 @@ import { useLogDraft, useLogDraftActions } from '@/data/log-draft';
 import { usePartner } from '@/data/partner';
 import { useStore } from '@/data/store';
 import { confirm, notify } from '@/lib/dialogs';
-import { templateToDraft } from '@/lib/draft';
+import { draftProgress, templateToDraft } from '@/lib/draft';
 import { buzzWarning, tapLight } from '@/lib/haptics';
 import { PLAN_LIMIT_MESSAGE, PLAN_LIMIT_TITLE } from '@/lib/pro';
 import { computeLastPerformance, formatDraftTime } from '@/lib/stats';
@@ -74,6 +75,8 @@ export default function LogScreen() {
       void store.removeTemplate(plan.id);
     }
   };
+
+  const progress = draftProgress(draft.exercises, togetherMode);
 
   const newRoutine = () => {
     tapLight();
@@ -201,6 +204,8 @@ export default function LogScreen() {
               <OutlineButton compact label="Start fresh" onPress={startFresh} />
             </View>
           )}
+
+          {progress.total >= 2 && <ProgressStrip {...progress} />}
 
           <WorkoutForm
             date={draft.date}

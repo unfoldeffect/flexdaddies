@@ -24,6 +24,8 @@ export type DraftSet = {
   weight: string;
   time: string;
   intensity: string;
+  /** Checked off while logging. A memory aid only: it is not saved with the workout. */
+  done?: boolean;
 };
 
 export type DraftExercise = {
@@ -150,6 +152,22 @@ export function blankDraftSets(exercises: DraftExercise[]): DraftExercise[] {
     setsOther: ex.setsOther.map(blankSet),
     notes: '',
   }));
+}
+
+/** How far through the workout: named exercises, how many have every set checked off, and what is next. */
+export function draftProgress(exercises: DraftExercise[], togetherMode: boolean) {
+  const named = exercises.filter((ex) => finalName(ex));
+  const finished = (ex: DraftExercise) =>
+    ex.sets.length > 0 &&
+    ex.sets.every((s) => s.done) &&
+    (!togetherMode || ex.setsOther.every((s) => s.done));
+  const left = named.filter((ex) => !finished(ex));
+  return {
+    total: named.length,
+    done: named.length - left.length,
+    current: left[0] ? finalName(left[0]) : null,
+    next: left[1] ? finalName(left[1]) : null,
+  };
 }
 
 export function resolveCategory(ex: DraftExercise, toCategory: ToCategory): CategoryInfo | null {

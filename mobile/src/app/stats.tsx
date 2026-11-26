@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { AppHeader } from '@/components/app-header';
 import { LineChart, describeTrend } from '@/components/line-chart';
 import { ExerciseProgress, ProCharts } from '@/components/progress-charts';
+import { weeklyVolume } from '@/lib/progress';
 import { Dot, DotCard, EmptyState, Icon, Plate, SectionHeading } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { tapLight } from '@/lib/haptics';
@@ -24,6 +25,7 @@ export default function StatsScreen() {
 
   const stats = useMemo(() => computeWorkoutStats(db.workouts), [db.workouts]);
   const weighIns = useMemo(() => weighInsByUser(db.weighIns), [db.weighIns]);
+  const weeks = useMemo(() => weeklyVolume(db.workouts, people), [db.workouts, people]);
 
   if (!db.workouts.length) {
     return (
@@ -66,20 +68,34 @@ export default function StatsScreen() {
         </View>
 
         <SectionHeading>Progress</SectionHeading>
-        {stats.volumeSeries.length >= 2 ? (
+        {weeks.some((v) => v > 0) ? (
           <View style={styles.chartCard}>
-            <Text style={styles.chartLabel}>TOTAL WEIGHT LIFTED</Text>
-            <LineChart
-              height={70}
-              label={`Total weight lifted per day, ${describeTrend(
-                stats.volumeSeries.map((p) => totalShown(p.total, unit)),
-                unit,
-              )}`}
-              series={[{ values: stats.volumeSeries.map((p) => p.total), color: colors.gold }]}
-            />
+            <Text style={styles.chartLabel}>WEIGHT LIFTED, LAST 8 WEEKS</Text>
+            <View
+              style={styles.bars}
+              accessible
+              accessibilityRole="image"
+              accessibilityLabel={`Weight lifted in each of the last 8 weeks, oldest first, in ${unit}: ${weeks.map((v) => totalShown(v, unit)).join(', ')}`}
+            >
+              {weeks.map((v, i) => (
+                <View key={i} style={styles.barSlot}>
+                  <View
+                    style={[
+                      styles.bar,
+                      { height: `${Math.max(4, (v / Math.max(1, ...weeks)) * 100)}%` },
+                      i === weeks.length - 1 && { backgroundColor: colors.gold },
+                      v === 0 && { backgroundColor: colors.line },
+                    ]}
+                  />
+                </View>
+              ))}
+            </View>
+            <Text style={styles.barsNote}>
+              This week: {totalShown(weeks[weeks.length - 1], unit).toLocaleString()} {unit}
+            </Text>
           </View>
         ) : (
-          <EmptyState compact sub="Log a couple more workouts to see your trend." />
+          <EmptyState compact sub="Log a workout with weights to see your weeks." />
         )}
 
         {people.map((u) => {
@@ -221,6 +237,10 @@ const styles = themed(() => StyleSheet.create({
     marginTop: 2,
     textAlign: 'center',
   },
+  bars: { flexDirection: 'row', alignItems: 'flex-end', gap: 8, height: 110 },
+  barSlot: { flex: 1, height: '100%', justifyContent: 'flex-end' },
+  bar: { borderRadius: 6, backgroundColor: colors.blue },
+  barsNote: { fontSize: 15, fontWeight: '600', color: colors.text },
   chartCard: {
     backgroundColor: colors.surface,
     borderWidth: 2,

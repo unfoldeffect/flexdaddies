@@ -145,6 +145,21 @@ export function setsByBodyPart(
     .sort((a, b) => b.thisWeek - a.thisWeek || b.usual - a.usual || a.label.localeCompare(b.label));
 }
 
+/** Weight moved (lbs) in each of the last weeks, oldest first; the last one is the 7 days ending today. */
+export function weeklyVolume(workouts: Workout[], users: WorkoutUser[], now: Date = new Date(), span = 8): number[] {
+  const today = dayNumber(toISODate(now));
+  const weeks = Array<number>(span).fill(0);
+  for (const w of workouts) {
+    if (!users.includes(w.user)) continue;
+    const ago = today - dayNumber(w.date);
+    if (ago < 0 || ago >= span * 7) continue;
+    let volume = 0;
+    for (const ex of w.exercises) for (const s of ex.sets) volume += s.reps * s.weight;
+    weeks[span - 1 - Math.floor(ago / 7)] += volume;
+  }
+  return weeks;
+}
+
 export type Consistency = {
   /** Workouts in each of the last 12 weeks, oldest first; the last one is the 7 days ending today. */
   weeks: number[];

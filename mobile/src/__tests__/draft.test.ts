@@ -1,6 +1,7 @@
 import {
   blankDraftSets,
   buildFromDraft,
+  draftProgress,
   canSaveDraft,
   clampSetsForCategory,
   cleanSets,
@@ -290,5 +291,28 @@ describe('lifting in kilos', () => {
     expect(built.exercises[0].sets[0].weight).toBe(137.5);
     expect(lastWorkoutSummary(built.exercises[0], false)).toBe('5×137.5lbs');
     expect(lastWorkoutSummary(built.exercises[0], false, 'kg')).toBe('5×62.37kg');
+  });
+});
+
+describe('how far through the workout', () => {
+  const ex = (name: string, done: boolean[]) => {
+    const base = emptyExercise();
+    return { ...base, name, sets: done.map((d, i) => ({ ...base.sets[0], id: `${name}${i}`, done: d })) };
+  };
+  it('counts exercises with every set checked off, and names what is now and next', () => {
+    const list = [ex('Deadlift', [true, true]), ex('Squat', [true, false]), ex('Plank', [false]), ex('', [false])];
+    expect(draftProgress(list, false)).toEqual({ total: 3, done: 1, current: 'Squat', next: 'Plank' });
+  });
+  it('when everything is checked there is nothing left', () => {
+    expect(draftProgress([ex('Deadlift', [true]), ex('Squat', [true])], false)).toEqual({
+      total: 2,
+      done: 2,
+      current: null,
+      next: null,
+    });
+  });
+  it('checks are not saved with the workout', () => {
+    const built = buildFromDraft([{ ...ex('Deadlift', [true]), sets: [{ ...emptyExercise().sets[0], reps: '5', weight: '100', done: true }] }], opts);
+    expect(built.exercises[0].sets[0]).toEqual({ reps: 5, weight: 100, time: 0, intensity: 0 });
   });
 });

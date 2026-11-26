@@ -183,6 +183,15 @@ export function ExerciseEditor({
         [which]: exercise[which].map((s) => (s.id === setId ? { ...s, [field]: value } : s)),
       });
 
+  /** Check a set off as done (Log tab only). */
+  const toggleDone = (which: 'sets' | 'setsOther') => (setId: string) => {
+    tapLight();
+    onChange({
+      ...exercise,
+      [which]: exercise[which].map((s) => (s.id === setId ? { ...s, done: !s.done } : s)),
+    });
+  };
+
   const saveNote = async () => {
     const text = exercise.notes.trim();
     if (!notesApi || !text || !exerciseName) return;
@@ -425,6 +434,7 @@ export function ExerciseEditor({
             who={togetherMode ? names[currentUser] : undefined}
             unit={unit}
             onChange={updateSet('sets')}
+            onToggleDone={notesEnabled ? toggleDone('sets') : undefined}
           />
 
           {togetherMode && (
@@ -442,6 +452,7 @@ export function ExerciseEditor({
                 who={names[otherUser]}
                 unit={unit}
                 onChange={updateSet('setsOther')}
+                onToggleDone={notesEnabled ? toggleDone('setsOther') : undefined}
               />
             </>
           )}
@@ -500,6 +511,7 @@ function SetRows({
   who,
   unit,
   onChange,
+  onToggleDone,
 }: {
   sets: DraftSet[];
   cardio: boolean;
@@ -509,7 +521,11 @@ function SetRows({
   /** The unit weights are typed in. */
   unit: 'lbs' | 'kg';
   onChange: (setId: string, field: SetField, value: string) => void;
+  /** Present on the Log tab: each row gets a round check to mark the set done. */
+  onToggleDone?: (setId: string) => void;
 }) {
+  // The row to do next: the first one not checked off.
+  const currentId = onToggleDone ? sets.find((s) => !s.done)?.id : undefined;
   const inputs = useRef<(TextInputRef | null)[]>([]);
   const last = sets.length * 2 - 1;
   const fieldProps = (index: number) => ({
@@ -532,9 +548,10 @@ function SetRows({
         <Text style={[styles.setHeader, styles.setCol]}>
           {cardio ? 'INTENSITY (1-10)' : `WEIGHT (${unit.toUpperCase()})`}
         </Text>
+        {onToggleDone && <View style={styles.checkCol} />}
       </View>
       {sets.map((s, i) => (
-        <View style={styles.setRow} key={s.id}>
+        <View style={[styles.setRow, s.id === currentId && styles.setRowCurrent]} key={s.id}>
           <View style={styles.setIndexCol}>
             <View style={[styles.setIndex, { backgroundColor: accent }]}>
               <Text style={styles.setIndexText}>{i + 1}</Text>
@@ -579,6 +596,18 @@ function SetRows({
                 onChangeText={(v) => onChange(s.id, 'weight', sanitizeWeightInput(v, s.weight))}
               />
             </>
+          )}
+          {onToggleDone && (
+            <Pressable
+              accessibilityRole="checkbox"
+              accessibilityState={{ checked: !!s.done }}
+              accessibilityLabel={`${prefix}set ${i + 1} done`}
+              hitSlop={6}
+              onPress={() => onToggleDone(s.id)}
+              style={[styles.check, s.done && styles.checkDone]}
+            >
+              {s.done && <Icon name="check" size={22} color={colors.onGold} />}
+            </Pressable>
           )}
         </View>
       ))}
@@ -706,7 +735,28 @@ const styles = themed(() => StyleSheet.create({
     borderColor: colors.line,
   },
   setRows: { gap: 10 },
-  setRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  setRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    borderRadius: 16,
+    borderWidth: 2,
+    borderColor: 'transparent',
+    padding: 2,
+    margin: -4,
+  },
+  setRowCurrent: { borderColor: colors.text },
+  checkCol: { width: 44 },
+  check: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 2,
+    borderColor: colors.muted,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  checkDone: { backgroundColor: colors.gold, borderColor: colors.gold },
   setIndexCol: { width: 40 },
   setCol: { flex: 1, flexBasis: 0, minWidth: 0 },
   setHeader: { fontSize: 13, fontWeight: '600', letterSpacing: 0.4, color: colors.muted },

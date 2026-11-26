@@ -120,6 +120,17 @@ async function reorder({ page, shot, names, scroll }) {
   const start = await names();
   check('plan loads 7 exercises in plan order', start.length === 7 && start[0] === 'Bench Press');
 
+  // The count ring and the set checks.
+  const strip = page.getByLabel(/of 7 exercises done/);
+  check('the ring starts at 0 of 7 and names what is now and next', /^0 of 7 exercises done\. Now: Bench Press\. Next: /.test(await strip.getAttribute('aria-label')), await strip.getAttribute('aria-label'));
+  for (let i = 0; i < 3; i++) await page.getByRole('checkbox', { name: `set ${i + 1} done` }).first().click();
+  await page.waitForTimeout(300);
+  await shot('ring-01');
+  check('checking off every set of an exercise moves the ring on', /^1 of 7 exercises done\./.test(await strip.getAttribute('aria-label')) && !/Now: Bench Press/.test(await strip.getAttribute('aria-label')), await strip.getAttribute('aria-label'));
+  await page.getByRole('checkbox', { name: 'set 1 done' }).first().click();
+  await page.waitForTimeout(300);
+  check('a check can be taken back', /^0 of 7 exercises done\./.test(await strip.getAttribute('aria-label')));
+
   await page.getByRole('button', { name: 'Move exercise down' }).first().click();
   await page.waitForTimeout(300);
   check('arrow moves an exercise down one place', (await names())[1] === 'Bench Press');

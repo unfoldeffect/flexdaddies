@@ -76,6 +76,16 @@ export function makeAuthApi(base: string | null, fetcher: Fetcher = (url, init) 
       call<{ user: Account }>('PATCH', '/me', patch, token),
     signOut: (token: string) => call<{ ok: true }>('POST', '/auth/signout', undefined, token),
     deleteAccount: (token: string) => call<{ ok: true }>('DELETE', '/me', undefined, token),
+    /** Partner sync: who this account is linked with, and sessions waiting from them. */
+    partnerSessions: (token: string) =>
+      call<{ partner: { name: string } | null; sessions: { id: string }[] }>('GET', '/partner/sessions', undefined, token),
+    partnerReceived: (token: string, ids: string[]) =>
+      call<{ ok: true }>('POST', '/partner/sessions/received', { ids }, token),
+    partnerSend: (token: string, session: unknown) => call<{ ok: true }>('POST', '/partner/sessions', session, token),
+    partnerInvite: (token: string) => call<{ code: string; expiresAt: number }>('POST', '/partner/invite', undefined, token),
+    partnerJoin: (token: string, code: string) =>
+      call<{ partner: { name: string } | null }>('POST', '/partner/join', { code }, token),
+    partnerUnlink: (token: string) => call<{ partner: null }>('DELETE', '/partner', undefined, token),
     /** The account's saved copy of the phone's data (rev 0 and null when there is none). */
     getData: (token: string) => call<{ rev: number; data: unknown }>('GET', '/data', undefined, token),
     /** Saves on top of copy `baseRev`. Error "newer_copy" carries the newer one in `details`. */

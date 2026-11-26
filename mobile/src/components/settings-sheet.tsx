@@ -14,6 +14,7 @@ import { buzzSuccess, buzzWarning, tapLight } from '../lib/haptics';
 import { exportCsv } from '../lib/transfer';
 import { colors, fonts, themed } from '../theme';
 import { ImportSheet } from './import-sheet';
+import { PartnerLink } from './partner-link';
 import { Sheet } from './sheet';
 import { Chip, OutlineButton, UnitToggle } from './ui';
 
@@ -192,6 +193,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
               ? 'A Together Mode switch is now on the Log screen. Turn it on to log both of you at once. Their workouts are saved on this phone.'
               : 'Off: the app is just for you. Turn it on if you train with someone and log for both.'}
           </Text>
+          {prefs.partnerOn && <PartnerLink />}
         </View>
 
         <Text style={styles.heading}>DATA ON THIS PHONE</Text>

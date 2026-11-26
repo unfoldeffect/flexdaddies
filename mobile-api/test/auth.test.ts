@@ -227,3 +227,114 @@ test('delete my account removes the saved data too', async () => {
   const again = await signIn(env, 'sam@example.com', 1_000_000 + 5 * MIN);
   assert.deepEqual((await call(env, 'GET', '/data', undefined, again.token)).data, { rev: 0, data: null });
 });
+
+// ---------- Partner sync ----------
+
+async function named(env: Env, email: string, name: string, now = 1_000_000) {
+  const who = await signIn(env, email, now);
+  await call(env, 'PATCH', '/me', { name }, who.token);
+  return who.token;
+}
+async function linked(env: Env) {
+  const sam = await named(env, 'sam@example.com', 'Sam');
+  const kim = await named(env, 'kim@example.com', 'Kim');
+  const invite = await call(env, 'POST', '/partner/invite', undefined, sam);
+  await call(env, 'POST', '/partner/join', { code: invite.data.code }, kim);
+  return { sam, kim };
+}
+
+test('two accounts link with a 6-digit invite code and see each other by name', async () => {
+  const env = freshEnv();
+  const sam = await named(env, 'sam@example.com', 'Sam');
+  const kim = await named(env, 'kim@example.com', 'Kim');
+  assert.deepEqual((await call(env, 'GET', '/partner', undefined, sam)).data, { partner: null });
+  const invite = await call(env, 'POST', '/partner/invite', undefined, sam);
+  assert.match(invite.data.code, /^\d{6}$/);
+  const joined = await call(env, 'POST', '/partner/join', { code: invite.data.code }, kim);
+  assert.deepEqual(joined.data, { partner: { name: 'Sam' } });
+  assert.deepEqual((await call(env, 'GET', '/partner', undefined, sam)).data, { partner: { name: 'Kim' } });
+  // The code is used up.
+  const lee = await named(env, 'lee@example.com', 'Lee');
+  assert.equal((await call(env, 'POST', '/partner/join', { code: invite.data.code }, lee)).data.error, 'wrong_code');
+});
+
+test('invite codes run out, cannot be used on yourself, and guessing is slowed down', async () => {
+  const env = freshEnv();
+  const sam = await named(env, 'sam@example.com', 'Sam');
+  const kim = await named(env, 'kim@example.com', 'Kim');
+  const invite = await call(env, 'POST', '/partner/invite', undefined, sam);
+  assert.equal((await call(env, 'POST', '/partner/join', { code: invite.data.code }, sam)).data.error, 'own_code');
+  const late = await call(env, 'POST', '/partner/join', { code: invite.data.code }, kim, 1_000_000 + 16 * MIN);
+  assert.equal(late.data.error, 'wrong_code');
+  for (let i = 0; i < 9; i++) await call(env, 'POST', '/partner/join', { code: '000000' }, kim, 1_000_000 + 17 * MIN);
+  const blocked = await call(env, 'POST', '/partner/join', { code: '000000' }, kim, 1_000_000 + 18 * MIN);
+  assert.equal(blocked.data.error, 'too_many');
+  const fresh = await call(env, 'POST', '/partner/invite', undefined, sam, 1_000_000 + 80 * MIN);
+  const ok = await call(env, 'POST', '/partner/join', { code: fresh.data.code }, kim, 1_000_000 + 80 * MIN);
+  assert.equal(ok.status, 200);
+});
+
+test('one partner at a time', async () => {
+  const env = freshEnv();
+  const { sam, kim } = await linked(env);
+  const lee = await named(env, 'lee@example.com', 'Lee');
+  assert.equal((await call(env, 'POST', '/partner/invite', undefined, sam)).data.error, 'already_linked');
+  const invite = await call(env, 'POST', '/partner/invite', undefined, lee);
+  assert.equal((await call(env, 'POST', '/partner/join', { code: invite.data.code }, kim)).data.error, 'already_linked');
+});
+
+test('a session logged for both is handed to the partner once, and to nobody else', async () => {
+  const env = freshEnv();
+  const { sam, kim } = await linked(env);
+  const lee = await named(env, 'lee@example.com', 'Lee');
+  const session = { id: 's1', mine: { id: 'w1', note: "Sam's sets" }, theirs: { id: 'w2', note: "Kim's sets" } };
+  assert.equal((await call(env, 'POST', '/partner/sessions', session, sam)).status, 200);
+  assert.equal((await call(env, 'POST', '/partner/sessions', session, sam)).status, 200); // sent twice: kept once
+  assert.equal((await call(env, 'POST', '/partner/sessions', session, lee)).data.error, 'not_linked');
+
+  assert.deepEqual((await call(env, 'GET', '/partner/sessions', undefined, sam)).data.sessions, []);
+  assert.deepEqual((await call(env, 'GET', '/partner/sessions', undefined, lee)).data, { partner: null, sessions: [] });
+  const waiting = await call(env, 'GET', '/partner/sessions', undefined, kim);
+  assert.equal(waiting.data.sessions.length, 1);
+  assert.deepEqual(waiting.data.sessions[0].mine, session.mine);
+  assert.deepEqual(waiting.data.sessions[0].theirs, session.theirs);
+
+  // Lee cannot clear Kim's queue; Kim can.
+  await call(env, 'POST', '/partner/sessions/received', { ids: [waiting.data.sessions[0].id] }, lee);
+  assert.equal((await call(env, 'GET', '/partner/sessions', undefined, kim)).data.sessions.length, 1);
+  await call(env, 'POST', '/partner/sessions/received', { ids: [waiting.data.sessions[0].id] }, kim);
+  assert.deepEqual((await call(env, 'GET', '/partner/sessions', undefined, kim)).data.sessions, []);
+});
+
+test('several sessions arrive oldest first', async () => {
+  const env = freshEnv();
+  const { sam, kim } = await linked(env);
+  for (const [i, id] of ['a', 'b', 'c'].entries()) {
+    await call(env, 'POST', '/partner/sessions', { id, mine: { n: i }, theirs: { n: i } }, sam, 2_000_000 + i);
+  }
+  const got = await call(env, 'GET', '/partner/sessions', undefined, kim);
+  assert.deepEqual(got.data.sessions.map((s: { mine: { n: number } }) => s.mine.n), [0, 1, 2]);
+});
+
+test('unlinking, or deleting an account, ends the link and drops what was waiting', async () => {
+  const env = freshEnv();
+  const { sam, kim } = await linked(env);
+  await call(env, 'POST', '/partner/sessions', { id: 's1', mine: {}, theirs: {} }, sam);
+  assert.deepEqual((await call(env, 'DELETE', '/partner', undefined, kim)).data, { partner: null });
+  assert.deepEqual((await call(env, 'GET', '/partner', undefined, sam)).data, { partner: null });
+  const left = await env.DB.prepare('SELECT COUNT(*) AS n FROM partner_sessions').first<{ n: number }>();
+  assert.equal(left?.n, 0);
+
+  const again = await call(env, 'POST', '/partner/invite', undefined, sam, 1_000_000 + MIN);
+  await call(env, 'POST', '/partner/join', { code: again.data.code }, kim, 1_000_000 + MIN);
+  await call(env, 'DELETE', '/me', undefined, sam);
+  assert.deepEqual((await call(env, 'GET', '/partner', undefined, kim)).data, { partner: null });
+});
+
+test('partner sync needs signing in and sane input', async () => {
+  const env = freshEnv();
+  const { sam } = await linked(env);
+  assert.equal((await call(env, 'GET', '/partner')).status, 401);
+  assert.equal((await call(env, 'POST', '/partner/sessions', { id: 's', mine: [], theirs: {} }, sam)).status, 400);
+  assert.equal((await call(env, 'POST', '/partner/sessions/received', { ids: 'all' }, sam)).status, 400);
+});

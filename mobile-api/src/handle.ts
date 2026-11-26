@@ -167,6 +167,175 @@ async function saveCopy(request: Request, env: Env, user: UserRow, now: number):
   return json(200, { ok: true, rev: rev + 1 });
 }
 
+// ---------- Partner sync ----------
+
+export const INVITE_MINUTES = 15;
+export const MAX_JOIN_TRIES_PER_HOUR = 10;
+const MAX_SESSION_BYTES = 200_000;
+const MAX_WAITING_SESSIONS = 200;
+
+async function partnerOf(env: Env, userId: string): Promise<{ id: string; name: string } | null> {
+  return env.DB.prepare(
+    `SELECT u.id, u.name FROM partner_links l
+       JOIN users u ON u.id = CASE WHEN l.user_a = ? THEN l.user_b ELSE l.user_a END
+      WHERE l.user_a = ? OR l.user_b = ?`,
+  )
+    .bind(userId, userId, userId)
+    .first<{ id: string; name: string }>();
+}
+
+const partnerView = (p: { id: string; name: string } | null) =>
+  p ? { partner: { name: p.name || 'Your partner' } } : { partner: null };
+
+async function createInvite(env: Env, user: UserRow, now: number): Promise<Response> {
+  if (await partnerOf(env, user.id)) {
+    return fail(409, 'already_linked', 'You are already linked with a partner. Unlink first.');
+  }
+  // A few tries, in the rare case another pending invite has the same code.
+  for (let i = 0; i < 5; i++) {
+    const code = newCode();
+    const taken = await env.DB.prepare('SELECT user_id FROM partner_invites WHERE code_hash = ? AND expires_at > ? AND user_id != ?')
+      .bind(await codeHash(env, 'invite', code), now, user.id)
+      .first();
+    if (taken) continue;
+    const expiresAt = now + INVITE_MINUTES * 60 * 1000;
+    await env.DB.batch([
+      env.DB.prepare('DELETE FROM partner_invites WHERE code_hash = ?').bind(await codeHash(env, 'invite', code)),
+      env.DB.prepare(
+        `INSERT INTO partner_invites (user_id, code_hash, expires_at) VALUES (?, ?, ?)
+         ON CONFLICT(user_id) DO UPDATE SET code_hash = excluded.code_hash, expires_at = excluded.expires_at`,
+      ).bind(user.id, await codeHash(env, 'invite', code), expiresAt),
+    ]);
+    return json(200, { code, expiresAt });
+  }
+  return fail(503, 'try_again', 'Try again in a moment.');
+}
+
+async function joinPartner(request: Request, env: Env, user: UserRow, now: number): Promise<Response> {
+  const raw = (await readBody(request)).code;
+  const code = typeof raw === 'string' ? raw.replace(/\D/g, '') : '';
+  if (await partnerOf(env, user.id)) {
+    return fail(409, 'already_linked', 'You are already linked with a partner. Unlink first.');
+  }
+  const tries = await env.DB.prepare('SELECT window_start, tries FROM partner_tries WHERE user_id = ?')
+    .bind(user.id)
+    .first<{ window_start: number; tries: number }>();
+  const inWindow = tries && now - tries.window_start < HOUR;
+  if (inWindow && tries.tries >= MAX_JOIN_TRIES_PER_HOUR) {
+    return fail(429, 'too_many', 'Too many wrong codes. Try again in an hour.');
+  }
+  const wrong = async (message: string) => {
+    await env.DB.prepare(
+      `INSERT INTO partner_tries (user_id, window_start, tries) VALUES (?, ?, 1)
+       ON CONFLICT(user_id) DO UPDATE SET
+         tries = CASE WHEN ? - partner_tries.window_start < ${HOUR} THEN partner_tries.tries + 1 ELSE 1 END,
+         window_start = CASE WHEN ? - partner_tries.window_start < ${HOUR} THEN partner_tries.window_start ELSE ? END`,
+    )
+      .bind(user.id, now, now, now, now)
+      .run();
+    return fail(400, 'wrong_code', message);
+  };
+  if (code.length !== 6) return wrong("That code isn't right. Check it with your partner.");
+  const invite = await env.DB.prepare('SELECT user_id, expires_at FROM partner_invites WHERE code_hash = ?')
+    .bind(await codeHash(env, 'invite', code))
+    .first<{ user_id: string; expires_at: number }>();
+  if (!invite || invite.expires_at < now) {
+    return wrong("That code isn't right, or it has run out. Ask your partner for a new one.");
+  }
+  if (invite.user_id === user.id) return fail(400, 'own_code', 'That is your own code. Your partner types it on their phone.');
+  if (await partnerOf(env, invite.user_id)) {
+    return fail(409, 'partner_taken', 'That person is already linked with someone else.');
+  }
+  const [a, b] = [user.id, invite.user_id].sort();
+  await env.DB.batch([
+    env.DB.prepare('INSERT INTO partner_links (user_a, user_b, created_at) VALUES (?, ?, ?)').bind(a, b, now),
+    env.DB.prepare('DELETE FROM partner_invites WHERE user_id IN (?, ?)').bind(user.id, invite.user_id),
+    env.DB.prepare('DELETE FROM partner_tries WHERE user_id = ?').bind(user.id),
+  ]);
+  return json(200, partnerView(await partnerOf(env, user.id)));
+}
+
+async function unlinkPartner(env: Env, user: UserRow): Promise<Response> {
+  await env.DB.batch([
+    env.DB.prepare('DELETE FROM partner_sessions WHERE from_user = ? OR to_user = ?').bind(user.id, user.id),
+    env.DB.prepare('DELETE FROM partner_links WHERE user_a = ? OR user_b = ?').bind(user.id, user.id),
+    env.DB.prepare('DELETE FROM partner_invites WHERE user_id = ?').bind(user.id),
+  ]);
+  return json(200, { partner: null });
+}
+
+/** A session one phone logged for both people, left for the partner's phone to pick up. */
+async function sendSession(request: Request, env: Env, user: UserRow, now: number): Promise<Response> {
+  const text = await request.text();
+  if (text.length > MAX_SESSION_BYTES) return fail(413, 'too_big', 'That session is too big to share.');
+  let body: { id?: unknown; mine?: unknown; theirs?: unknown };
+  try {
+    body = JSON.parse(text);
+  } catch {
+    return fail(400, 'bad_data', 'That could not be read.');
+  }
+  const isObject = (x: unknown) => !!x && typeof x === 'object' && !Array.isArray(x);
+  if (typeof body?.id !== 'string' || body.id.length > 80 || !isObject(body.mine) || !isObject(body.theirs)) {
+    return fail(400, 'bad_data', 'That could not be read.');
+  }
+  const partner = await partnerOf(env, user.id);
+  if (!partner) return fail(409, 'not_linked', 'You are not linked with a partner.');
+  const waiting = await env.DB.prepare('SELECT COUNT(*) AS n FROM partner_sessions WHERE to_user = ?')
+    .bind(partner.id)
+    .first<{ n: number }>();
+  if ((waiting?.n ?? 0) >= MAX_WAITING_SESSIONS) {
+    return fail(429, 'partner_behind', "Your partner's phone has not picked up earlier sessions yet.");
+  }
+  // The id is scoped to the sender, so one account cannot overwrite another's.
+  await env.DB.prepare(
+    `INSERT INTO partner_sessions (id, from_user, to_user, payload, created_at) VALUES (?, ?, ?, ?, ?)
+     ON CONFLICT(id) DO NOTHING`,
+  )
+    .bind(`${user.id}:${body.id}`, user.id, partner.id, JSON.stringify({ mine: body.mine, theirs: body.theirs }), now)
+    .run();
+  return json(200, { ok: true });
+}
+
+async function waitingSessions(env: Env, user: UserRow): Promise<Response> {
+  const partner = await partnerOf(env, user.id);
+  const found: { id: string; mine: unknown; theirs: unknown }[] = [];
+  if (partner) {
+    // D1 has no cursor here, so read them one at a time, oldest first.
+    let after = -1;
+    let lastId = '';
+    for (let i = 0; i < 50; i++) {
+      const row = await env.DB.prepare(
+        `SELECT id, payload, created_at FROM partner_sessions
+          WHERE to_user = ? AND from_user = ? AND (created_at > ? OR (created_at = ? AND id > ?))
+          ORDER BY created_at, id LIMIT 1`,
+      )
+        .bind(user.id, partner.id, after, after, lastId)
+        .first<{ id: string; payload: string; created_at: number }>();
+      if (!row) break;
+      after = row.created_at;
+      lastId = row.id;
+      const payload = JSON.parse(row.payload) as { mine: unknown; theirs: unknown };
+      found.push({ id: row.id, ...payload });
+    }
+  }
+  return json(200, { ...partnerView(partner), sessions: found });
+}
+
+async function receivedSessions(request: Request, env: Env, user: UserRow): Promise<Response> {
+  const ids = (await readBody(request)).ids;
+  if (!Array.isArray(ids) || ids.length > 100 || ids.some((id) => typeof id !== 'string')) {
+    return fail(400, 'bad_data', 'That could not be read.');
+  }
+  if (ids.length) {
+    await env.DB.batch(
+      (ids as string[]).map((id) =>
+        env.DB.prepare('DELETE FROM partner_sessions WHERE id = ? AND to_user = ?').bind(id, user.id),
+      ),
+    );
+  }
+  return json(200, { ok: true });
+}
+
 async function readBody(request: Request): Promise<Record<string, unknown>> {
   try {
     const text = await request.text();
@@ -323,7 +492,21 @@ export async function handle(request: Request, env: Env, now: number = Date.now(
     if (route === 'POST /auth/email/start') return await startEmail(request, env, now);
     if (route === 'POST /auth/email/verify') return await verifyEmail(request, env, now);
 
-    const signedInRoutes = ['GET /me', 'PATCH /me', 'DELETE /me', 'POST /auth/signout', 'GET /data', 'PUT /data'];
+    const signedInRoutes = [
+      'GET /me',
+      'PATCH /me',
+      'DELETE /me',
+      'POST /auth/signout',
+      'GET /data',
+      'PUT /data',
+      'GET /partner',
+      'POST /partner/invite',
+      'POST /partner/join',
+      'DELETE /partner',
+      'POST /partner/sessions',
+      'GET /partner/sessions',
+      'POST /partner/sessions/received',
+    ];
     if (signedInRoutes.includes(route)) {
       const who = await signedInUser(request, env, now);
       if (!who) return fail(401, 'signed_out', 'Sign in again.');
@@ -331,6 +514,13 @@ export async function handle(request: Request, env: Env, now: number = Date.now(
       if (route === 'PATCH /me') return await updateMe(request, env, who.user);
       if (route === 'GET /data') return json(200, await savedCopy(env, who.user.id));
       if (route === 'PUT /data') return await saveCopy(request, env, who.user, now);
+      if (route === 'GET /partner') return json(200, partnerView(await partnerOf(env, who.user.id)));
+      if (route === 'POST /partner/invite') return await createInvite(env, who.user, now);
+      if (route === 'POST /partner/join') return await joinPartner(request, env, who.user, now);
+      if (route === 'DELETE /partner') return await unlinkPartner(env, who.user);
+      if (route === 'POST /partner/sessions') return await sendSession(request, env, who.user, now);
+      if (route === 'GET /partner/sessions') return await waitingSessions(env, who.user);
+      if (route === 'POST /partner/sessions/received') return await receivedSessions(request, env, who.user);
       if (route === 'POST /auth/signout') {
         await env.DB.prepare('DELETE FROM sessions WHERE token_hash = ?').bind(who.tokenHash).run();
         return json(200, { ok: true });
@@ -338,6 +528,10 @@ export async function handle(request: Request, env: Env, now: number = Date.now(
       // Delete my account: the account, its saved data, every signed-in phone and any pending code.
       await env.DB.batch([
         env.DB.prepare('DELETE FROM user_data WHERE user_id = ?').bind(who.user.id),
+        env.DB.prepare('DELETE FROM partner_sessions WHERE from_user = ? OR to_user = ?').bind(who.user.id, who.user.id),
+        env.DB.prepare('DELETE FROM partner_links WHERE user_a = ? OR user_b = ?').bind(who.user.id, who.user.id),
+        env.DB.prepare('DELETE FROM partner_invites WHERE user_id = ?').bind(who.user.id),
+        env.DB.prepare('DELETE FROM partner_tries WHERE user_id = ?').bind(who.user.id),
         env.DB.prepare('DELETE FROM sessions WHERE user_id = ?').bind(who.user.id),
         env.DB.prepare('DELETE FROM login_codes WHERE email = ?').bind(who.user.email),
         env.DB.prepare('DELETE FROM users WHERE id = ?').bind(who.user.id),

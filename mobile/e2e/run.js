@@ -676,6 +676,106 @@ async function transfer({ page, shot, tab, count, workouts }) {
   check('imported lifts count in the records', (await count('Bench Press · Barbell')) >= 1);
 }
 
+// Partner sync (Pro): two accounts on two "phones" link with a code; a session
+// one logs for both shows up on the other.
+async function partnerSync(browser) {
+  console.log('\n== partner-sync ==');
+  const phone = async (email, name) => {
+    const ctx = await browser.newContext({ ...devices['iPhone 14'] });
+    const page = await ctx.newPage();
+    page.on('dialog', (d) => d.accept());
+    await page.goto(URL, { waitUntil: 'networkidle' });
+    await signIn(page, email);
+    await firstTimeSetup(page, name);
+    await page.getByRole('tab', { name: 'Log' }).waitFor();
+    return { ctx, page };
+  };
+  const settings = async (page) => { await page.getByRole('button', { name: 'Settings' }).click(); await page.waitForTimeout(500); };
+  const done = async (page) => { await page.getByRole('button', { name: 'Done' }).click(); await page.waitForTimeout(500); };
+  const partnerOn = async (page, pro) => {
+    await settings(page);
+    await page.getByRole('switch', { name: 'Lift with a partner' }).click();
+    if (pro) {
+      await page.mouse.move(195, 420);
+      await page.mouse.wheel(0, 3000);
+      await page.getByRole('switch', { name: 'Pro unlocked' }).click();
+      await page.mouse.wheel(0, -3000);
+      await page.waitForTimeout(300);
+    }
+  };
+  try {
+    const sam = await phone('sync-sam@example.com', 'Sam');
+    const kim = await phone('sync-kim@example.com', 'Kim');
+    await partnerOn(sam.page, false);
+    check('free: linking phones is shown as part of Pro', (await sam.page.getByText("Link your partner's phone (Pro)").count()) === 1 && (await sam.page.getByRole('button', { name: 'Get an invite code' }).count()) === 0);
+    await done(sam.page);
+    await partnerOn(sam.page, false); // off again
+    await done(sam.page);
+    await partnerOn(sam.page, true);
+    await partnerOn(kim.page, true);
+
+    await sam.page.getByRole('button', { name: 'Get an invite code' }).click();
+    const label = await sam.page.getByLabel(/^Invite code /).getAttribute('aria-label');
+    const code = label.replace(/\D/g, '');
+    await sam.page.screenshot({ path: path.join(shots, 'partner-01-code.png') });
+    check('one phone gets a 6-digit invite code', code.length === 6);
+
+    await kim.page.getByRole('button', { name: 'Enter a code' }).click();
+    await kim.page.getByLabel("Partner's invite code").fill('000000' === code ? '111111' : '000000');
+    await kim.page.getByRole('button', { name: 'Link', exact: true }).click();
+    await kim.page.getByText("That code isn't right").waitFor();
+    await kim.page.getByLabel("Partner's invite code").fill(code);
+    await kim.page.getByRole('button', { name: 'Link', exact: true }).click();
+    await kim.page.getByText('Linked with Sam').waitFor();
+    await kim.page.screenshot({ path: path.join(shots, 'partner-02-linked.png') });
+    check('the other phone types it in and is linked, after a wrong code is refused', true);
+    check("the partner's name is filled in from their account", (await kim.page.getByLabel("Partner's first name").inputValue()) === 'Sam');
+    await sam.page.getByText('Linked with Kim').waitFor({ timeout: 15000 });
+    check('the first phone shows the link by itself', true);
+    await done(sam.page);
+    await done(kim.page);
+
+    // Sam logs a session for both.
+    await sam.page.getByRole('switch', { name: 'Together Mode' }).click();
+    await sam.page.getByRole('button', { name: 'Choose an exercise' }).click();
+    await sam.page.waitForTimeout(500);
+    await sam.page.getByLabel('Search exercises').fill('Zercher Squat');
+    await sam.page.getByRole('button', { name: /Add "Zercher Squat" as a new exercise/ }).click();
+    await sam.page.waitForTimeout(600);
+    await sam.page.getByLabel('Sam, set 1 reps').fill('5');
+    await sam.page.getByLabel('Sam, set 1 weight in lbs').fill('135');
+    await sam.page.getByLabel('Kim, set 1 reps').fill('6');
+    await sam.page.getByLabel('Kim, set 1 weight in lbs').fill('145');
+    await sam.page.getByRole('button', { name: 'LOG BOTH WORKOUTS' }).click();
+    await sam.page.waitForTimeout(2500);
+
+    await kim.page.reload({ waitUntil: 'networkidle' });
+    await kim.page.getByRole('tab', { name: 'History' }).click();
+    const rows = kim.page.getByRole('button', { name: /exercises, .* sets/ });
+    await rows.first().waitFor({ timeout: 15000 });
+    await kim.page.waitForTimeout(800);
+    await kim.page.screenshot({ path: path.join(shots, 'partner-03-received.png') });
+    const labels = await rows.evaluateAll((els) => els.map((e) => e.getAttribute('aria-label')));
+    check("the session shows up on the partner's phone, each person's sets under the right name", labels.length === 2 && labels.some((l) => l.includes(', Kim,') && l.includes('870 pounds')) && labels.some((l) => l.includes(', Sam,') && l.includes('675 pounds')), JSON.stringify(labels));
+    await kim.page.reload({ waitUntil: 'networkidle' });
+    await kim.page.getByRole('tab', { name: 'History' }).click();
+    await kim.page.waitForTimeout(2500);
+    check('it arrives once, not again on the next open', (await rows.count()) === 2);
+
+    await settings(kim.page);
+    await kim.page.getByRole('button', { name: 'Unlink phones' }).click();
+    await kim.page.getByRole('button', { name: 'Get an invite code' }).waitFor();
+    await sam.page.reload({ waitUntil: 'networkidle' });
+    await settings(sam.page);
+    await sam.page.getByRole('button', { name: 'Get an invite code' }).waitFor({ timeout: 15000 });
+    check('unlinking on one phone unlinks both, and the workouts stay', (await rows.count()) === 2);
+    await sam.ctx.close();
+    await kim.ctx.close();
+  } catch (e) {
+    check('partner-sync: ran to the end', false, e.message.split('\n')[0]);
+  }
+}
+
 // Two "phones" on one account: what is logged on the first shows up on the second.
 async function backup(browser) {
   console.log('\n== backup ==');
@@ -757,6 +857,7 @@ async function backup(browser) {
   await scenario(browser, 'progress', progress);
   await scenario(browser, 'transfer', transfer);
   await backup(browser);
+  await partnerSync(browser);
   await browser.close();
   server.close();
   accounts.kill();

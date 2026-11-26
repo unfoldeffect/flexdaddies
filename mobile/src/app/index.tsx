@@ -13,6 +13,7 @@ import { TogetherToggle } from '@/components/together-toggle';
 import { ErrorBanner, Icon, OutlineButton } from '@/components/ui';
 import { WorkoutForm } from '@/components/workout-form';
 import { useLogDraft, useLogDraftActions } from '@/data/log-draft';
+import { usePartner } from '@/data/partner';
 import { useStore } from '@/data/store';
 import { confirm, notify } from '@/lib/dialogs';
 import { templateToDraft } from '@/lib/draft';
@@ -27,6 +28,7 @@ export default function LogScreen() {
   const store = useStore();
   const draft = useLogDraft();
   const actions = useLogDraftActions();
+  const partner = usePartner();
   // The bottom 170 points are covered by the tab bar and the rest timer.
   const { bridge, scrollProps, hostProps, overlay } = useScrollBridge(170);
   const [saving, setSaving] = useState(false);
@@ -232,16 +234,14 @@ export default function LogScreen() {
                 template: draft.template,
               };
               setSaving(true);
+              const theirs: Workout = { ...mine, id: uid(), user: other, exercises: built.exercisesOther };
               const ok = togetherMode
-                ? await store.addWorkoutForBoth(mine, {
-                    ...mine,
-                    id: uid(),
-                    user: other,
-                    exercises: built.exercisesOther,
-                  })
+                ? await store.addWorkoutForBoth(mine, theirs)
                 : await store.addWorkout(mine);
               setSaving(false);
               if (ok) {
+                // With a partner's phone linked, a session logged for both goes to it too.
+                if (togetherMode) partner.share(mine, theirs);
                 built.toRegister.forEach((r) => store.registerExercise(r.name, r.category));
                 // Anything typed in a note box but not saved yet joins the saved
                 // notes list too, so it shows up next time.

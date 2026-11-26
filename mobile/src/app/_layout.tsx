@@ -14,6 +14,7 @@ import { RestTimer } from '@/components/rest-timer';
 import { FirstTimeSetup, SignIn } from '@/components/sign-in';
 import { AuthProvider, useAuth } from '@/data/auth';
 import { BackupProvider } from '@/data/backup';
+import { PartnerProvider } from '@/data/partner';
 import { LogDraftProvider } from '@/data/log-draft';
 import { StoreProvider, useStore } from '@/data/store';
 import { colors, setThemeMode, themed } from '@/theme';
@@ -41,7 +42,9 @@ function Data({ children }: { children: React.ReactNode }) {
   const { account } = useAuth();
   return (
     <StoreProvider ownerName={account?.name}>
-      <BackupProvider>{children}</BackupProvider>
+      <BackupProvider>
+        <PartnerProvider>{children}</PartnerProvider>
+      </BackupProvider>
     </StoreProvider>
   );
 }

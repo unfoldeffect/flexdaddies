@@ -21,7 +21,21 @@ import { Chip, OutlineButton, UnitToggle } from './ui';
 export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const { prefs, setPrefs, db, hasSample, removeSample, resetToSample, eraseEverything } =
     useStore();
-  const { account, signOut, deleteAccount } = useAuth();
+  const { account, signOut, deleteAccount, saveProfile } = useAuth();
+  const [nameDraft, setNameDraft] = useState<string | null>(null);
+  const [savingName, setSavingName] = useState(false);
+
+  const saveName = async () => {
+    if (!nameDraft?.trim()) return;
+    setSavingName(true);
+    setAccountProblem(null);
+    const r = await saveProfile({ name: nameDraft.trim() });
+    setSavingName(false);
+    if (r.ok) {
+      setNameDraft(null);
+      buzzSuccess();
+    } else setAccountProblem(r.message);
+  };
   const backup = useBackupStatus();
   const [accountProblem, setAccountProblem] = useState<string | null>(null);
   const [importing, setImporting] = useState(false);
@@ -276,6 +290,25 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
                 Signed in as {account.name ? `${account.name}, ` : ''}
                 {account.email}
               </Text>
+              <View style={styles.nameRow}>
+                <TextInput
+                  style={[styles.input, styles.nameInput]}
+                  value={nameDraft ?? account.name}
+                  onChangeText={setNameDraft}
+                  placeholder="First name"
+                  placeholderTextColor={colors.placeholder}
+                  autoCapitalize="words"
+                  maxLength={40}
+                  returnKeyType="done"
+                  accessibilityLabel="Your first name"
+                />
+                <OutlineButton
+                  compact
+                  label={savingName ? 'Saving...' : 'Save name'}
+                  disabled={savingName || !nameDraft?.trim() || nameDraft.trim() === account.name}
+                  onPress={saveName}
+                />
+              </View>
               <OutlineButton label="Sign out" onPress={askSignOut} />
               <OutlineButton label="Delete my account" onPress={askDeleteAccount} />
               {accountProblem && (
@@ -324,6 +357,8 @@ const styles = themed(() => StyleSheet.create({
   chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingHorizontal: 14 },
   hint: { fontSize: 14, color: colors.muted },
+  nameRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  nameInput: { flex: 1 },
   input: {
     minHeight: 52,
     borderRadius: 14,

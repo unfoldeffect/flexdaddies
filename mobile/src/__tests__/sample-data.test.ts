@@ -7,7 +7,7 @@ import {
   withoutPartner,
 } from '../data/sample-data';
 import * as storage from '../data/storage';
-import { DEFAULT_PREFS, normalizeDb, normalizePrefs } from '../data/storage';
+import { DEFAULT_PREFS, normalizeDb, normalizePrefs, readSyncedSettings, syncedSettings } from '../data/storage';
 import { FREE_PLAN_LIMIT, canSavePlan } from '../lib/pro';
 import { EMPTY_DB } from '../lib/types';
 import { EXERCISE_TO_CATEGORY } from '../lib/workout-data';
@@ -175,5 +175,29 @@ describe('starter routines', () => {
   it('offers the starter plans under plain names, exercises unchanged', () => {
     expect(STARTER_ROUTINES.map((s) => s.name)).toEqual(['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Cardio + Rehab']);
     expect(STARTER_ROUTINES[0].exercises).toEqual(STARTER_PLANS[0].exercises);
+  });
+});
+
+describe('settings that travel with the account', () => {
+  it('carries units, look, rest timer and the partner, but never Pro', () => {
+    const mine = syncedSettings({ ...DEFAULT_PREFS, weightUnit: 'kg', partnerOn: true, partnerName: 'Kim', pro: true });
+    expect(mine).toEqual({
+      partnerOn: true,
+      partnerName: 'Kim',
+      weightUnit: 'kg',
+      lengthUnit: 'in',
+      restSeconds: 60,
+      restSound: true,
+      theme: 'dark',
+    });
+    expect('pro' in mine).toBe(false);
+  });
+  it('reads them back from a backup, tidying anything odd', () => {
+    expect(readSyncedSettings({ weightUnit: 'kg', restSeconds: 999, theme: 'neon' })).toMatchObject({
+      weightUnit: 'kg',
+      restSeconds: 60,
+      theme: 'dark',
+    });
+    expect(readSyncedSettings(undefined)).toBeNull();
   });
 });

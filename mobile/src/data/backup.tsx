@@ -9,7 +9,7 @@ import { AppState } from 'react-native';
 import { mergeDb, planSync, type BackupStatus, type SavedCopy, type SyncMeta } from '../lib/backup';
 import { EMPTY_DB, type Db } from '../lib/types';
 import { useAuth } from './auth';
-import { normalizeDb } from './storage';
+import { normalizeDb, readSyncedSettings, syncedSettings, type SyncedSettings } from './storage';
 import { useStore } from './store';
 
 const META_KEY = 'fd-sync-v1';
@@ -31,7 +31,9 @@ export const useBackupStatus = () => useContext(StatusContext);
 
 export function BackupProvider({ children }: { children: React.ReactNode }) {
   const { session, api } = useAuth();
-  const { ready, fullDb, replaceDb } = useStore();
+  const { ready, fullDb, replaceDb, prefs, setPrefs } = useStore();
+  // The settings that travel with the account, as text so a change is easy to spot.
+  const settingsText = JSON.stringify(syncedSettings(prefs));
   const [status, setStatus] = useState<BackupStatus>({ state: 'off' });
 
   const token = session?.token ?? null;
@@ -47,11 +49,17 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
   // The store hands out a fresh replaceDb with every change; keep the latest
   // in a ref so a change does not restart (and cancel) a save that is waiting.
   const replaceRef = useRef(replaceDb);
+  const settingsRef = useRef(settingsText);
+  const setPrefsRef = useRef(setPrefs);
+  /** Settings this code itself applied or sent: not a change to save. */
+  const settledSettings = useRef<string | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
     dbRef.current = fullDb;
     replaceRef.current = replaceDb;
-  }, [fullDb, replaceDb]);
+    settingsRef.current = settingsText;
+    setPrefsRef.current = setPrefs;
+  }, [fullDb, replaceDb, settingsText, setPrefs]);
 
   const setMeta = useCallback((meta: SyncMeta) => {
     metaRef.current = meta;
@@ -71,6 +79,11 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
       let off = false;
       try {
         let server: SavedCopy | null = null;
+        let serverSettings: SyncedSettings | null = null;
+        const readServer = (rev: number, data: unknown) => {
+          serverSettings = data ? readSyncedSettings((data as { settings?: unknown }).settings) : null;
+          return { rev, data: data ? normalizeDb(data) : null };
+        };
         // Up to three rounds, in case another phone saves while this one is merging.
         for (let round = 0; round < 3 && !ok; round++) {
           const meta = metaRef.current;
@@ -84,7 +97,7 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
                 off = got.error === 'not_set_up';
                 break;
               }
-              server = { rev: got.data.rev, data: got.data.data ? normalizeDb(got.data.data) : null };
+              server = readServer(got.data.rev, got.data.data);
             }
             step = planSync({ meta, accountId, local, server });
           } else {
@@ -98,6 +111,12 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
             const next = step === 'take' && server?.data ? server.data : { ...EMPTY_DB };
             settled.current = next;
             if (!(await replaceRef.current(next))) break;
+            // A phone taking the saved copy takes its settings too.
+            const taken = serverSettings as SyncedSettings | null;
+            if (step === 'take' && taken) {
+              settledSettings.current = JSON.stringify(taken);
+              setPrefsRef.current(taken);
+            }
             setMeta({ accountId, rev: server?.rev ?? 0, dirty: false });
             ok = true;
           } else {
@@ -108,18 +127,23 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
               if (!(await replaceRef.current(sending))) break;
             }
             const baseRev = server ? server.rev : (mine?.rev ?? 0);
-            const put = await api.putData(token, baseRev, sending);
+            const sentSettings = settingsRef.current;
+            const put = await api.putData(token, baseRev, { ...sending, settings: JSON.parse(sentSettings) });
             if (put.ok) {
               // Something typed while this was in flight still needs saving.
-              const changedSince = dbRef.current !== sending && dbRef.current !== local;
-              if (!changedSince) settled.current = dbRef.current;
+              const changedSince =
+                (dbRef.current !== sending && dbRef.current !== local) || settingsRef.current !== sentSettings;
+              if (!changedSince) {
+                settled.current = dbRef.current;
+                settledSettings.current = sentSettings;
+              }
               setMeta({ accountId, rev: put.data.rev, dirty: changedSince });
               ok = !changedSince;
               server = null;
               full = false;
             } else if (put.error === 'newer_copy' && put.details) {
               const d = put.details as { rev?: number; data?: unknown };
-              server = { rev: Number(d.rev) || 0, data: d.data ? normalizeDb(d.data) : null };
+              server = readServer(Number(d.rev) || 0, d.data);
               setMeta({ accountId, rev: mine?.rev ?? 0, dirty: true });
             } else {
               break;
@@ -147,6 +171,7 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
     }
     let cancelled = false;
     settled.current = dbRef.current;
+    settledSettings.current = settingsRef.current;
     void loadMeta().then((meta) => {
       if (cancelled) return;
       metaRef.current = meta;
@@ -168,10 +193,12 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
     };
   }, [ready, token, sync]);
 
-  // Any change on the phone: note it, then save a moment later.
+  // Any change on the phone, to the data or to the settings: note it, then save a moment later.
   useEffect(() => {
-    if (!started.current || !token || !accountId || fullDb === settled.current) return;
+    if (!started.current || !token || !accountId) return;
+    if (fullDb === settled.current && settingsText === settledSettings.current) return;
     settled.current = fullDb;
+    settledSettings.current = settingsText;
     // Remembered across restarts, so a change made with no connection is not forgotten.
     const meta = metaRef.current;
     if (meta && meta.accountId === accountId) setMeta({ ...meta, dirty: true });
@@ -180,7 +207,7 @@ export function BackupProvider({ children }: { children: React.ReactNode }) {
       timer.current = null;
       void sync(false);
     }, SAVE_DELAY_MS);
-  }, [fullDb, token, accountId, sync, setMeta]);
+  }, [fullDb, settingsText, token, accountId, sync, setMeta]);
 
   useEffect(
     () => () => {

@@ -103,6 +103,23 @@ export function normalizePrefs(raw: unknown): Prefs {
   };
 }
 
+/** The settings that travel with the account (kept in its backup), so a new phone feels the same. */
+export type SyncedSettings = Pick<
+  Prefs,
+  'partnerOn' | 'partnerName' | 'weightUnit' | 'lengthUnit' | 'restSeconds' | 'restSound' | 'theme'
+>;
+
+export function syncedSettings(prefs: Prefs): SyncedSettings {
+  const { partnerOn, partnerName, weightUnit, lengthUnit, restSeconds, restSound, theme } = prefs;
+  return { partnerOn, partnerName, weightUnit, lengthUnit, restSeconds, restSound, theme };
+}
+
+/** Reads settings out of a backup, ignoring anything missing or odd. Null when there are none. */
+export function readSyncedSettings(raw: unknown): SyncedSettings | null {
+  if (!raw || typeof raw !== 'object') return null;
+  return syncedSettings(normalizePrefs(raw));
+}
+
 export const loadDb = async (): Promise<Db | null> => normalizeDb(await readJson(DB_KEY));
 export const saveDb = (db: Db): Promise<boolean> => writeJson(DB_KEY, db);
 

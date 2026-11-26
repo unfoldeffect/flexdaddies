@@ -588,6 +588,13 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(500);
   check('deleting the account erased the workouts on the phone', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) === 0);
+
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(600);
+  await page.getByLabel('Your first name').fill('Samuel');
+  await page.getByRole('button', { name: 'Save name' }).click();
+  await page.getByText(`Signed in as Samuel, ${email}`).waitFor({ timeout: 10000 });
+  check('the first name can be changed in Settings', true);
 }
 
 // Stats: one exercise over time (free for 3 months) and the Pro charts.
@@ -843,6 +850,8 @@ async function backup(browser) {
     await a.page.getByRole('button', { name: 'Settings' }).click();
     await a.page.waitForTimeout(500);
     a.page.on('dialog', (d) => d.accept());
+    await a.page.getByRole('radio', { name: 'Show in kg' }).click();
+    await a.page.getByRole('radio', { name: 'Show in cm' }).click();
     await a.page.getByRole('button', { name: 'Load sample data' }).click();
     await a.page.getByRole('button', { name: 'Done' }).click();
     // The save goes out a few seconds after a change.
@@ -865,9 +874,17 @@ async function backup(browser) {
     await workouts(b.page).first().waitFor({ timeout: 15000 });
     await b.page.screenshot({ path: path.join(shots, 'backup-02-second-phone.png') });
     const onSecond = await tally(b.page);
+    await b.page.getByRole('tab', { name: 'Log' }).click();
+    await b.page.waitForTimeout(500);
+    const kilosCameToo = (await b.page.getByLabel('set 1 weight in kg').count()) === 1;
+    await b.page.getByRole('tab', { name: 'Body' }).click();
+    await b.page.waitForTimeout(500);
+    check('the settings come with the account too (kilos and centimeters)', kilosCameToo && (await b.page.getByText('cm', { exact: false }).count()) > 0 && (await b.page.getByLabel('Weight in kg', { exact: true }).count()) === 1);
     check('signing in on a second phone brings everything back', /^[1-9]\d* workouts/.test(onFirst) && onSecond === onFirst, `first="${onFirst}" second="${onSecond}"`);
 
     // Delete one on the second phone; the first phone catches up when it reopens.
+    await b.page.getByRole('tab', { name: 'History' }).click();
+    await b.page.waitForTimeout(600);
     await workouts(b.page).first().click();
     await b.page.waitForTimeout(300);
     await b.page.getByRole('button', { name: 'Delete', exact: true }).click();

@@ -23,8 +23,8 @@ const HEADER = [
 ];
 // The website's exercise names, written the way the app's import reads them:
 // "Movement (Equipment)" for one of the app's 75 movements. Drafted Nov. 26,
-// 2026 from Diego's 58 website names; the ones marked GUESS wait for his yes.
-// Names not listed keep their website name and come in as added exercises.
+// 2026 from Diego's 58 website names and approved by him. Names not listed
+// keep their website name and come in as his own (added) exercises.
 const WEBSITE_NAMES = {
   'Ab Crunch Machine': 'Crunch (Machine)',
   'Assisted Pull-Up Machine': 'Pull Up (Machine)',
@@ -32,29 +32,20 @@ const WEBSITE_NAMES = {
   'Bicep Curl Machine': 'Bicep Curl (Machine)',
   'Cable Bicep Curl': 'Bicep Curl (Cable)',
   'Cable Face Pull': 'Face Pull (Cable)',
-  'Cable Flys Lower': 'Chest Fly (Cable)', // GUESS: low and mid cable flys become one Chest Fly (Cable)
-  'Cable Flys Mid': 'Chest Fly (Cable)', // GUESS
-  'Chest Flys Upper': 'Chest Fly (Cable)', // GUESS: equipment not named on the website
   'Chest Press Machine': 'Bench Press (Machine)',
-  Deadlift: 'Deadlift (Barbell)', // GUESS: barbell
   'Dumbbell Bicep Curl': 'Bicep Curl (Dumbbell)',
   'Dumbbell Curl': 'Bicep Curl (Dumbbell)',
   'Dumbbell Fly': 'Chest Fly (Dumbbell)',
   'Dumbbell Kickback': 'Triceps Kickback (Dumbbell)',
   'Dumbbell Lateral Raise': 'Lateral Raise (Dumbbell)',
   'Dumbbell One-Arm Row': 'Bent Over Row (Dumbbell)',
-  'Dumbbell Zottman Curl': 'Bicep Curl (Dumbbell)', // GUESS: a curl variation
-  'Front Pulldown': 'Lat Pulldown (Machine)', // GUESS: machine, not cable
   'Glute Kickback Machine': 'Glute Kickback (Machine)',
   'Hammer Curl': 'Hammer Curl (Dumbbell)',
   'Hip Abductor Machine': 'Hip Abduction (Machine)',
   'Hip Thrust Machine': 'Hip Thrust (Machine)',
   'ISO Lateral Decline Press': 'Decline Bench Press (Machine)',
   'ISO Lateral Incline Press': 'Incline Bench Press (Machine)',
-  'ISO Lateral Row': 'Chest Supported Row (Machine)', // GUESS: chest-supported, not Seated Row
-  'Iso-Lateral Row Machine': 'Chest Supported Row (Machine)', // GUESS: same machine as ISO Lateral Row
   'ISO Lateral Shoulder Press': 'Shoulder Press (Machine)',
-  'ISO Lateral Wide Chest': 'Bench Press (Machine)', // GUESS: a wide-grip chest press
   'Incline Chest Press Machine': 'Incline Bench Press (Machine)',
   'Lat Pulldown Machine': 'Lat Pulldown (Machine)',
   'Lateral Raise Machine': 'Lateral Raise (Machine)',
@@ -64,23 +55,23 @@ const WEBSITE_NAMES = {
   'MTS DELINE PRESS': 'Decline Bench Press (Machine)',
   'MTS INCLINE PRESS': 'Incline Bench Press (Machine)',
   'MTS Kneeling Leg Curl': 'Leg Curl (Machine)',
-  'Overhead Tricep Extension': 'Overhead Triceps Extension (Cable)', // GUESS: cable
   'Pec Deck Machine': 'Chest Fly (Machine)',
   'Pendulum Squat Machine': 'Squat (Machine)',
   'Preacher Curl Machine': 'Preacher Curl (Machine)',
   'Rear Delt Fly Machine': 'Rear Delt Fly (Machine)',
-  'Reverse Pec Deck (Rear Delt)': 'Rear Delt Fly (Machine)', // GUESS: joined with Rear Delt Fly Machine
   'Seated Cable Row': 'Seated Row (Cable)',
   'Seated Leg Curl Machine': 'Leg Curl (Machine)',
   'Shoulder Press Machine': 'Shoulder Press (Machine)',
   'Smith Machine Bench Press': 'Bench Press (Smith)',
   'Standing Calf Raise Machine': 'Calf Raise (Machine)',
   'Stationary Bike': 'Bike',
-  'Tricep Extension Machine': 'Overhead Triceps Extension (Machine)', // GUESS
   'Tricep pull down cable': 'Triceps Pushdown (Cable)',
-  // Left as they are until Diego says (no clear match among the 75):
-  // 'Chin/Dip Assist', 'Crunches' (the app's Crunch is machine or cable),
-  // 'Smith Machine Row' (the app's rows have no Smith option).
+  // Diego, Nov. 26: these keep their website names and come in as his own
+  // exercises: Cable Flys Lower, Cable Flys Mid, Chest Flys Upper, Deadlift,
+  // Dumbbell Zottman Curl, Front Pulldown, ISO Lateral Row, Iso-Lateral Row
+  // Machine, ISO Lateral Wide Chest (wider than a normal bench press machine),
+  // Overhead Tricep Extension, Reverse Pec Deck (Rear Delt), Tricep Extension
+  // Machine, Chin/Dip Assist, Crunches, Smith Machine Row.
 };
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];

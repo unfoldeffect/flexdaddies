@@ -147,6 +147,20 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
               accessibilityLabel="Chime when rest is over"
             />
           </View>
+          <View style={styles.row}>
+            <Text style={styles.rowLabel}>Start rest when I check off a set</Text>
+            <Switch
+              value={prefs.restOnCheck}
+              onValueChange={(restOnCheck) => {
+                tapLight();
+                setPrefs({ restOnCheck });
+              }}
+              trackColor={{ false: colors.line, true: colors.gold }}
+              thumbColor={colors.white}
+              ios_backgroundColor={colors.line}
+              accessibilityLabel="Start rest when I check off a set"
+            />
+          </View>
           <Text style={styles.hint}>The phone always buzzes when rest is over.</Text>
         </View>
 

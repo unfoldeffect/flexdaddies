@@ -29,6 +29,8 @@ export type Prefs = {
   lengthUnit: LengthUnit;
   restSeconds: number;
   restSound: boolean;
+  /** Checking off a set starts the rest timer. On unless turned off in Settings. */
+  restOnCheck: boolean;
   /** Dark is the default look; light is the same layout on a light ground. */
   theme: 'dark' | 'light';
 };
@@ -42,6 +44,7 @@ export const DEFAULT_PREFS: Prefs = {
   lengthUnit: 'in',
   restSeconds: 60,
   restSound: true,
+  restOnCheck: true,
   theme: 'dark',
 };
 
@@ -99,6 +102,7 @@ export function normalizePrefs(raw: unknown): Prefs {
       ? (r.restSeconds as number)
       : DEFAULT_PREFS.restSeconds,
     restSound: r.restSound !== false,
+    restOnCheck: r.restOnCheck !== false,
     theme: r.theme === 'light' ? 'light' : 'dark',
   };
 }
@@ -106,12 +110,13 @@ export function normalizePrefs(raw: unknown): Prefs {
 /** The settings that travel with the account (kept in its backup), so a new phone feels the same. */
 export type SyncedSettings = Pick<
   Prefs,
-  'partnerOn' | 'partnerName' | 'weightUnit' | 'lengthUnit' | 'restSeconds' | 'restSound' | 'theme'
+  'partnerOn' | 'partnerName' | 'weightUnit' | 'lengthUnit' | 'restSeconds' | 'restSound' | 'restOnCheck' | 'theme'
 >;
 
 export function syncedSettings(prefs: Prefs): SyncedSettings {
-  const { partnerOn, partnerName, weightUnit, lengthUnit, restSeconds, restSound, theme } = prefs;
-  return { partnerOn, partnerName, weightUnit, lengthUnit, restSeconds, restSound, theme };
+  const { partnerOn, partnerName, weightUnit, lengthUnit, restSeconds, restSound, restOnCheck, theme } =
+    prefs;
+  return { partnerOn, partnerName, weightUnit, lengthUnit, restSeconds, restSound, restOnCheck, theme };
 }
 
 /** Reads settings out of a backup, ignoring anything missing or odd. Null when there are none. */

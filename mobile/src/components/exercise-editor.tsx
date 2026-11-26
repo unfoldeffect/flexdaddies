@@ -3,6 +3,7 @@ import { useRef, useState, type ComponentRef } from 'react';
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
 import { useStore, type NotesApi } from '../data/store';
+import { requestRest } from '../lib/rest-signal';
 import {
   clampSetsForCategory,
   lastWorkoutSummary,
@@ -186,6 +187,8 @@ export function ExerciseEditor({
   /** Check a set off as done (Log tab only). */
   const toggleDone = (which: 'sets' | 'setsOther') => (setId: string) => {
     tapLight();
+    const wasDone = exercise[which].some((s) => s.id === setId && s.done);
+    if (!wasDone && prefs.restOnCheck) requestRest();
     onChange({
       ...exercise,
       [which]: exercise[which].map((s) => (s.id === setId ? { ...s, done: !s.done } : s)),

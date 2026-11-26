@@ -123,9 +123,25 @@ async function reorder({ page, shot, names, scroll }) {
   // The count ring and the set checks.
   const strip = page.getByLabel(/of 7 exercises done/);
   check('the ring starts at 0 of 7 and names what is now and next', /^0 of 7 exercises done\. Now: Bench Press\. Next: /.test(await strip.getAttribute('aria-label')), await strip.getAttribute('aria-label'));
+  // Checking off a set starts the rest timer, unless Settings says not to.
+  const restTimer = page.getByRole('button', { name: /rest timer/i });
+  const restSwitch = async () => {
+    await page.getByRole('button', { name: 'Settings' }).click();
+    await page.waitForTimeout(500);
+    await page.getByLabel('Start rest when I check off a set').click();
+    await page.getByRole('button', { name: 'Done' }).click();
+    await page.waitForTimeout(500);
+  };
+  await restSwitch();
+  await page.getByRole('checkbox', { name: 'set 1 done' }).first().click();
+  await page.waitForTimeout(300);
+  check('with the setting off, a check does not start the rest timer', /^Start \d+ second rest timer$/.test(await restTimer.getAttribute('aria-label')), await restTimer.getAttribute('aria-label'));
+  await page.getByRole('checkbox', { name: 'set 1 done' }).first().click();
+  await restSwitch();
   for (let i = 0; i < 3; i++) await page.getByRole('checkbox', { name: `set ${i + 1} done` }).first().click();
   await page.waitForTimeout(300);
   await shot('ring-01');
+  check('checking off a set starts the rest timer', /^Rest timer, \d+ seconds left/.test(await restTimer.getAttribute('aria-label')), await restTimer.getAttribute('aria-label'));
   check('checking off every set of an exercise moves the ring on', /^1 of 7 exercises done\./.test(await strip.getAttribute('aria-label')) && !/Now: Bench Press/.test(await strip.getAttribute('aria-label')), await strip.getAttribute('aria-label'));
   await page.getByRole('checkbox', { name: 'set 1 done' }).first().click();
   await page.waitForTimeout(300);
@@ -402,8 +418,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   check('the first screen is the sign-in, with no names on it', (await count('Your lifting log.')) === 1 && (await count('Diego')) === 0 && (await count('Kevin')) === 0);
   await page.getByRole('button', { name: 'Continue with Apple' }).click();
   check('Apple says it is coming soon', (await count('Apple sign-in is coming soon')) === 1);
-  await page.getByRole('button', { name: 'Continue with Google' }).click();
-  check('Google says it is coming soon', (await count('Google sign-in is coming soon')) === 1);
+  check('no Google button for the iPhone launch', (await page.getByRole('button', { name: 'Continue with Google' }).count()) === 0);
   await page.getByLabel('Email', { exact: true }).fill('not-an-email');
   await page.getByRole('button', { name: 'EMAIL ME A CODE' }).click();
   check('a bad email is caught', (await count('Enter your email address')) === 1);

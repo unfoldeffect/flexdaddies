@@ -91,6 +91,7 @@ describe('reading saved data', () => {
       lengthUnit: 'cm',
       restSeconds: 90,
       restSound: true,
+      restOnCheck: true,
       theme: 'dark',
     });
   });
@@ -188,6 +189,7 @@ describe('settings that travel with the account', () => {
       lengthUnit: 'in',
       restSeconds: 60,
       restSound: true,
+      restOnCheck: true,
       theme: 'dark',
     });
     expect('pro' in mine).toBe(false);

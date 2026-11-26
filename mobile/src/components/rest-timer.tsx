@@ -10,6 +10,7 @@ import Svg, { Circle } from 'react-native-svg';
 
 import { useStore } from '../data/store';
 import { tapMedium } from '../lib/haptics';
+import { onRestRequested } from '../lib/rest-signal';
 import { colors, fonts, shadow, themed } from '../theme';
 
 const SIZE = 84;
@@ -88,6 +89,17 @@ export function RestTimer() {
     const t = setTimeout(() => setJustFinished(false), 2500);
     return () => clearTimeout(t);
   }, [justFinished]);
+
+  // Checking off a set on Log asks for a rest (Settings can turn that off).
+  useEffect(
+    () =>
+      onRestRequested(() => {
+        setJustFinished(false);
+        setRemaining(restSeconds);
+        setEndAt(Date.now() + restSeconds * 1000);
+      }),
+    [restSeconds],
+  );
 
   const running = endAt !== null;
   const start = () => {

@@ -1,8 +1,8 @@
-// The store app's front door: sign in with Apple, Google or a 6-digit code
+// The store app's front door: sign in with Apple, Google (Android only) or a 6-digit code
 // sent by email (no passwords), then a quick first-time setup.
 import { Image } from 'expo-image';
 import { useRef, useState, type ComponentRef } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAuth } from '../data/auth';
@@ -11,6 +11,9 @@ import { isEmail, tidyCode } from '../lib/auth-api';
 import { buzzSuccess, tapLight, tapMedium } from '../lib/haptics';
 import { colors, fonts, themed } from '../theme';
 import { Icon, PrimaryButton } from './ui';
+
+/** Diego, Nov. 26: iPhone only at launch, so no Google button there. */
+const SHOW_GOOGLE = Platform.OS === 'android';
 
 type InputRef = ComponentRef<typeof TextInput>;
 
@@ -201,15 +204,18 @@ export function SignIn() {
         <Icon name="apple" size={24} color="#000000" />
         <Text style={styles.appleText}>Continue with Apple</Text>
       </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Continue with Google"
-        onPress={() => comingSoon('Google')}
-        style={({ pressed }) => [styles.google, pressed && styles.pressed]}
-      >
-        <Icon name="google" size={22} color={colors.text} />
-        <Text style={styles.googleText}>Continue with Google</Text>
-      </Pressable>
+      {/* iPhone-only launch: the Google button comes back with the Android app. */}
+      {SHOW_GOOGLE && (
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Continue with Google"
+          onPress={() => comingSoon('Google')}
+          style={({ pressed }) => [styles.google, pressed && styles.pressed]}
+        >
+          <Icon name="google" size={22} color={colors.text} />
+          <Text style={styles.googleText}>Continue with Google</Text>
+        </Pressable>
+      )}
       {notice && <Text style={styles.notice}>{notice}</Text>}
 
       <View style={styles.orRow}>

@@ -93,7 +93,7 @@ describe('bringing in a Strong file', () => {
     expect(lbs.needsUnit).toBe(true);
     expect(lbs.workouts[0].exercises[0].sets.map((s) => s.weight)).toEqual([60, 62.5]);
     const kg = importWorkouts(STRONG, 'kg')!;
-    expect(kg.workouts[0].exercises[0].sets.map((s) => s.weight)).toEqual([132.3, 137.8]);
+    expect(kg.workouts[0].exercises[0].sets.map((s) => s.weight)).toEqual([132.28, 137.79]);
     expect(kg.workouts[0].exercises[1]).toMatchObject({ name: 'Plank', sets: [{ reps: 0, time: 2 }] });
   });
 });

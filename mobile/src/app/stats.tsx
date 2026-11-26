@@ -8,7 +8,7 @@ import { ExerciseProgress, ProCharts } from '@/components/progress-charts';
 import { Dot, DotCard, EmptyState, Icon, Plate, SectionHeading } from '@/components/ui';
 import { useStore } from '@/data/store';
 import { tapLight } from '@/lib/haptics';
-import { computeWorkoutStats, weighInsByUser, weightLoss } from '@/lib/stats';
+import { computeWorkoutStats, weighInsByUser, weightLoss, lbsTo, liftShown, totalShown } from '@/lib/stats';
 import {
   OTHER_CATEGORY,
   USER_COLORS,
@@ -18,7 +18,8 @@ import {
 import { colors, fonts, hexToRgba, themed } from '@/theme';
 
 export default function StatsScreen() {
-  const { db, toCategory, people, names } = useStore();
+  const { db, toCategory, people, names, prefs } = useStore();
+  const unit = prefs.weightUnit;
   const [expandedUser, setExpandedUser] = useState<WorkoutUser | null>('me');
 
   const stats = useMemo(() => computeWorkoutStats(db.workouts), [db.workouts]);
@@ -71,8 +72,8 @@ export default function StatsScreen() {
             <LineChart
               height={70}
               label={`Total weight lifted per day, ${describeTrend(
-                stats.volumeSeries.map((p) => p.total),
-                'lbs',
+                stats.volumeSeries.map((p) => totalShown(p.total, unit)),
+                unit,
               )}`}
               series={[{ values: stats.volumeSeries.map((p) => p.total), color: colors.gold }]}
             />
@@ -104,7 +105,7 @@ export default function StatsScreen() {
                   >
                     <Text style={[styles.lossText, { color: loss >= 0 ? colors.down : colors.up }]}>
                       {loss > 0 ? '−' : loss < 0 ? '+' : ''}
-                      {Math.abs(loss).toFixed(1)} lbs {loss >= 0 ? 'lost' : 'gained'}
+                      {Math.abs(lbsTo(unit, loss)).toFixed(1)} {unit} {loss >= 0 ? 'lost' : 'gained'}
                     </Text>
                   </View>
                 )}
@@ -112,7 +113,7 @@ export default function StatsScreen() {
               {series.length >= 2 ? (
                 <LineChart
                   height={70}
-                  label={`${names[u]}'s weight, ${describeTrend(series, 'lbs')}`}
+                  label={`${names[u]}'s weight, ${describeTrend(series.map((v) => lbsTo(unit, v)), unit)}`}
                   series={[{ values: series, color: USER_COLORS[u] }]}
                 />
               ) : (
@@ -168,8 +169,8 @@ export default function StatsScreen() {
                             </View>
                           </View>
                           <Text style={styles.prWeight}>
-                            {pr.weight}
-                            <Text style={styles.prUnit}> lbs</Text>
+                            {liftShown(pr.weight, unit)}
+                            <Text style={styles.prUnit}> {unit}</Text>
                           </Text>
                         </View>
                       );

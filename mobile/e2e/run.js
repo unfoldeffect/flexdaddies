@@ -670,7 +670,35 @@ async function transfer({ page, shot, tab, count, workouts }) {
   check('the imported workouts are in History', (await workouts().count()) === 3);
   await workouts().nth(2).click();
   await page.waitForTimeout(400);
-  check('kilos from Strong were turned into pounds', (await count('132.3')) >= 1);
+  check('kilos from Strong were turned into pounds', (await count('8 reps × 132.28 lbs')) === 1);
+
+  // Lifting in kilos: one switch in Settings changes every weight on screen.
+  await page.getByRole('button', { name: 'Settings' }).click();
+  await page.waitForTimeout(500);
+  await page.getByRole('radio', { name: 'Show in kg' }).click();
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+  await tab('History');
+  await page.waitForTimeout(600);
+  await shot('transfer-04-kilos');
+  check('in kilos, History shows the same lifts in kg', (await count('8 reps × 60 kg')) === 1 && (await count('6 reps × 62.5 kg')) === 1 && (await count('kg moved')) >= 1 && (await count('lbs moved')) === 0);
+  await tab('Log');
+  check('in kilos, sets are typed in kg', (await count('WEIGHT (KG)')) >= 1 && (await page.getByLabel('set 1 weight in kg').count()) === 1);
+  await page.getByRole('button', { name: 'Choose an exercise' }).click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Search exercises').fill('Zercher Squat (Barbell)');
+  await page.waitForTimeout(300);
+  await page.getByRole('button', { name: 'Zercher Squat (Barbell)', exact: true }).click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('set 1 reps').fill('5');
+  await page.getByLabel('set 1 weight in kg').fill('100');
+  await page.getByRole('button', { name: 'LOG WORKOUT' }).click();
+  await page.waitForTimeout(800);
+  await tab('History');
+  await page.waitForTimeout(600);
+  await workouts().first().click();
+  await page.waitForTimeout(400);
+  check('a lift typed in kilos reads back as the same kilos', (await count('5 reps × 100 kg')) === 1);
   await tab('Stats');
   await page.waitForTimeout(600);
   check('imported lifts count in the records', (await count('Bench Press · Barbell')) >= 1);

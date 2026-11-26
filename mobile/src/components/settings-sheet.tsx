@@ -139,7 +139,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
         <Text style={styles.heading}>UNITS</Text>
         <View style={styles.card}>
           <View style={styles.row}>
-            <Text style={styles.rowLabel}>Body weight</Text>
+            <Text style={styles.rowLabel}>Weights</Text>
             <UnitToggle
               options={['lbs', 'kg'] as const}
               value={prefs.weightUnit}
@@ -155,7 +155,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
             />
           </View>
           <Text style={styles.hint}>
-            Weights you lift are logged in lbs.
+            Used for the weights you lift and for your body weight.
           </Text>
         </View>
 

@@ -28,10 +28,10 @@ export function EditWorkoutSheet({
 }
 
 function EditWorkoutBody({ workout, onClose }: { workout: Workout; onClose: () => void }) {
-  const { db, groups, toCategory, editWorkout, registerExercise } = useStore();
+  const { db, groups, toCategory, editWorkout, registerExercise, prefs } = useStore();
   const [date, setDate] = useState(workout.date);
   const [exercises, setExercises] = useState<DraftExercise[]>(() =>
-    workoutExercisesToDraft(workout.exercises, toCategory),
+    workoutExercisesToDraft(workout.exercises, toCategory, prefs.weightUnit),
   );
   const [saving, setSaving] = useState(false);
   const [managing, setManaging] = useState(false);

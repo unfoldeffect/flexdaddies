@@ -302,8 +302,8 @@ export function FirstTimeSetup() {
         accessibilityLabel="Your first name"
       />
 
-      <Text style={[styles.label, styles.gapAbove]}>Body weight in</Text>
-      <View style={styles.units} accessibilityRole="radiogroup" accessibilityLabel="Body weight in">
+      <Text style={[styles.label, styles.gapAbove]}>Weights in</Text>
+      <View style={styles.units} accessibilityRole="radiogroup" accessibilityLabel="Weights in">
         {(['lbs', 'kg'] as const).map((u) => {
           const on = unit === u;
           return (

@@ -17,6 +17,7 @@ import {
   type Range,
 } from '../lib/progress';
 import { PRO_CHARTS_TITLE, PRO_MAX_MESSAGE, PRO_RANGE_MESSAGE } from '../lib/pro';
+import { liftShown } from '../lib/stats';
 import { OTHER_CATEGORY } from '../lib/workout-data';
 import { colors, fonts, themed } from '../theme';
 import { LineChart, describeTrend } from './line-chart';
@@ -44,9 +45,11 @@ export function ExerciseProgress() {
   );
   if (!current) return null;
 
+  const unit = prefs.weightUnit;
   const values = points
     .map((p) => (shownMetric === 'max' ? p.oneRepMax : p.topWeight))
-    .filter((v): v is number => v !== null);
+    .filter((v): v is number => v !== null)
+    .map((v) => (unit === 'kg' ? Math.round(liftShown(v, unit) * 10) / 10 : v));
   const first = values[0];
   const last = values[values.length - 1];
   const change = values.length >= 2 ? last - first : 0;
@@ -79,14 +82,14 @@ export function ExerciseProgress() {
         <>
           <LineChart
             height={96}
-            label={`${what} on ${current.label} over ${RANGE_WORDS[shownRange]}, ${describeTrend(values, 'lbs')}`}
+            label={`${what} on ${current.label} over ${RANGE_WORDS[shownRange]}, ${describeTrend(values, unit)}`}
             series={[{ values, color: colors.gold }]}
           />
           <Text style={styles.summary}>
-            {what}: {first} to {last} lbs{' '}
+            {what}: {first} to {last} {unit}{' '}
             <Text style={change >= 0 ? styles.up : styles.down}>
               ({change >= 0 ? '+' : ''}
-              {change})
+              {Math.round(change * 10) / 10})
             </Text>{' '}
             over {RANGE_WORDS[shownRange]}
           </Text>

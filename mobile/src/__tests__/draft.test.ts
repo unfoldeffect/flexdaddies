@@ -17,6 +17,7 @@ import {
   workoutExercisesToDraft,
   type DraftExercise,
 } from '../lib/draft';
+import { liftShown, liftToStored } from '../lib/stats';
 import { NUM_SETS, OTHER_VALUE, mergeExerciseGroups } from '../lib/workout-data';
 
 const { toCategory } = mergeExerciseGroups([{ name: 'Sandbag Carry', category: 'Other' }]);
@@ -263,5 +264,31 @@ describe('labels', () => {
       ),
     ).toBe('10min @ 3/10');
     expect(lastWorkoutSummary(undefined, false)).toBe('');
+  });
+});
+
+describe('lifting in kilos', () => {
+  const kgDraft = (weight: string) => {
+    const ex = emptyExercise();
+    return [{ ...ex, name: 'Deadlift', sets: [{ ...ex.sets[0], reps: '5', weight }] }];
+  };
+  it('stores what was typed in kilos as pounds, and shows it back as the same kilos', () => {
+    const built = buildFromDraft(kgDraft('62.5'), { ...opts, weightUnit: 'kg' });
+    const stored = built.exercises[0].sets[0].weight;
+    expect(stored).toBeCloseTo(137.79, 2);
+    expect(liftShown(stored, 'kg')).toBe(62.5);
+    const again = workoutExercisesToDraft(built.exercises, {}, 'kg');
+    expect(again[0].sets[0].weight).toBe('62.5');
+  });
+  it('keeps odd plates exact both ways', () => {
+    for (const kg of [20, 61.25, 100, 142.5, 200]) {
+      expect(liftShown(liftToStored(kg, 'kg'), 'kg')).toBe(kg);
+    }
+  });
+  it('leaves pounds exactly as typed', () => {
+    const built = buildFromDraft(kgDraft('137.5'), { ...opts });
+    expect(built.exercises[0].sets[0].weight).toBe(137.5);
+    expect(lastWorkoutSummary(built.exercises[0], false)).toBe('5×137.5lbs');
+    expect(lastWorkoutSummary(built.exercises[0], false, 'kg')).toBe('5×62.37kg');
   });
 });

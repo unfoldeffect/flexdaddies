@@ -13,7 +13,7 @@ import { confirm, notify } from '@/lib/dialogs';
 import { PLAN_LIMIT_MESSAGE, PLAN_LIMIT_TITLE, canSavePlan } from '@/lib/pro';
 import { blankDraftSets, workoutExercisesToDraft } from '@/lib/draft';
 import { buzzSuccess, buzzWarning, tapLight } from '@/lib/haptics';
-import { sortWorkoutsNewestFirst, workoutTotals } from '@/lib/stats';
+import { sortWorkoutsNewestFirst, workoutTotals, liftShown, totalShown } from '@/lib/stats';
 import type { Workout } from '@/lib/types';
 import {
   CARDIO_LABEL,
@@ -37,6 +37,7 @@ export default function HistoryScreen() {
   const [namingPlanFor, setNamingPlanFor] = useState<Workout | null>(null);
 
   const { people, names, db, toCategory } = store;
+  const unit = store.prefs.weightUnit;
   const sorted = useMemo(() => sortWorkoutsNewestFirst(db.workouts), [db.workouts]);
   const filtered = filter === 'all' ? sorted : sorted.filter((w) => w.user === filter);
 
@@ -121,7 +122,7 @@ export default function HistoryScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${formatDate(w.date)}, ${people.length > 1 ? `${names[w.user]}, ` : ''}${w.exercises.length} exercises, ${sets} sets, ${volume.toLocaleString()} pounds moved${w.template ? `, from routine ${w.template.name}` : ''}`}
+                accessibilityLabel={`${formatDate(w.date)}, ${people.length > 1 ? `${names[w.user]}, ` : ''}${w.exercises.length} exercises, ${sets} sets, ${totalShown(volume, unit).toLocaleString()} ${unit === 'kg' ? 'kilos' : 'pounds'} moved${w.template ? `, from routine ${w.template.name}` : ''}`}
                 onPress={() => {
                   tapLight();
                   setOpenId(open ? null : w.id);
@@ -145,8 +146,8 @@ export default function HistoryScreen() {
                   </Text>
                 </View>
                 <View style={styles.summaryRight}>
-                  <Text style={styles.volume}>{volume.toLocaleString()}</Text>
-                  <Text style={styles.volumeUnit}>lbs moved</Text>
+                  <Text style={styles.volume}>{totalShown(volume, unit).toLocaleString()}</Text>
+                  <Text style={styles.volumeUnit}>{unit} moved</Text>
                 </View>
                 <Icon name={open ? 'chevron-up' : 'chevron-down'} color={colors.muted} />
               </Pressable>
@@ -169,7 +170,7 @@ export default function HistoryScreen() {
                           <Text key={j} style={styles.setLine}>
                             {isCardio
                               ? `${s.time} min · Intensity ${s.intensity}/10`
-                              : `${s.reps} reps × ${s.weight} lbs`}
+                              : `${s.reps} reps × ${liftShown(s.weight, unit)} ${unit}`}
                           </Text>
                         ))}
                         {!!ex.notes && (

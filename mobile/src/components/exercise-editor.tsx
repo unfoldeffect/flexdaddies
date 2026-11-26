@@ -87,7 +87,8 @@ export function ExerciseEditor({
 }: Props) {
   const [pickerOpen, setPickerOpen] = useState(false);
   const [savingNote, setSavingNote] = useState(false);
-  const { registerExercise, names } = useStore();
+  const { registerExercise, names, prefs } = useStore();
+  const unit = prefs.weightUnit;
   const customNameRef = useRef<TextInputRef>(null);
 
   const isOther = exercise.name === OTHER_VALUE;
@@ -198,7 +199,7 @@ export function ExerciseEditor({
     const found = history[exerciseKey(exercise.name, equipment)];
     // With no equipment picked, the plain name holds the latest of any kind: only use a matching one.
     const entry = found && (found.equipment ?? null) === equipment ? found : undefined;
-    const summary = lastWorkoutSummary(entry, isCardio);
+    const summary = lastWorkoutSummary(entry, isCardio, unit);
     if (!entry?.sets.length) {
       if (!equipment || !history[exercise.name]) return null;
       return <Text style={styles.lastWorkout}>First time on {equipment}.</Text>;
@@ -422,6 +423,7 @@ export function ExerciseEditor({
             cardio={isCardio}
             accent={accent === colors.line ? colors.muted : accent}
             who={togetherMode ? names[currentUser] : undefined}
+            unit={unit}
             onChange={updateSet('sets')}
           />
 
@@ -438,6 +440,7 @@ export function ExerciseEditor({
                 cardio={isCardio}
                 accent={accent === colors.line ? colors.muted : accent}
                 who={names[otherUser]}
+                unit={unit}
                 onChange={updateSet('setsOther')}
               />
             </>
@@ -495,6 +498,7 @@ function SetRows({
   cardio,
   accent,
   who,
+  unit,
   onChange,
 }: {
   sets: DraftSet[];
@@ -502,6 +506,8 @@ function SetRows({
   accent: string;
   /** Named in screen-reader labels when two people share the card. */
   who?: string;
+  /** The unit weights are typed in. */
+  unit: 'lbs' | 'kg';
   onChange: (setId: string, field: SetField, value: string) => void;
 }) {
   const inputs = useRef<(TextInputRef | null)[]>([]);
@@ -524,7 +530,7 @@ function SetRows({
         <Text style={[styles.setHeader, styles.setIndexCol]}>SET</Text>
         <Text style={[styles.setHeader, styles.setCol]}>{cardio ? 'TIME (MIN)' : 'REPS'}</Text>
         <Text style={[styles.setHeader, styles.setCol]}>
-          {cardio ? 'INTENSITY (1-10)' : 'WEIGHT (LBS)'}
+          {cardio ? 'INTENSITY (1-10)' : `WEIGHT (${unit.toUpperCase()})`}
         </Text>
       </View>
       {sets.map((s, i) => (
@@ -569,7 +575,7 @@ function SetRows({
                 decimal
                 style={styles.setCol}
                 value={s.weight}
-                accessibilityLabel={`${prefix}set ${i + 1} weight in lbs`}
+                accessibilityLabel={`${prefix}set ${i + 1} weight in ${unit}`}
                 onChangeText={(v) => onChange(s.id, 'weight', sanitizeWeightInput(v, s.weight))}
               />
             </>

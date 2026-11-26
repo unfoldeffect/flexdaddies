@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { StyleSheet, Text, View } from 'react-native';
 
-import type { NotesApi } from '../data/store';
+import { useStore, type NotesApi } from '../data/store';
 import {
   buildFromDraft,
   canSaveDraft,
@@ -122,6 +122,7 @@ export function WorkoutForm({
     }
   };
 
+  const weightUnit = useStore().prefs.weightUnit;
   const canSave = canSaveDraft(exercises, togetherMode);
 
   const handleSave = async () => {
@@ -131,6 +132,7 @@ export function WorkoutForm({
       withSavedNotes: !!notesApi,
       currentUser,
       otherUser,
+      weightUnit,
     });
     if (!built.exercises.length && !built.exercisesOther.length) return;
     const ok = await onSubmit({ ...built, date });

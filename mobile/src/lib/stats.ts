@@ -27,6 +27,21 @@ export function toStoredLbs(value: number, unit: WeightUnit): number {
   return Math.round(lbs * 10) / 10;
 }
 
+/** A lifted weight as typed (lbs or kg), converted to the lbs that get stored (two decimals). */
+export function liftToStored(value: number, unit: WeightUnit): number {
+  return Math.round((unit === 'kg' ? value * LB_PER_KG : value) * 100) / 100;
+}
+
+/** A stored lifted weight in the unit the person uses. Kilos round to two decimals, so 62.5 stays 62.5. */
+export function liftShown(lbs: number, unit: WeightUnit): number {
+  return unit === 'kg' ? Math.round((lbs / LB_PER_KG) * 100) / 100 : lbs;
+}
+
+/** A total (weight moved, a change over time) in the person's unit, as a whole number. */
+export function totalShown(lbs: number, unit: WeightUnit): number {
+  return Math.round(unit === 'kg' ? lbs / LB_PER_KG : lbs);
+}
+
 /** What was typed, converted to the inches that get stored (two decimals). */
 export function toStoredInches(value: number, unit: LengthUnit): number {
   const inches = unit === 'cm' ? value / CM_PER_IN : value;

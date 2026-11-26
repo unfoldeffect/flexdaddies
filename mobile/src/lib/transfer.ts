@@ -2,6 +2,7 @@
 // and sending this app's own history out as a file. Pure logic: no files or
 // screens here, so it can be tested on its own.
 import { defaultEquipment, exerciseLabel, findMovement, type Equipment } from './movements';
+import { liftToStored } from './stats';
 import type { Workout, WorkoutExercise, WorkoutSet } from './types';
 
 // ---------- Reading a CSV file ----------
@@ -161,8 +162,8 @@ const num = (text: string | undefined) => {
   const n = Number((text ?? '').replace(',', '.'));
   return Number.isFinite(n) && n > 0 ? n : 0;
 };
-const toLbs = (value: number, unit: ImportUnit) =>
-  unit === 'kg' ? Math.round(value * 2.2046226 * 10) / 10 : Math.round(value * 100) / 100;
+// Two decimals, so a weight brought in as 60 kg still reads 60 kg afterward.
+const toLbs = (value: number, unit: ImportUnit) => liftToStored(value, unit);
 
 /** Says which app a file came from, by its header row, or null if it is neither. */
 export function detectSource(header: string[]): ImportSource | null {

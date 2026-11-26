@@ -14,6 +14,7 @@ import {
   type WorkoutUser,
 } from './workout-data';
 import { parseWeight } from './workout-helpers';
+import { liftShown, liftToStored, type WeightUnit } from './stats';
 
 export type SetField = 'reps' | 'weight' | 'time' | 'intensity';
 
@@ -110,6 +111,8 @@ export function templateToDraft(
 export function workoutExercisesToDraft(
   exercises: WorkoutExercise[],
   toCategory: ToCategory,
+  /** The unit the person lifts in; weights are stored in lbs. */
+  unit: WeightUnit = 'lbs',
 ): DraftExercise[] {
   if (!exercises.length) return [emptyExercise()];
   return exercises.map((ex) => {
@@ -120,7 +123,7 @@ export function workoutExercisesToDraft(
     const rawSets: DraftSet[] = ex.sets.map((s) => ({
       id: uid(),
       reps: isCardio ? '' : String(s.reps),
-      weight: isCardio ? '' : String(s.weight),
+      weight: isCardio ? '' : String(liftShown(s.weight, unit)),
       time: isCardio ? String(s.time) : '',
       intensity: isCardio ? String(s.intensity) : '',
     }));
@@ -204,7 +207,7 @@ export function sanitizeIntensityInput(raw: string, previous: string): string {
   return raw;
 }
 
-export function cleanSets(sets: DraftSet[], isCardio: boolean): WorkoutSet[] {
+export function cleanSets(sets: DraftSet[], isCardio: boolean, unit: WeightUnit = 'lbs'): WorkoutSet[] {
   return isCardio
     ? sets
         .filter((s) => s.time !== '' || s.intensity !== '')
@@ -218,7 +221,7 @@ export function cleanSets(sets: DraftSet[], isCardio: boolean): WorkoutSet[] {
         .filter((s) => s.reps !== '' || s.weight !== '')
         .map((s) => ({
           reps: Number(s.reps) || 0,
-          weight: parseWeight(s.weight),
+          weight: liftToStored(parseWeight(s.weight), unit),
           time: 0,
           intensity: 0,
         }));
@@ -244,6 +247,8 @@ export function buildFromDraft(
     withSavedNotes: boolean;
     currentUser: WorkoutUser;
     otherUser: WorkoutUser;
+    /** The unit weights were typed in (stored in lbs either way). */
+    weightUnit?: WeightUnit;
   },
 ): BuiltDraft {
   const out: BuiltDraft = { exercises: [], exercisesOther: [], toRegister: [], notesToSave: [] };
@@ -255,7 +260,7 @@ export function buildFromDraft(
     const workoutNotes = opts.withSavedNotes
       ? [...(ex.sessionNotes ?? []), typed].filter(Boolean).join('\n')
       : typed;
-    const sets = cleanSets(ex.sets, isCardio);
+    const sets = cleanSets(ex.sets, isCardio, opts.weightUnit);
     const equipment = ex.name === OTHER_VALUE ? null : (ex.equipment ?? null);
     if (sets.length) {
       out.exercises.push({ name, sets, notes: workoutNotes, equipment });
@@ -264,7 +269,7 @@ export function buildFromDraft(
       }
     }
     if (opts.togetherMode) {
-      const setsOther = cleanSets(ex.setsOther, isCardio);
+      const setsOther = cleanSets(ex.setsOther, isCardio, opts.weightUnit);
       if (setsOther.length) {
         out.exercisesOther.push({ name, sets: setsOther, notes: workoutNotes, equipment });
         if (opts.withSavedNotes && typed) {
@@ -292,11 +297,15 @@ export function draftToTemplateExercises(exercises: DraftExercise[]): TemplateEx
 }
 
 /** A one-line summary of how an exercise went last time, e.g. "10×135lbs, 8×135lbs". */
-export function lastWorkoutSummary(entry: WorkoutExercise | undefined, cardio: boolean): string {
+export function lastWorkoutSummary(
+  entry: WorkoutExercise | undefined,
+  cardio: boolean,
+  unit: WeightUnit = 'lbs',
+): string {
   if (!entry?.sets.length) return '';
   return entry.sets
     .filter((s) => (cardio ? s.time || s.intensity : s.reps || s.weight))
-    .map((s) => (cardio ? `${s.time}min @ ${s.intensity}/10` : `${s.reps}×${s.weight}lbs`))
+    .map((s) => (cardio ? `${s.time}min @ ${s.intensity}/10` : `${s.reps}×${liftShown(s.weight, unit)}${unit}`))
     .join(', ');
 }
 

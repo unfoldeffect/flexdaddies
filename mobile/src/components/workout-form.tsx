@@ -149,12 +149,12 @@ export function WorkoutForm({
         <View style={styles.planNote}>
           <Icon name="dumbbell" size={15} color={colors.muted} />
           <Text style={styles.planNoteText}>
-            From plan: <Text style={styles.planNoteName}>{template.name}</Text>
+            From routine: <Text style={styles.planNoteName}>{template.name}</Text>
           </Text>
           {planOrderChanged && (
             <OutlineButton
               compact
-              label={savingOrder ? 'Saving...' : 'Save this order to plan'}
+              label={savingOrder ? 'Saving...' : 'Save this order to routine'}
               disabled={savingOrder}
               onPress={savePlanOrder}
               style={styles.orderBtn}

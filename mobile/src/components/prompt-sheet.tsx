@@ -1,4 +1,4 @@
-// Asks for one line of text (used for "Name this plan").
+// Asks for one line of text (used for "Name this routine").
 import { useState } from 'react';
 import {
   KeyboardAvoidingView,

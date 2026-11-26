@@ -121,7 +121,7 @@ export default function HistoryScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${formatDate(w.date)}, ${people.length > 1 ? `${names[w.user]}, ` : ''}${w.exercises.length} exercises, ${sets} sets, ${volume.toLocaleString()} pounds moved${w.template ? `, from plan ${w.template.name}` : ''}`}
+                accessibilityLabel={`${formatDate(w.date)}, ${people.length > 1 ? `${names[w.user]}, ` : ''}${w.exercises.length} exercises, ${sets} sets, ${volume.toLocaleString()} pounds moved${w.template ? `, from routine ${w.template.name}` : ''}`}
                 onPress={() => {
                   tapLight();
                   setOpenId(open ? null : w.id);
@@ -182,7 +182,7 @@ export default function HistoryScreen() {
                     <LinkButton icon="history" label="Repeat" onPress={() => repeat(w)} />
                     <LinkButton
                       icon="plus"
-                      label="Save as Plan"
+                      label="Save as Routine"
                       onPress={() => {
                         // Counted across everyone on the phone, hidden partner plans included.
                         if (canSavePlan(store.fullDb.templates.length, store.prefs.pro)) setNamingPlanFor(w);
@@ -215,13 +215,13 @@ export default function HistoryScreen() {
       <EditWorkoutSheet workout={editing} onClose={() => setEditing(null)} />
       <PromptSheet
         visible={!!namingPlanFor}
-        title="Name this plan"
+        title="Name this routine"
         initialValue={
           namingPlanFor
             ? `${people.length > 1 ? `${names[namingPlanFor.user]}'s ` : ''}${formatDate(namingPlanFor.date)} workout`
             : ''
         }
-        confirmLabel="Save plan"
+        confirmLabel="Save routine"
         onCancel={() => setNamingPlanFor(null)}
         onSubmit={async (name) => {
           const workout = namingPlanFor;

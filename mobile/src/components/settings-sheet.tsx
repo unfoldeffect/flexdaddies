@@ -36,7 +36,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
     const yes = await confirm({
       title: 'Delete your account?',
       message:
-        'Your account and its backup are deleted for good, and every workout, weigh-in, measurement, note and plan on this phone is erased. This cannot be undone.',
+        'Your account and its backup are deleted for good, and every workout, weigh-in, measurement, note and routine on this phone is erased. This cannot be undone.',
       confirmLabel: 'Delete my account',
       destructive: true,
     });
@@ -180,14 +180,14 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
           </Text>
           <Text style={styles.hint}>
             {db.workouts.length} workouts · {db.weighIns.length} weigh-ins ·{' '}
-            {db.measurements.length} measurements · {db.templates.length} plans
+            {db.measurements.length} measurements · {db.templates.length} routines
           </Text>
           <OutlineButton
             label="Erase everything on this phone"
             onPress={() =>
               ask(
                 'Erase everything on this phone?',
-                'All workouts, weigh-ins, measurements, notes, plans and exercise changes on this phone are deleted.',
+                'All workouts, weigh-ins, measurements, notes, routines and exercise changes on this phone are deleted.',
                 'Erase',
                 eraseEverything,
               )
@@ -220,7 +220,7 @@ export function SettingsSheet({ visible, onClose }: { visible: boolean; onClose:
               onPress={() =>
                 ask(
                   'Remove the sample data?',
-                  'The made-up workouts, weigh-ins, measurements and notes are removed. Anything you logged yourself, your plans and your exercise list stay.',
+                  'The made-up workouts, weigh-ins, measurements and notes are removed. Anything you logged yourself, your routines and your exercise list stay.',
                   'Remove',
                   removeSample,
                 )

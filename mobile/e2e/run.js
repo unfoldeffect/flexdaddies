@@ -115,7 +115,7 @@ async function scenario(browser, name, body) {
 }
 
 async function reorder({ page, shot, names, scroll }) {
-  await page.getByRole('button', { name: 'Start from plan 1 - Upper A' }).click();
+  await page.getByRole('button', { name: 'Start from routine 1 - Upper A' }).click();
   await page.waitForTimeout(600);
   const start = await names();
   check('plan loads 7 exercises in plan order', start.length === 7 && start[0] === 'Bench Press');
@@ -123,7 +123,7 @@ async function reorder({ page, shot, names, scroll }) {
   await page.getByRole('button', { name: 'Move exercise down' }).first().click();
   await page.waitForTimeout(300);
   check('arrow moves an exercise down one place', (await names())[1] === 'Bench Press');
-  check('offers to save the new order to the plan', (await page.getByRole('button', { name: 'Save this order to plan' }).count()) === 1);
+  check('offers to save the new order to the plan', (await page.getByRole('button', { name: 'Save this order to routine' }).count()) === 1);
 
   // Drag the first card by its grip and hold near the bottom edge so the page scrolls itself.
   const grip = page.getByLabel('Drag to reorder').first();
@@ -149,17 +149,17 @@ async function reorder({ page, shot, names, scroll }) {
   await page.waitForTimeout(300);
   check('tapping a grip without dragging changes nothing', JSON.stringify(await names()) === JSON.stringify(before));
 
-  await page.getByRole('button', { name: 'Save this order to plan' }).click();
+  await page.getByRole('button', { name: 'Save this order to routine' }).click();
   await page.waitForTimeout(500);
   check('order saved to the plan', (await page.getByText('Order saved').count()) === 1);
-  await page.getByRole('button', { name: 'Start from plan 1 - Upper A' }).click();
+  await page.getByRole('button', { name: 'Start from routine 1 - Upper A' }).click();
   await page.waitForTimeout(500);
   check('the plan now opens in the saved order', JSON.stringify(await names()) === JSON.stringify(before));
 }
 
 async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await shot('log-01-empty');
-  await page.getByRole('button', { name: 'Start from plan 5 - Cardio + Rehab' }).click();
+  await page.getByRole('button', { name: 'Start from routine 5 - Cardio + Rehab' }).click();
   await page.waitForTimeout(500);
   check('cardio plan loads 5 exercises', (await page.getByRole('button', { name: /^Exercise: / }).count()) === 5);
   check('cardio exercises get one time/intensity row', (await page.getByLabel('time in minutes').count()) === 2);
@@ -198,10 +198,10 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await page.waitForTimeout(700);
   check('editing a workout saves', (await count('35 min · Intensity 6/10')) === 1);
 
-  await page.getByRole('button', { name: 'Save as Plan' }).click();
+  await page.getByRole('button', { name: 'Save as Routine' }).click();
   await page.waitForTimeout(500);
-  await page.getByLabel('Name this plan').fill('0 - Test Plan');
-  await page.getByRole('button', { name: 'SAVE PLAN' }).click();
+  await page.getByLabel('Name this routine').fill('0 - Test Plan');
+  await page.getByRole('button', { name: 'SAVE ROUTINE' }).click();
   await page.waitForTimeout(500);
 
   await page.getByRole('button', { name: 'Kevin', exact: true }).click();
@@ -213,10 +213,10 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await page.getByRole('button', { name: 'Repeat' }).click();
   await page.waitForTimeout(700);
   check('Repeat opens Log with the exercises, blank', (await page.getByRole('button', { name: /^Exercise: / }).count()) >= 5 && (await logBtn.isDisabled()));
-  check('Repeat keeps the plan label', (await count('From plan:')) === 1);
-  check('the plan saved from History is on the Log tab', (await page.getByRole('button', { name: 'Start from plan 0 - Test Plan' }).count()) === 1);
+  check('Repeat keeps the plan label', (await count('From routine:')) === 1);
+  check('the plan saved from History is on the Log tab', (await page.getByRole('button', { name: 'Start from routine 0 - Test Plan' }).count()) === 1);
 
-  await page.getByRole('button', { name: 'Start from plan 5 - Cardio + Rehab' }).click();
+  await page.getByRole('button', { name: 'Start from routine 5 - Cardio + Rehab' }).click();
   await page.waitForTimeout(500);
   check('the typed note is now a saved note', (await count('Felt strong today')) >= 1);
   check('shows how the exercise went last time', (await count('Last time: 35min @ 6/10')) === 1);
@@ -230,7 +230,7 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   check('stays signed in after reopening', (await count('Your lifting log.')) === 0);
   check('unfinished workout is restored with a banner', (await count('Unsaved workout restored')) === 1 && (await page.getByLabel('time in minutes').first().inputValue()) === '20');
   dialogs.length = 0;
-  await page.getByRole('button', { name: 'Start from plan 1 - Upper A' }).click();
+  await page.getByRole('button', { name: 'Start from routine 1 - Upper A' }).click();
   await page.waitForTimeout(500);
   check('asks before replacing an unfinished workout', dialogs.some((d) => d.includes('unsaved workout')));
 
@@ -330,14 +330,14 @@ async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, work
   check('personal records include the new lift', (await count('Zercher Squat (Barbell)')) >= 1);
 
   await tab('Log');
-  await page.getByRole('button', { name: 'Edit 5 - Cardio + Rehab plan' }).click();
+  await page.getByRole('button', { name: 'Edit 5 - Cardio + Rehab routine' }).click();
   await page.waitForTimeout(700);
   await shot('plan-editor-01');
-  await page.getByLabel('Plan name').fill('5 - Cardio + Rehab v2');
+  await page.getByLabel('Routine name').fill('5 - Cardio + Rehab v2');
   await page.getByRole('button', { name: 'Move exercise down' }).first().click();
-  await page.getByRole('button', { name: 'SAVE PLAN' }).click();
+  await page.getByRole('button', { name: 'SAVE ROUTINE' }).click();
   await page.waitForTimeout(600);
-  check('plans can be renamed and reordered', (await page.getByRole('button', { name: 'Start from plan 5 - Cardio + Rehab v2' }).count()) === 1);
+  check('plans can be renamed and reordered', (await page.getByRole('button', { name: 'Start from routine 5 - Cardio + Rehab v2' }).count()) === 1);
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(600);
@@ -484,28 +484,28 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(900);
   const firstWorkout = page.getByRole('button', { name: /exercises, .* sets/ }).first();
-  const plansNow = () => page.getByRole('button', { name: /^Start from plan / }).count();
+  const plansNow = () => page.getByRole('button', { name: /^Start from routine / }).count();
   await firstWorkout.click();
   await page.waitForTimeout(300);
-  await page.getByRole('button', { name: 'Save as Plan' }).click();
+  await page.getByRole('button', { name: 'Save as Routine' }).click();
   await page.waitForTimeout(400);
-  check('free: a 4th plan is refused, with the reason', dialogs.some((d) => d.includes('The free version keeps 3 saved plans')) && (await page.getByLabel('Name this plan').count()) === 0);
+  check('free: a 4th plan is refused, with the reason', dialogs.some((d) => d.includes('The free version keeps 3 saved routines')) && (await page.getByLabel('Name this routine').count()) === 0);
   await page.getByRole('tab', { name: 'Log' }).click();
   await page.waitForTimeout(400);
   for (const plan of ['1 - Upper A', '2 - Lower A', '3 - Upper B']) {
-    await page.getByRole('button', { name: `Delete ${plan} plan` }).click();
+    await page.getByRole('button', { name: `Delete ${plan} routine` }).click();
     await page.waitForTimeout(400);
   }
   check('plans can be deleted to make room', (await plansNow()) === 2);
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Save as Plan' }).click();
-  await page.getByLabel('Name this plan').fill('My third plan');
-  await page.getByRole('button', { name: 'SAVE PLAN' }).click();
+  await page.getByRole('button', { name: 'Save as Routine' }).click();
+  await page.getByLabel('Name this routine').fill('My third plan');
+  await page.getByRole('button', { name: 'SAVE ROUTINE' }).click();
   await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Save as Plan' }).click();
+  await page.getByRole('button', { name: 'Save as Routine' }).click();
   await page.waitForTimeout(400);
-  const refusedAgain = (await page.getByLabel('Name this plan').count()) === 0;
+  const refusedAgain = (await page.getByLabel('Name this routine').count()) === 0;
   await page.getByRole('tab', { name: 'Log' }).click();
   await page.waitForTimeout(400);
   check('free: the 3rd plan saves and the next is refused', (await plansNow()) === 3 && refusedAgain, `plans=${await plansNow()} refused=${refusedAgain}`);
@@ -518,9 +518,9 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByRole('switch', { name: 'Pro unlocked' }).click();
   await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForTimeout(500);
-  await page.getByRole('button', { name: 'Save as Plan' }).click();
-  await page.getByLabel('Name this plan').fill('A fourth plan');
-  await page.getByRole('button', { name: 'SAVE PLAN' }).click();
+  await page.getByRole('button', { name: 'Save as Routine' }).click();
+  await page.getByLabel('Name this routine').fill('A fourth plan');
+  await page.getByRole('button', { name: 'SAVE ROUTINE' }).click();
   await page.waitForTimeout(500);
   await page.getByRole('tab', { name: 'Log' }).click();
   await page.waitForTimeout(400);

@@ -7,6 +7,6 @@ export function canSavePlan(savedPlans: number, pro: boolean): boolean {
   return pro || savedPlans < FREE_PLAN_LIMIT;
 }
 
-export const PLAN_LIMIT_TITLE = `The free version keeps ${FREE_PLAN_LIMIT} saved plans`;
+export const PLAN_LIMIT_TITLE = `The free version keeps ${FREE_PLAN_LIMIT} saved routines`;
 export const PLAN_LIMIT_MESSAGE =
-  'Delete a plan to save a new one, or go Pro for as many plans as you want.';
+  'Delete a routine to save a new one, or go Pro for as many routines as you want.';

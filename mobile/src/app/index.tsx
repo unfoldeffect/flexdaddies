@@ -60,7 +60,7 @@ export default function LogScreen() {
     buzzWarning();
     if (
       await confirm({
-        title: `Delete the "${plan.name}" plan?`,
+        title: `Delete the "${plan.name}" routine?`,
         message: 'Workouts already logged from it stay in History.',
         confirmLabel: 'Delete',
         destructive: true,
@@ -101,7 +101,7 @@ export default function LogScreen() {
 
           {db.templates.length > 0 && (
             <View style={styles.plans}>
-              <Text style={styles.plansLabel}>START FROM A PLAN</Text>
+              <Text style={styles.plansLabel}>START FROM A ROUTINE</Text>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -112,7 +112,7 @@ export default function LogScreen() {
                   <View key={t.id} style={styles.planChip}>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Start from plan ${t.name}`}
+                      accessibilityLabel={`Start from routine ${t.name}`}
                       onPress={() => loadPlan(t)}
                       style={({ pressed }) => [styles.planChipMain, pressed && styles.pressed]}
                     >
@@ -121,7 +121,7 @@ export default function LogScreen() {
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Edit ${t.name} plan`}
+                      accessibilityLabel={`Edit ${t.name} routine`}
                       hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
                       onPress={() => setEditingPlan(t)}
                       style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}
@@ -130,7 +130,7 @@ export default function LogScreen() {
                     </Pressable>
                     <Pressable
                       accessibilityRole="button"
-                      accessibilityLabel={`Delete ${t.name} plan`}
+                      accessibilityLabel={`Delete ${t.name} routine`}
                       hitSlop={{ top: 10, bottom: 10, left: 4, right: 8 }}
                       onPress={() => deletePlan(t)}
                       style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}

@@ -33,7 +33,7 @@ export function PlanEditorSheet({
   onClose: () => void;
 }) {
   return (
-    <Sheet visible={!!template} title="Edit Plan" onClose={onClose} closeLabel="Cancel">
+    <Sheet visible={!!template} title="Edit Routine" onClose={onClose} closeLabel="Cancel">
       {template && <PlanEditorBody key={template.id} template={template} onClose={onClose} />}
     </Sheet>
   );
@@ -72,13 +72,13 @@ function PlanEditorBody({ template, onClose }: { template: WorkoutTemplate; onCl
     <View {...hostProps}>
       <KeyboardScroll {...scrollProps}>
         <View style={styles.nameRow}>
-          <FieldLabel>PLAN NAME</FieldLabel>
+          <FieldLabel>ROUTINE NAME</FieldLabel>
           <TextInput
             style={styles.input}
             value={name}
             onChangeText={setName}
             returnKeyType="done"
-            accessibilityLabel="Plan name"
+            accessibilityLabel="Routine name"
           />
         </View>
 
@@ -127,7 +127,7 @@ function PlanEditorBody({ template, onClose }: { template: WorkoutTemplate; onCl
           }}
         />
         <PrimaryButton
-          label={saving ? 'SAVING...' : 'SAVE PLAN'}
+          label={saving ? 'SAVING...' : 'SAVE ROUTINE'}
           disabled={!canSave || saving}
           onPress={save}
         />

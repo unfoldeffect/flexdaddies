@@ -404,7 +404,7 @@ export function ExerciseEditor({
 
       {!!exercise.targetReps && (
         <Text style={styles.target}>
-          Plan target: <Text style={styles.targetValue}>{exercise.targetReps}</Text>
+          Routine target: <Text style={styles.targetValue}>{exercise.targetReps}</Text>
         </Text>
       )}
 

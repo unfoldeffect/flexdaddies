@@ -84,7 +84,7 @@ export function ManageExercisesSheet({
       name !== ex.name &&
       !(await confirm({
         title: `Rename "${ex.name}" to "${name}"?`,
-        message: 'Past workouts, plans and notes will use the new name.',
+        message: 'Past workouts, routines and notes will use the new name.',
         confirmLabel: 'Rename',
       }))
     ) {

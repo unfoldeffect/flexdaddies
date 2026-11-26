@@ -4,6 +4,8 @@
 // Runs on Cloudflare Workers with a D1 database, and on a Mac for testing
 // (dev-server.ts). No passwords are ever stored.
 
+import { verifyIdentityToken, type Jwk, type Provider } from './providers.ts';
+
 /** The small part of Cloudflare's D1 database this code uses. */
 export type Statement = {
   bind: (...values: unknown[]) => Statement;
@@ -23,6 +25,12 @@ export type Env = {
   DEV_SHOW_CODE?: string;
   /** Sends the code by email. Not set up yet; without it (and without DEV_SHOW_CODE) sign-in says so. */
   sendCode?: (email: string, code: string) => Promise<boolean>;
+  /** The app's bundle id, for Sign in with Apple. Unset: Apple sign-in says it is not set up. */
+  APPLE_AUDIENCE?: string;
+  /** The app's Google client ids, comma separated. Unset: Google sign-in says it is not set up. */
+  GOOGLE_AUDIENCES?: string;
+  /** For tests: stands in for fetching Apple's and Google's public keys. */
+  fetchProviderKeys?: (url: string) => Promise<Jwk[]>;
 };
 
 export const CODE_MINUTES = 10;
@@ -165,6 +173,59 @@ async function saveCopy(request: Request, env: Env, user: UserRow, now: number):
     return json(409, { error: 'newer_copy', message: 'Another phone saved first.', ...(await savedCopy(env, user.id)) });
   }
   return json(200, { ok: true, rev: rev + 1 });
+}
+
+// ---------- Sign in with Apple or Google ----------
+
+async function startSession(env: Env, user: UserRow, isNew: boolean, now: number): Promise<Response> {
+  const token = newToken();
+  await env.DB.prepare('INSERT INTO sessions (token_hash, user_id, created_at, last_seen_at) VALUES (?, ?, ?, ?)')
+    .bind(await sha256(token), user.id, now, now)
+    .run();
+  return json(200, { token, user: publicUser(user), isNew });
+}
+
+async function providerSignIn(provider: Provider, request: Request, env: Env, now: number): Promise<Response> {
+  const audiences = (provider === 'apple' ? env.APPLE_AUDIENCE : env.GOOGLE_AUDIENCES)
+    ?.split(',')
+    .map((a) => a.trim())
+    .filter(Boolean);
+  const label = provider === 'apple' ? 'Apple' : 'Google';
+  if (!audiences?.length) return fail(503, 'not_set_up', `${label} sign-in is not set up yet.`);
+
+  const body = await readBody(request, 8000);
+  const checked = await verifyIdentityToken(provider, body.identityToken, { audiences, fetchKeys: env.fetchProviderKeys }, now);
+  if (!checked.ok) {
+    const status = checked.reason === 'keys_unavailable' ? 503 : 401;
+    return fail(status, 'sign_in_failed', `${label} sign-in didn't go through. Try again.`);
+  }
+  const { subject, emailVerified } = checked.identity;
+  const email = normalizeEmail(checked.identity.email);
+
+  const select = 'SELECT u.id, u.email, u.name, u.weight_unit FROM users u';
+  // Someone who has signed in this way before: straight to their account.
+  let user = await env.DB.prepare(`${select} JOIN identities i ON i.user_id = u.id WHERE i.provider = ? AND i.subject = ?`)
+    .bind(provider, subject)
+    .first<UserRow>();
+  if (user) return startSession(env, user, false, now);
+
+  // First time this way. An account is only joined by email when the provider vouches for the address.
+  if (!email || !emailVerified) {
+    return fail(400, 'no_email', `${label} didn't share a confirmed email address. Sign in with your email instead.`);
+  }
+  user = await env.DB.prepare(`${select} WHERE u.email = ?`).bind(email).first<UserRow>();
+  const isNew = !user;
+  if (!user) {
+    const given = typeof body.name === 'string' ? body.name.replace(/\s+/g, ' ').trim().slice(0, 40) : '';
+    user = { id: crypto.randomUUID(), email, name: given, weight_unit: 'lbs' };
+    await env.DB.prepare('INSERT INTO users (id, email, name, weight_unit, created_at) VALUES (?, ?, ?, ?, ?)')
+      .bind(user.id, user.email, user.name, user.weight_unit, now)
+      .run();
+  }
+  await env.DB.prepare('INSERT INTO identities (provider, subject, user_id, created_at) VALUES (?, ?, ?, ?)')
+    .bind(provider, subject, user.id, now)
+    .run();
+  return startSession(env, user, isNew, now);
 }
 
 // ---------- Partner sync ----------
@@ -336,10 +397,10 @@ async function receivedSessions(request: Request, env: Env, user: UserRow): Prom
   return json(200, { ok: true });
 }
 
-async function readBody(request: Request): Promise<Record<string, unknown>> {
+async function readBody(request: Request, maxBytes = 4000): Promise<Record<string, unknown>> {
   try {
     const text = await request.text();
-    if (text.length > 4000) return {};
+    if (text.length > maxBytes) return {};
     const body: unknown = JSON.parse(text);
     return body && typeof body === 'object' ? (body as Record<string, unknown>) : {};
   } catch {
@@ -491,6 +552,8 @@ export async function handle(request: Request, env: Env, now: number = Date.now(
     if (route === 'GET /') return json(200, { ok: true, service: 'flex-daddies-store-app' });
     if (route === 'POST /auth/email/start') return await startEmail(request, env, now);
     if (route === 'POST /auth/email/verify') return await verifyEmail(request, env, now);
+    if (route === 'POST /auth/apple') return await providerSignIn('apple', request, env, now);
+    if (route === 'POST /auth/google') return await providerSignIn('google', request, env, now);
 
     const signedInRoutes = [
       'GET /me',
@@ -528,6 +591,7 @@ export async function handle(request: Request, env: Env, now: number = Date.now(
       // Delete my account: the account, its saved data, every signed-in phone and any pending code.
       await env.DB.batch([
         env.DB.prepare('DELETE FROM user_data WHERE user_id = ?').bind(who.user.id),
+        env.DB.prepare('DELETE FROM identities WHERE user_id = ?').bind(who.user.id),
         env.DB.prepare('DELETE FROM partner_sessions WHERE from_user = ? OR to_user = ?').bind(who.user.id, who.user.id),
         env.DB.prepare('DELETE FROM partner_links WHERE user_a = ? OR user_b = ?').bind(who.user.id, who.user.id),
         env.DB.prepare('DELETE FROM partner_invites WHERE user_id = ?').bind(who.user.id),

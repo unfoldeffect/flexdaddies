@@ -266,6 +266,12 @@ export function removeSampleData(db: Db): Db {
   };
 }
 
+/** Ready-made routines a new customer can add from the Log tab. */
+export const STARTER_ROUTINES: { name: string; exercises: TemplateExercise[] }[] = STARTER_PLANS.map((p) => ({
+  name: p.name.replace(/^\d+ - /, ''),
+  exercises: p.exercises,
+}));
+
 /** The same data with the partner's entries left out, for a phone with no partner switched on. */
 export function withoutPartner(db: Db): Db {
   const mine = <T extends { user: WorkoutUser }>(list: T[]) => list.filter((x) => x.user !== 'partner');

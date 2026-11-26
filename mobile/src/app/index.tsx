@@ -6,16 +6,18 @@ import { AppHeader } from '@/components/app-header';
 import { KeyboardScroll } from '@/components/keyboard-scroll';
 import { KeyboardSpace } from '@/components/keyboard-space';
 import { ManageExercisesSheet } from '@/components/manage-exercises';
-import { PlanEditorSheet } from '@/components/plan-editor-sheet';
+import { NEW_ROUTINE, PlanEditorSheet } from '@/components/plan-editor-sheet';
 import { useScrollBridge } from '@/components/sortable-list';
+import { StarterRoutinesSheet } from '@/components/starter-routines';
 import { TogetherToggle } from '@/components/together-toggle';
 import { ErrorBanner, Icon, OutlineButton } from '@/components/ui';
 import { WorkoutForm } from '@/components/workout-form';
 import { useLogDraft, useLogDraftActions } from '@/data/log-draft';
 import { useStore } from '@/data/store';
-import { confirm } from '@/lib/dialogs';
+import { confirm, notify } from '@/lib/dialogs';
 import { templateToDraft } from '@/lib/draft';
 import { buzzWarning, tapLight } from '@/lib/haptics';
+import { PLAN_LIMIT_MESSAGE, PLAN_LIMIT_TITLE } from '@/lib/pro';
 import { computeLastPerformance, formatDraftTime } from '@/lib/stats';
 import type { Workout, WorkoutTemplate } from '@/lib/types';
 import { uid } from '@/lib/workout-data';
@@ -30,6 +32,7 @@ export default function LogScreen() {
   const [saving, setSaving] = useState(false);
   const [editingPlan, setEditingPlan] = useState<WorkoutTemplate | null>(null);
   const [managing, setManaging] = useState(false);
+  const [starters, setStarters] = useState(false);
 
   const { user, otherUser, names, togetherMode, db } = store;
   // Only shown or logged in Together Mode, which needs a partner switched on.
@@ -70,6 +73,12 @@ export default function LogScreen() {
     }
   };
 
+  const newRoutine = () => {
+    tapLight();
+    if (store.canAddRoutine) setEditingPlan(NEW_ROUTINE);
+    else void notify(PLAN_LIMIT_TITLE, PLAN_LIMIT_MESSAGE);
+  };
+
   const startFresh = async () => {
     if (
       await confirm({
@@ -99,9 +108,45 @@ export default function LogScreen() {
             />
           )}
 
+          {db.templates.length === 0 && (
+            <View style={styles.noRoutines}>
+              <Text style={styles.noRoutinesTitle}>No routines yet</Text>
+              <Text style={styles.noRoutinesText}>
+                A routine is a workout you repeat. Pick it and your exercises are ready to log.
+              </Text>
+              <View style={styles.noRoutinesButtons}>
+                <OutlineButton compact icon="plus" label="New routine" onPress={newRoutine} />
+                <OutlineButton compact label="Starter routines" onPress={() => setStarters(true)} />
+              </View>
+            </View>
+          )}
+
           {db.templates.length > 0 && (
             <View style={styles.plans}>
-              <Text style={styles.plansLabel}>START FROM A ROUTINE</Text>
+              <View style={styles.plansHead}>
+                <Text style={styles.plansLabel}>START FROM A ROUTINE</Text>
+                <View style={styles.plansLinks}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Starter routines"
+                    hitSlop={10}
+                    onPress={() => setStarters(true)}
+                    style={({ pressed }) => [styles.newRoutine, pressed && styles.pressed]}
+                  >
+                    <Text style={styles.newRoutineText}>Starters</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="New routine"
+                    hitSlop={10}
+                    onPress={newRoutine}
+                    style={({ pressed }) => [styles.newRoutine, pressed && styles.pressed]}
+                  >
+                    <Icon name="plus" size={16} color={colors.goldDeep} />
+                    <Text style={styles.newRoutineText}>New</Text>
+                  </Pressable>
+                </View>
+              </View>
               <ScrollView
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -213,6 +258,7 @@ export default function LogScreen() {
 
       <PlanEditorSheet template={editingPlan} onClose={() => setEditingPlan(null)} />
       <ManageExercisesSheet visible={managing} onClose={() => setManaging(false)} />
+      <StarterRoutinesSheet visible={starters} onClose={() => setStarters(false)} />
     </KeyboardSpace>
   );
 }
@@ -220,6 +266,22 @@ export default function LogScreen() {
 const styles = themed(() => StyleSheet.create({
   pressed: { opacity: 0.6 },
   plans: { marginBottom: 16 },
+  plansHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  plansLinks: { flexDirection: 'row', alignItems: 'center', gap: 18 },
+  newRoutine: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32 },
+  newRoutineText: { fontSize: 15, fontWeight: '700', color: colors.goldDeep },
+  noRoutines: {
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: colors.line,
+    borderRadius: 20,
+    padding: 16,
+    gap: 8,
+    marginBottom: 16,
+  },
+  noRoutinesTitle: { fontFamily: fonts.heading, fontSize: 17, color: colors.text },
+  noRoutinesText: { fontSize: 15, lineHeight: 21, color: colors.muted },
+  noRoutinesButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
   plansLabel: {
     fontFamily: fonts.headingBold,
     fontSize: 13,

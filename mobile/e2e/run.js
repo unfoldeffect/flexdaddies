@@ -428,6 +428,38 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByRole('tab', { name: 'Log' }).click();
   await page.waitForTimeout(400);
 
+  // Routines for a new customer: starters, and building one from scratch.
+  const routine = (name) => page.getByRole('button', { name: `Start from routine ${name}` });
+  check('a new customer is told what a routine is and offered two ways to get one', (await count('No routines yet')) === 1);
+  await page.getByRole('button', { name: 'Starter routines' }).click();
+  await page.waitForTimeout(500);
+  await shot('routines-01-starters');
+  await page.getByRole('button', { name: 'Add Upper A' }).click();
+  await page.getByRole('button', { name: 'Add Lower A' }).click();
+  await page.waitForTimeout(400);
+  check('an added starter is marked as added', (await page.getByRole('button', { name: 'Upper A added' }).count()) === 1);
+  await page.getByRole('button', { name: 'Done' }).click();
+  await page.waitForTimeout(500);
+  check('starter routines appear on Log', (await routine('Upper A').count()) === 1 && (await routine('Lower A').count()) === 1 && (await count('No routines yet')) === 0);
+  await page.getByRole('button', { name: 'New routine' }).click();
+  await page.waitForTimeout(500);
+  await page.getByLabel('Routine name').fill('Push day');
+  await page.getByRole('button', { name: 'Choose an exercise' }).last().click();
+  await page.waitForTimeout(500);
+  await page.getByRole('button', { name: 'Shoulder Press', exact: true }).click();
+  await page.waitForTimeout(500);
+  await shot('routines-02-new');
+  await page.getByRole('button', { name: 'SAVE ROUTINE' }).click();
+  await page.waitForTimeout(600);
+  check('a routine can be built from scratch', (await routine('Push day').count()) === 1);
+  await routine('Push day').click();
+  await page.waitForTimeout(500);
+  check('the new routine loads its exercise', (await page.getByRole('button', { name: /^Exercise: Shoulder Press/ }).count()) === 1);
+  dialogs.length = 0;
+  await page.getByRole('button', { name: 'New routine' }).click();
+  await page.waitForTimeout(400);
+  check('free: a 4th routine from scratch is refused, with the reason', dialogs.some((d) => d.includes('The free version keeps 3 saved routines')) && (await page.getByLabel('Routine name').count()) === 0);
+
   // The partner option: off by default, switched on in Settings.
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(600);

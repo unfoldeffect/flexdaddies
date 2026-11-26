@@ -90,6 +90,10 @@ export type Store = {
   removeMeasurement: (id: string) => Promise<boolean>;
 
   saveAsPlan: (workout: Workout, name: string) => Promise<boolean>;
+  /** A routine built from scratch or picked from the starters. False when the free limit is reached. */
+  createRoutine: (name: string, exercises: TemplateExercise[]) => Promise<boolean>;
+  /** Whether one more routine may be saved (free keeps 3; Pro has no limit). */
+  canAddRoutine: boolean;
   removeTemplate: (id: string) => Promise<boolean>;
   saveTemplateEdits: (id: string, name: string, exercises: TemplateExercise[]) => Promise<boolean>;
   savePlanOrder: (template: WorkoutTemplate, exercises: TemplateExercise[]) => Promise<boolean>;
@@ -283,6 +287,13 @@ export function StoreProvider({
           ops.createTemplate(d, { id: uid(), name: trimmed, createdBy: who, exercises }),
         );
       },
+      createRoutine: async (name, exercises) => {
+        const trimmed = name.trim();
+        if (!trimmed || !exercises.length) return false;
+        if (!canSavePlan(dbRef.current.templates.length, prefsRef.current.pro)) return false;
+        return commit((d) => ops.createTemplate(d, { id: uid(), name: trimmed, createdBy: 'me', exercises }));
+      },
+      canAddRoutine: canSavePlan(db.templates.length, prefs.pro),
       removeTemplate: (id) => commit((d) => ops.deleteTemplate(d, { id })),
       saveTemplateEdits: (id, name, exercises) =>
         commit((d) => ops.updateTemplate(d, { id, name, exercises })),

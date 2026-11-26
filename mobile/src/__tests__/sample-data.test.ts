@@ -1,5 +1,6 @@
 import {
   STARTER_PLANS,
+  STARTER_ROUTINES,
   buildSampleData,
   hasSampleData,
   removeSampleData,
@@ -167,5 +168,12 @@ describe('free and Pro', () => {
     expect(DEFAULT_PREFS.pro).toBe(false);
     expect(normalizePrefs({ pro: 'yes' }).pro).toBe(false);
     expect(normalizePrefs({ pro: true }).pro).toBe(true);
+  });
+});
+
+describe('starter routines', () => {
+  it('offers the starter plans under plain names, exercises unchanged', () => {
+    expect(STARTER_ROUTINES.map((s) => s.name)).toEqual(['Upper A', 'Lower A', 'Upper B', 'Lower B', 'Cardio + Rehab']);
+    expect(STARTER_ROUTINES[0].exercises).toEqual(STARTER_PLANS[0].exercises);
   });
 });

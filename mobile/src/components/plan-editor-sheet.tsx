@@ -1,4 +1,4 @@
-// Edit a plan: its name and its exercises (add, remove, drag to reorder).
+// Edit a routine, or build a new one: its name and its exercises (add, remove, drag to reorder).
 import { useState } from 'react';
 import { StyleSheet, TextInput, View } from 'react-native';
 
@@ -24,26 +24,35 @@ import { Sheet } from './sheet';
 import { SortableList, useScrollBridge } from './sortable-list';
 import { FieldLabel, OutlineButton, PrimaryButton } from './ui';
 
+/** Pass this as `template` to build a routine from scratch. */
+export const NEW_ROUTINE: WorkoutTemplate = { id: '', name: '', createdBy: 'me', exercises: [] };
+
 export function PlanEditorSheet({
   template,
   onClose,
 }: {
-  /** The plan being edited, or null when the sheet is closed. */
+  /** The routine being edited (NEW_ROUTINE for a new one), or null when the sheet is closed. */
   template: WorkoutTemplate | null;
   onClose: () => void;
 }) {
   return (
-    <Sheet visible={!!template} title="Edit Routine" onClose={onClose} closeLabel="Cancel">
+    <Sheet
+      visible={!!template}
+      title={template && !template.id ? 'New Routine' : 'Edit Routine'}
+      onClose={onClose}
+      closeLabel="Cancel"
+    >
       {template && <PlanEditorBody key={template.id} template={template} onClose={onClose} />}
     </Sheet>
   );
 }
 
 function PlanEditorBody({ template, onClose }: { template: WorkoutTemplate; onClose: () => void }) {
-  const { groups, toCategory, saveTemplateEdits, registerExercise } = useStore();
+  const { groups, toCategory, saveTemplateEdits, createRoutine, registerExercise } = useStore();
+  const isNew = !template.id;
   const [name, setName] = useState(template.name);
   const [exercises, setExercises] = useState<DraftExercise[]>(() =>
-    templateToDraft(template.exercises, toCategory),
+    isNew ? [emptyExercise()] : templateToDraft(template.exercises, toCategory),
   );
   const [saving, setSaving] = useState(false);
   const [managing, setManaging] = useState(false);
@@ -55,7 +64,9 @@ function PlanEditorBody({ template, onClose }: { template: WorkoutTemplate; onCl
     const built = draftToTemplateExercises(exercises);
     if (!built.length) return;
     setSaving(true);
-    const ok = await saveTemplateEdits(template.id, name.trim(), built);
+    const ok = isNew
+      ? await createRoutine(name.trim(), built)
+      : await saveTemplateEdits(template.id, name.trim(), built);
     setSaving(false);
     if (!ok) return;
     // Remember new exercises typed in here, with the category picked.
@@ -77,6 +88,8 @@ function PlanEditorBody({ template, onClose }: { template: WorkoutTemplate; onCl
             style={styles.input}
             value={name}
             onChangeText={setName}
+            placeholder={isNew ? 'Push day, Legs, Monday...' : undefined}
+            placeholderTextColor={colors.placeholder}
             returnKeyType="done"
             accessibilityLabel="Routine name"
           />

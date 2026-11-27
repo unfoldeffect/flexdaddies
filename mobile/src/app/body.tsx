@@ -38,7 +38,6 @@ import {
 } from '@/lib/stats';
 import { BODY_PARTS, BODY_PART_LABELS, type BodyPart } from '@/lib/types';
 import {
-  USERS,
   USER_COLORS,
   formatDate,
   todayISO,
@@ -226,7 +225,7 @@ export default function BodyScreen() {
           style={styles.logBtn}
         />
 
-        {USERS.map((u) => {
+        {people.map((u) => {
           const list = byUser[u];
           const open = expandedUser === u;
           return (

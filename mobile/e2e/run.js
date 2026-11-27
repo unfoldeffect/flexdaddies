@@ -705,6 +705,8 @@ async function goPro({ page, shot, tab, count, pro, scroll }) {
   await page.waitForTimeout(500);
   await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForTimeout(500);
+  await tab('Body');
+  check('Body shows only your own weigh-ins when no partner is set up', (await count('Weigh-Ins')) === 1 && (await count("Partner's Weigh-Ins")) === 0);
   await tab('Stats');
   await scroll(1500);
   await page.getByRole('button', { name: 'See Pro' }).click();

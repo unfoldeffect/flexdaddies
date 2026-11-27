@@ -158,6 +158,7 @@ const styles = themed(() => StyleSheet.create({
   enter: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   input: {
     flex: 1,
+    minWidth: 0,
     minHeight: 52,
     borderRadius: 14,
     borderWidth: 2,

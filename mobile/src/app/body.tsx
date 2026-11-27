@@ -46,6 +46,7 @@ import {
   type WorkoutUser,
 } from '@/lib/workout-data';
 import { sanitizeWeightInput } from '@/lib/workout-helpers';
+import { possessive } from '@/lib/words';
 import { colors, fonts, themed } from '@/theme';
 
 // On the navy weight card: the logged-in person in gold, their partner in white.
@@ -233,7 +234,7 @@ export default function BodyScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${names[u]}'s weigh-ins, ${list.length}`}
+                accessibilityLabel={`${possessive(names[u])} weigh-ins, ${list.length}`}
                 onPress={() => {
                   tapLight();
                   setExpandedUser(open ? null : u);
@@ -241,7 +242,7 @@ export default function BodyScreen() {
                 style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}
               >
                 <Plate size={28} label={names[u][0]} color={USER_COLORS[u]} />
-                <Text style={styles.accordionTitle}>{names[u]}&apos;s Weigh-Ins</Text>
+                <Text style={styles.accordionTitle}>{possessive(names[u])} Weigh-Ins</Text>
                 <View style={styles.countBadge}>
                   <Text style={styles.countText}>{list.length}</Text>
                 </View>

@@ -24,6 +24,7 @@ import {
   type WorkoutUser,
 } from '@/lib/workout-data';
 import { exerciseLabel } from '@/lib/movements';
+import { plural, possessive } from '@/lib/words';
 import { colors, fonts, themed } from '@/theme';
 
 type Filter = 'all' | WorkoutUser;
@@ -124,7 +125,7 @@ export default function HistoryScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${formatDate(w.date)}, ${people.length > 1 ? `${names[w.user]}, ` : ''}${w.exercises.length} exercises, ${sets} sets, ${totalShown(volume, unit).toLocaleString()} ${unit === 'kg' ? 'kilos' : 'pounds'} moved${w.template ? `, from routine ${w.template.name}` : ''}`}
+                accessibilityLabel={`${formatDate(w.date)}, ${people.length > 1 ? `${names[w.user]}, ` : ''}${plural(w.exercises.length, 'exercise')}, ${plural(sets, 'set')}, ${totalShown(volume, unit).toLocaleString()} ${unit === 'kg' ? 'kilos' : 'pounds'} moved${w.template ? `, from routine ${w.template.name}` : ''}`}
                 onPress={() => {
                   tapLight();
                   setOpenId(open ? null : w.id);
@@ -144,7 +145,7 @@ export default function HistoryScreen() {
                   )}
                   <Text style={styles.meta}>
                     {people.length > 1 ? `${names[w.user]} · ` : ''}
-                    {w.exercises.length} exercises · {sets} sets
+                    {plural(w.exercises.length, 'exercise')} · {plural(sets, 'set')}
                   </Text>
                 </View>
                 <View style={styles.summaryRight}>
@@ -222,7 +223,7 @@ export default function HistoryScreen() {
         title="Name this routine"
         initialValue={
           namingPlanFor
-            ? `${people.length > 1 ? `${names[namingPlanFor.user]}'s ` : ''}${formatDate(namingPlanFor.date)} workout`
+            ? `${people.length > 1 ? `${possessive(names[namingPlanFor.user])} ` : ''}${formatDate(namingPlanFor.date)} workout`
             : ''
         }
         confirmLabel="Save routine"

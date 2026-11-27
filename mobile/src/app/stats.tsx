@@ -10,6 +10,7 @@ import { Dot, DotCard, EmptyState, Icon, Plate, SectionHeading } from '@/compone
 import { useStore } from '@/data/store';
 import { tapLight } from '@/lib/haptics';
 import { computeWorkoutStats, weighInsByUser, weightLoss, lbsTo, liftShown, totalShown } from '@/lib/stats';
+import { possessive } from '@/lib/words';
 import {
   OTHER_CATEGORY,
   USER_COLORS,
@@ -62,7 +63,7 @@ export default function StatsScreen() {
               <Text style={[styles.tileNumber, { color: USER_COLORS[u] }]}>
                 {stats.perUser[u].count}
               </Text>
-              <Text style={[styles.tileLabel, { color: USER_COLORS[u] }]}>{names[u]}&apos;s Sessions</Text>
+              <Text style={[styles.tileLabel, { color: USER_COLORS[u] }]}>{possessive(names[u])} Sessions</Text>
             </View>
           ))}
         </View>
@@ -108,7 +109,7 @@ export default function StatsScreen() {
               <View style={styles.chartHead}>
                 <View style={styles.chartHeadLeft}>
                   <Dot color={USER_COLORS[u]} />
-                  <Text style={styles.chartLabel}>{names[u].toUpperCase()}&apos;S WEIGHT LOSS</Text>
+                  <Text style={styles.chartLabel}>{possessive(names[u]).toUpperCase()} WEIGHT LOSS</Text>
                 </View>
                 {loss !== null && (
                   <View
@@ -129,7 +130,7 @@ export default function StatsScreen() {
               {series.length >= 2 ? (
                 <LineChart
                   height={70}
-                  label={`${names[u]}'s weight, ${describeTrend(series.map((v) => lbsTo(unit, v)), unit)}`}
+                  label={`${possessive(names[u])} weight, ${describeTrend(series.map((v) => lbsTo(unit, v)), unit)}`}
                   series={[{ values: series, color: USER_COLORS[u] }]}
                 />
               ) : (
@@ -152,7 +153,7 @@ export default function StatsScreen() {
               <Pressable
                 accessibilityRole="button"
                 accessibilityState={{ expanded: open }}
-                accessibilityLabel={`${names[u]}'s personal records, ${list.length}`}
+                accessibilityLabel={`${possessive(names[u])} personal records, ${list.length}`}
                 onPress={() => {
                   tapLight();
                   setExpandedUser(open ? null : u);
@@ -160,8 +161,8 @@ export default function StatsScreen() {
                 style={({ pressed }) => [styles.accordionHead, pressed && { opacity: 0.75 }]}
               >
                 <Plate size={32} label={names[u][0]} color={USER_COLORS[u]} />
-                <Text style={styles.accordionTitle} numberOfLines={1}>
-                  {names[u]}&apos;s Personal Records
+                <Text style={styles.accordionTitle} numberOfLines={2}>
+                  {possessive(names[u])} Personal Records
                 </Text>
                 <View style={styles.countBadge}>
                   <Text style={styles.countText}>{list.length}</Text>

@@ -106,7 +106,7 @@ async function scenario(browser, name, body) {
     count: (text) => page.getByText(text, { exact: false }).count(),
     scroll: async (dy) => { await page.mouse.move(195, 420); await page.mouse.wheel(0, dy); await page.waitForTimeout(350); },
     names: () => page.getByRole('button', { name: /^Exercise: / }).evaluateAll((els) => els.map((e) => e.getAttribute('aria-label').replace(/^Exercise: (.*)\. Tap to change\.$/, '$1'))),
-    workouts: () => page.getByRole('button', { name: /exercises, .* sets/ }),
+    workouts: () => page.getByRole('button', { name: /exercises?, .* sets?/ }),
   };
   await page.goto(URL, { waitUntil: 'networkidle' });
   try {
@@ -519,7 +519,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   check('switching the partner off makes it a one-person app again', (await page.getByRole('switch', { name: 'Together Mode' }).count()) === 0 && (await page.getByRole('button', { name: 'LOG WORKOUT' }).count()) === 1);
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(900);
-  check('sample data for one person names nobody', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) > 0 && (await count('Everyone')) === 0 && (await count('Kevin')) === 0 && (await count('Partner')) === 0);
+  check('sample data for one person names nobody', (await page.getByRole('button', { name: /exercises?, .* sets?/ }).count()) > 0 && (await count('Everyone')) === 0 && (await count('Kevin')) === 0 && (await count('Partner')) === 0);
   await page.getByRole('tab', { name: 'Log' }).click();
   await page.waitForTimeout(400);
 
@@ -552,7 +552,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   // Free keeps 3 saved plans (the sample data arrives with 5).
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(900);
-  const firstWorkout = page.getByRole('button', { name: /exercises, .* sets/ }).first();
+  const firstWorkout = page.getByRole('button', { name: /exercises?, .* sets?/ }).first();
   const plansNow = () => page.getByRole('button', { name: /^Start from routine / }).count();
   await firstWorkout.click();
   await page.waitForTimeout(300);
@@ -597,7 +597,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
 
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(900);
-  check('signing in again skips setup and keeps the workouts on the phone', (await count('Welcome!')) === 0 && (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) > 0);
+  check('signing in again skips setup and keeps the workouts on the phone', (await count('Welcome!')) === 0 && (await page.getByRole('button', { name: /exercises?, .* sets?/ }).count()) > 0);
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(600);
@@ -613,7 +613,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByRole('tab', { name: 'Log' }).waitFor();
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(500);
-  check('deleting the account erased the workouts on the phone', (await page.getByRole('button', { name: /exercises, .* sets/ }).count()) === 0);
+  check('deleting the account erased the workouts on the phone', (await page.getByRole('button', { name: /exercises?, .* sets?/ }).count()) === 0);
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(600);
@@ -765,7 +765,7 @@ async function transfer({ page, shot, tab, count, workouts }) {
   check('a file that is not a workout export is refused, with what to do', (await count('is not a workout export from Hevy or Strong')) === 1);
   await choose('Choose the file', 'hevy.csv');
   await shot('transfer-02-found');
-  check('a Hevy file is read and summed up before anything is added', (await count('2 workouts from Hevy')) === 1 && (await count('2 exercises match ours')) === 1 && (await count('Zercher Squat (Barbell)')) === 1);
+  check('a Hevy file is read and summed up before anything is added', (await count('2 workouts found')) === 1 && (await count('2 exercises match ours')) === 1 && (await count('Zercher Squat (Barbell)')) === 1);
   await page.getByRole('button', { name: 'ADD 2 WORKOUTS' }).click();
   await page.waitForTimeout(700);
   check('the workouts are added', (await count('2 workouts added.')) === 1);
@@ -774,7 +774,7 @@ async function transfer({ page, shot, tab, count, workouts }) {
   await page.waitForTimeout(700);
   check('the same file a second time adds nothing', (await count('0 workouts added.')) === 1 && (await count('2 were already here')) === 1);
   await choose('Choose another file', 'strong.csv');
-  check('a Strong file asks whether its weights are lbs or kg', (await count('1 workout from Strong')) === 1 && (await count('Weights in this file are in')) === 1);
+  check('a Strong file asks whether its weights are lbs or kg', (await count('1 workout found')) === 1 && (await count('Weights in this file are in')) === 1);
   await page.getByRole('radio', { name: 'Show in kg' }).last().click();
   await page.getByRole('button', { name: 'ADD 1 WORKOUT' }).click();
   await page.waitForTimeout(700);
@@ -904,7 +904,7 @@ async function partnerSync(browser) {
 
     await kim.page.reload({ waitUntil: 'networkidle' });
     await kim.page.getByRole('tab', { name: 'History' }).click();
-    const rows = kim.page.getByRole('button', { name: /exercises, .* sets/ });
+    const rows = kim.page.getByRole('button', { name: /exercises?, .* sets?/ });
     await rows.first().waitFor({ timeout: 15000 });
     await kim.page.waitForTimeout(800);
     await kim.page.screenshot({ path: path.join(shots, 'partner-03-received.png') });
@@ -939,7 +939,7 @@ async function backup(browser) {
     await page.goto(URL, { waitUntil: 'networkidle' });
     return { ctx, page };
   };
-  const workouts = (page) => page.getByRole('button', { name: /exercises, .* sets/ });
+  const workouts = (page) => page.getByRole('button', { name: /exercises?, .* sets?/ });
   // "20 workouts · 6 weigh-ins · 18 measurements · 5 plans", read from Settings once saved.
   const tally = async (page) => {
     await page.getByRole('button', { name: 'Settings' }).click();

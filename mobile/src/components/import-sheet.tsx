@@ -80,7 +80,7 @@ export function ImportSheet({ visible, onClose }: { visible: boolean; onClose: (
         ) : found ? (
           <View style={styles.card}>
             <Text style={styles.big}>
-              {found.workouts.length} {found.workouts.length === 1 ? 'workout' : 'workouts'} from {found.source}
+              {found.workouts.length} {found.workouts.length === 1 ? 'workout' : 'workouts'} found
             </Text>
             <Text style={styles.body}>
               {found.firstDate === found.lastDate

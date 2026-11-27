@@ -420,10 +420,11 @@ const styles = themed(() => StyleSheet.create({
     flexDirection: 'row',
     gap: 6,
     paddingHorizontal: 20,
+    paddingVertical: 10,
     backgroundColor: colors.field,
   },
   outlineCompact: { minHeight: 34, paddingHorizontal: 14 },
-  outlineText: { fontWeight: '600', fontSize: 16, color: colors.muted },
+  outlineText: { fontWeight: '600', fontSize: 16, lineHeight: 21, color: colors.muted, textAlign: 'center', flexShrink: 1 },
   outlineTextCompact: { fontSize: 14 },
   small: {
     minHeight: 36,

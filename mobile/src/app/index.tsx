@@ -1,6 +1,6 @@
 // LOG tab: start from a plan (or from scratch), type in sets, log the workout.
 import { useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 
 import { AppHeader } from '@/components/app-header';
 import { KeyboardScroll } from '@/components/keyboard-scroll';
@@ -10,9 +10,10 @@ import { ProgressStrip } from '@/components/progress-strip';
 import { NEW_ROUTINE, PlanEditorSheet } from '@/components/plan-editor-sheet';
 import { useScrollBridge } from '@/components/sortable-list';
 import { useGoPro } from '@/components/go-pro';
+import { RoutinePicker, TIMER_ROOM } from '@/components/routine-picker';
 import { StarterRoutinesSheet } from '@/components/starter-routines';
 import { TogetherToggle } from '@/components/together-toggle';
-import { ErrorBanner, Icon, OutlineButton } from '@/components/ui';
+import { ErrorBanner, OutlineButton } from '@/components/ui';
 import { WorkoutForm } from '@/components/workout-form';
 import { useLogDraft, useLogDraftActions } from '@/data/log-draft';
 import { usePartner } from '@/data/partner';
@@ -105,16 +106,6 @@ export default function LogScreen() {
         <KeyboardScroll {...scrollProps} bottomSpace={190}>
           {store.error && <ErrorBanner message={store.error} onDismiss={store.clearError} />}
 
-          {otherUser && (
-            <TogetherToggle
-              on={togetherMode}
-              onChange={store.setTogetherMode}
-              user={user}
-              otherUser={otherUser}
-              names={names}
-            />
-          )}
-
           {db.templates.length === 0 && (
             <View style={styles.noRoutines}>
               <Text style={styles.noRoutinesTitle}>No routines yet</Text>
@@ -129,70 +120,25 @@ export default function LogScreen() {
           )}
 
           {db.templates.length > 0 && (
-            <View style={styles.plans}>
-              <View style={styles.plansHead}>
-                <Text style={styles.plansLabel}>START FROM A ROUTINE</Text>
-                <View style={styles.plansLinks}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="Starter routines"
-                    hitSlop={10}
-                    onPress={() => setStarters(true)}
-                    style={({ pressed }) => [styles.newRoutine, pressed && styles.pressed]}
-                  >
-                    <Text style={styles.newRoutineText}>Starters</Text>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel="New routine"
-                    hitSlop={10}
-                    onPress={newRoutine}
-                    style={({ pressed }) => [styles.newRoutine, pressed && styles.pressed]}
-                  >
-                    <Icon name="plus" size={16} color={colors.goldDeep} />
-                    <Text style={styles.newRoutineText}>New</Text>
-                  </Pressable>
-                </View>
-              </View>
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                keyboardShouldPersistTaps="handled"
-                contentContainerStyle={styles.planChips}
-              >
-                {db.templates.map((t) => (
-                  <View key={t.id} style={styles.planChip}>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Start from routine ${t.name}`}
-                      onPress={() => loadPlan(t)}
-                      style={({ pressed }) => [styles.planChipMain, pressed && styles.pressed]}
-                    >
-                      <Icon name="dumbbell" size={16} color={colors.text} />
-                      <Text style={styles.planChipText}>{t.name}</Text>
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Edit ${t.name} routine`}
-                      hitSlop={{ top: 10, bottom: 10, left: 4, right: 4 }}
-                      onPress={() => setEditingPlan(t)}
-                      style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}
-                    >
-                      <Icon name="pencil-outline" size={17} color={colors.muted} />
-                    </Pressable>
-                    <Pressable
-                      accessibilityRole="button"
-                      accessibilityLabel={`Delete ${t.name} routine`}
-                      hitSlop={{ top: 10, bottom: 10, left: 4, right: 8 }}
-                      onPress={() => deletePlan(t)}
-                      style={({ pressed }) => [styles.planChipIcon, pressed && styles.pressed]}
-                    >
-                      <Icon name="close" size={17} color={colors.muted} />
-                    </Pressable>
-                  </View>
-                ))}
-              </ScrollView>
-            </View>
+            <RoutinePicker
+              templates={db.templates}
+              current={draft.template?.name ?? null}
+              onStart={(t) => void loadPlan(t)}
+              onEdit={(t) => setEditingPlan(t)}
+              onDelete={deletePlan}
+              onNew={newRoutine}
+              onStarters={() => setStarters(true)}
+            />
+          )}
+
+          {otherUser && (
+            <TogetherToggle
+              on={togetherMode}
+              onChange={store.setTogetherMode}
+              user={user}
+              otherUser={otherUser}
+              names={names}
+            />
           )}
 
           {draft.restoredAt && (
@@ -273,12 +219,8 @@ export default function LogScreen() {
 
 const styles = themed(() => StyleSheet.create({
   pressed: { opacity: 0.6 },
-  plans: { marginBottom: 16 },
-  plansHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-  plansLinks: { flexDirection: 'row', alignItems: 'center', gap: 18 },
-  newRoutine: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 32 },
-  newRoutineText: { fontSize: 15, fontWeight: '700', color: colors.goldDeep },
   noRoutines: {
+    marginRight: TIMER_ROOM,
     borderWidth: 2,
     borderStyle: 'dashed',
     borderColor: colors.line,
@@ -290,34 +232,6 @@ const styles = themed(() => StyleSheet.create({
   noRoutinesTitle: { fontFamily: fonts.heading, fontSize: 17, color: colors.text },
   noRoutinesText: { fontSize: 15, lineHeight: 21, color: colors.muted },
   noRoutinesButtons: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginTop: 4 },
-  plansLabel: {
-    fontFamily: fonts.headingBold,
-    fontSize: 13,
-    letterSpacing: 0.8,
-    color: colors.muted,
-    marginBottom: 8,
-  },
-  planChips: { gap: 8, paddingRight: 8 },
-  planChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    minHeight: 46,
-    paddingLeft: 14,
-    paddingRight: 8,
-    borderRadius: 999,
-    borderWidth: 2,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-  },
-  planChipMain: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    minHeight: 42,
-    paddingRight: 6,
-  },
-  planChipText: { fontSize: 15, fontWeight: '600', color: colors.text },
-  planChipIcon: { width: 30, height: 42, alignItems: 'center', justifyContent: 'center' },
   banner: {
     flexDirection: 'row',
     alignItems: 'center',

@@ -1,4 +1,6 @@
-// Floating rest timer, on every tab. Tap to start (or restart) the countdown
+// Floating rest timer, on every tab, at the top right under the header (Diego,
+// Nov. 26, 2026: beside Log's routine drop-down, out of the way of the set
+// checks). Tap to start (or restart) the countdown
 // between sets. When time is up the phone buzzes and chimes, then the timer
 // resets ready for the next set.
 import { setAudioModeAsync, useAudioPlayer } from 'expo-audio';
@@ -111,7 +113,9 @@ export function RestTimer() {
 
   const progress = running ? remaining / restSeconds : 0;
   const shown = running ? remaining : restSeconds;
-  const bottom = insets.bottom + (Platform.OS === 'android' ? 96 : Platform.OS === 'ios' ? 74 : 84);
+  // Header: safe area + 8 above + 44 (Settings button) + 10 below. The timer's
+  // middle lines up with Log's routine box (12 of padding and its label above it).
+  const top = insets.top + 74;
 
   return (
     <Pressable
@@ -122,7 +126,7 @@ export function RestTimer() {
           : `Start ${restSeconds} second rest timer`
       }
       onPress={start}
-      style={({ pressed }) => [styles.button, shadow, { bottom }, pressed && styles.pressed]}
+      style={({ pressed }) => [styles.button, shadow, { top }, pressed && styles.pressed]}
     >
       <Svg width={SIZE} height={SIZE} style={StyleSheet.absoluteFill}>
         <Circle

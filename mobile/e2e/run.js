@@ -53,6 +53,40 @@ async function signIn(page, email) {
   await page.getByLabel('6-digit code').fill(line.match(/\d{6}/)[0]);
 }
 
+// Log's routine drop-down (Diego, Nov. 26, 2026): its list opens in a sheet.
+const START = /^Start from routine /;
+async function openRoutines(page) {
+  if ((await page.getByRole('button', { name: START }).count()) === 0) {
+    await page.getByRole('button', { name: 'Choose a routine' }).click();
+    await page.waitForTimeout(700);
+  }
+}
+async function closeRoutines(page) {
+  if ((await page.getByRole('button', { name: START }).count()) > 0) {
+    await page.getByRole('button', { name: 'Close', exact: true }).last().click();
+    await page.waitForTimeout(600);
+  }
+}
+async function routineCount(page) {
+  if ((await page.getByRole('button', { name: 'Choose a routine' }).count()) === 0) return 0;
+  await openRoutines(page);
+  const n = await page.getByRole('button', { name: START }).count();
+  await closeRoutines(page);
+  return n;
+}
+async function hasRoutine(page, name) {
+  if ((await page.getByRole('button', { name: 'Choose a routine' }).count()) === 0) return false;
+  await openRoutines(page);
+  const n = await page.getByRole('button', { name: `Start from routine ${name}`, exact: true }).count();
+  await closeRoutines(page);
+  return n === 1;
+}
+async function startRoutine(page, name) {
+  await openRoutines(page);
+  await page.getByRole('button', { name: `Start from routine ${name}`, exact: true }).click();
+  await page.waitForTimeout(900);
+}
+
 async function firstTimeSetup(page, name) {
   await page.getByLabel('Your first name').fill(name);
   await page.getByRole('button', { name: 'START LOGGING' }).click();
@@ -126,7 +160,7 @@ async function scenario(browser, name, body) {
 }
 
 async function reorder({ page, shot, names, scroll }) {
-  await page.getByRole('button', { name: 'Start from routine 1 - Upper A' }).click();
+  await startRoutine(page, '1 - Upper A');
   await page.waitForTimeout(600);
   const start = await names();
   check('plan loads 7 exercises in plan order', start.length === 7 && start[0] === 'Bench Press');
@@ -190,14 +224,14 @@ async function reorder({ page, shot, names, scroll }) {
   await page.getByRole('button', { name: 'Save this order to routine' }).click();
   await page.waitForTimeout(500);
   check('order saved to the plan', (await page.getByText('Order saved').count()) === 1);
-  await page.getByRole('button', { name: 'Start from routine 1 - Upper A' }).click();
+  await startRoutine(page, '1 - Upper A');
   await page.waitForTimeout(500);
   check('the plan now opens in the saved order', JSON.stringify(await names()) === JSON.stringify(before));
 }
 
 async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await shot('log-01-empty');
-  await page.getByRole('button', { name: 'Start from routine 5 - Cardio + Rehab' }).click();
+  await startRoutine(page, '5 - Cardio + Rehab');
   await page.waitForTimeout(500);
   check('cardio plan loads 5 exercises', (await page.getByRole('button', { name: /^Exercise: / }).count()) === 5);
   check('cardio exercises get one time/intensity row', (await page.getByLabel('time in minutes').count()) === 2);
@@ -252,9 +286,9 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   await page.waitForTimeout(700);
   check('Repeat opens Log with the exercises, blank', (await page.getByRole('button', { name: /^Exercise: / }).count()) >= 5 && (await logBtn.isDisabled()));
   check('Repeat keeps the plan label', (await count('From routine:')) === 1);
-  check('the plan saved from History is on the Log tab', (await page.getByRole('button', { name: 'Start from routine 0 - Test Plan' }).count()) === 1);
+  check('the plan saved from History is on the Log tab', (await hasRoutine(page, '0 - Test Plan')));
 
-  await page.getByRole('button', { name: 'Start from routine 5 - Cardio + Rehab' }).click();
+  await startRoutine(page, '5 - Cardio + Rehab');
   await page.waitForTimeout(500);
   check('the typed note is now a saved note', (await count('Felt strong today')) >= 1);
   check('shows how the exercise went last time', (await count('Last time: 35min @ 6/10')) === 1);
@@ -268,7 +302,7 @@ async function logAndHistory({ page, shot, tab, count, dialogs, workouts }) {
   check('stays signed in after reopening', (await count('Your lifting log.')) === 0);
   check('unfinished workout is restored with a banner', (await count('Unsaved workout restored')) === 1 && (await page.getByLabel('time in minutes').first().inputValue()) === '20');
   dialogs.length = 0;
-  await page.getByRole('button', { name: 'Start from routine 1 - Upper A' }).click();
+  await startRoutine(page, '1 - Upper A');
   await page.waitForTimeout(500);
   check('asks before replacing an unfinished workout', dialogs.some((d) => d.includes('unsaved workout')));
 
@@ -368,6 +402,7 @@ async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, work
   check('personal records include the new lift', (await count('Zercher Squat (Barbell)')) >= 1);
 
   await tab('Log');
+  await openRoutines(page);
   await page.getByRole('button', { name: 'Edit 5 - Cardio + Rehab routine' }).click();
   await page.waitForTimeout(700);
   await shot('plan-editor-01');
@@ -375,7 +410,7 @@ async function bodyStatsSettings({ page, shot, tab, count, dialogs, scroll, work
   await page.getByRole('button', { name: 'Move exercise down' }).first().click();
   await page.getByRole('button', { name: 'SAVE ROUTINE' }).click();
   await page.waitForTimeout(600);
-  check('plans can be renamed and reordered', (await page.getByRole('button', { name: 'Start from routine 5 - Cardio + Rehab v2' }).count()) === 1);
+  check('plans can be renamed and reordered', (await hasRoutine(page, '5 - Cardio + Rehab v2')));
 
   await page.getByRole('button', { name: 'Settings' }).click();
   await page.waitForTimeout(600);
@@ -466,7 +501,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.waitForTimeout(400);
 
   // Routines for a new customer: starters, and building one from scratch.
-  const routine = (name) => page.getByRole('button', { name: `Start from routine ${name}` });
+  const routine = (name) => ({ count: async () => ((await hasRoutine(page, name)) ? 1 : 0), click: () => startRoutine(page, name) });
   check('a new customer is told what a routine is and offered two ways to get one', (await count('No routines yet')) === 1);
   await page.getByRole('button', { name: 'Starter routines' }).click();
   await page.waitForTimeout(500);
@@ -478,7 +513,9 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByRole('button', { name: 'Done' }).click();
   await page.waitForTimeout(500);
   check('starter routines appear on Log', (await routine('Upper A').count()) === 1 && (await routine('Lower A').count()) === 1 && (await count('No routines yet')) === 0);
-  await page.getByRole('button', { name: 'New routine' }).click();
+  await openRoutines(page);
+  await page.getByRole('button', { name: 'New routine' }).last().click();
+  await page.waitForTimeout(500);
   await page.waitForTimeout(500);
   await page.getByLabel('Routine name').fill('Push day');
   await page.getByRole('button', { name: 'Choose an exercise' }).last().click();
@@ -493,7 +530,9 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.waitForTimeout(500);
   check('the new routine loads its exercise', (await page.getByRole('button', { name: /^Exercise: Shoulder Press/ }).count()) === 1);
   dialogs.length = 0;
-  await page.getByRole('button', { name: 'New routine' }).click();
+  await openRoutines(page);
+  await page.getByRole('button', { name: 'New routine' }).last().click();
+  await page.waitForTimeout(500);
   await page.waitForTimeout(400);
   check('free: a 4th routine from scratch is refused, with the reason', dialogs.some((d) => d.includes('The free version keeps 3 saved routines')) && (await page.getByLabel('Routine name').count()) === 0);
 
@@ -553,7 +592,7 @@ async function signInFlow({ page, shot, count, dialogs }) {
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(900);
   const firstWorkout = page.getByRole('button', { name: /exercises?, .* sets?/ }).first();
-  const plansNow = () => page.getByRole('button', { name: /^Start from routine / }).count();
+  const plansNow = () => routineCount(page);
   await firstWorkout.click();
   await page.waitForTimeout(300);
   await page.getByRole('button', { name: 'Save as Routine' }).click();
@@ -561,10 +600,12 @@ async function signInFlow({ page, shot, count, dialogs }) {
   check('free: a 4th plan is refused, with the reason', dialogs.some((d) => d.includes('The free version keeps 3 saved routines')) && (await page.getByLabel('Name this routine').count()) === 0);
   await page.getByRole('tab', { name: 'Log' }).click();
   await page.waitForTimeout(400);
+  await openRoutines(page);
   for (const plan of ['1 - Upper A', '2 - Lower A', '3 - Upper B']) {
     await page.getByRole('button', { name: `Delete ${plan} routine` }).click();
     await page.waitForTimeout(400);
   }
+  await closeRoutines(page);
   check('plans can be deleted to make room', (await plansNow()) === 2);
   await page.getByRole('tab', { name: 'History' }).click();
   await page.waitForTimeout(500);
